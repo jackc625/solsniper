@@ -58,12 +58,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Operations
 
-- [ ] **OPS-01**: Bot uses structured JSON logging via pino with trade IDs threading all related log entries
-- [ ] **OPS-02**: Bot logs latency for every significant operation (detection, safety checks, transaction send, confirmation)
+- [x] **OPS-01**: Bot uses structured JSON logging via pino with trade IDs threading all related log entries
+- [x] **OPS-02**: Bot logs latency for every significant operation (detection, safety checks, transaction send, confirmation)
 - [ ] **OPS-03**: RPC manager supports primary + backup providers with automatic failover
 - [ ] **OPS-04**: Bot loads wallet private key from environment variable, never logs it
 - [ ] **OPS-05**: Bot handles graceful shutdown on SIGTERM/SIGINT (close WebSockets, flush logs, persist state)
-- [ ] **OPS-06**: Configuration loaded from .env file with validation via zod at startup
+- [x] **OPS-06**: Configuration loaded from .env file with validation via zod at startup
 
 ### Dashboard
 
@@ -154,12 +154,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PER-03 | Phase 6 | Pending |
 | PER-04 | Phase 4 | Pending |
 | PER-05 | Phase 6 | Pending |
-| OPS-01 | Phase 1 | Pending |
-| OPS-02 | Phase 1 | Pending |
+| OPS-01 | Phase 1 | Complete |
+| OPS-02 | Phase 1 | Complete |
 | OPS-03 | Phase 1 | Pending |
 | OPS-04 | Phase 1 | Pending |
 | OPS-05 | Phase 1 | Pending |
-| OPS-06 | Phase 1 | Pending |
+| OPS-06 | Phase 1 | Complete |
 | DASH-01 | Phase 8 | Pending |
 | DASH-02 | Phase 8 | Pending |
 | DASH-03 | Phase 8 | Pending |
