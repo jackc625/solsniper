@@ -1,0 +1,8 @@
+{
+  "buyAmountSol": 0.01,
+  "maxSlippageBps": 1000,
+  "maxConcurrentPositions": 3,
+  "stopLossPct": -50,
+  "takeProfitPct": 300,
+  "minSafetyScore": 60
+}
