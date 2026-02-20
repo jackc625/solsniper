@@ -1,7 +1,11 @@
 // Shared TypeScript types for SolSniper
-// This file will be populated in subsequent plans with:
-// - RpcManagerEvents (Plan 02)
-// - TokenInfo, SafetyScore (Plan 03)
-// - Position, Trade types (Plan 04+)
 
-export type {};
+// Plan 02: RPC manager event types
+export interface RpcManagerEvents {
+  failover: (data: { from: string; to: string; reason: string; consecutiveFailures: number }) => void;
+  recovered: (data: { endpoint: string }) => void;
+  degraded: (data: { endpoint: string; consecutiveFailures: number }) => void;
+}
+
+// Plan 03+: TokenInfo, SafetyScore
+// Plan 04+: Position, Trade types
