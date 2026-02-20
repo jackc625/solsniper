@@ -33,11 +33,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. RPC manager connects to primary Helius endpoint and falls over to backup provider when primary fails, with automatic recovery when primary returns
   4. Private key loads from environment variable and never appears in any log output at any verbosity level
   5. Bot handles SIGTERM/SIGINT by closing connections, flushing logs, and exiting cleanly within 5 seconds
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Scaffold project, config validation (env + config.json), structured logging with trade ID threading
+- [ ] 01-02-PLAN.md — RPC manager with failover/events, wallet security, graceful shutdown, entry point wiring
 
 ### Phase 2: Token Detection
 **Goal**: Bot receives real-time notification of every new token launch on Pump.fun and every new Raydium pool creation, without missing events due to connection drops
