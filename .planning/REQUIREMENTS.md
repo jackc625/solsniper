@@ -120,58 +120,58 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DET-01 | — | Pending |
-| DET-02 | — | Pending |
-| DET-03 | — | Pending |
-| DET-04 | — | Pending |
-| DET-05 | — | Pending |
-| SAF-01 | — | Pending |
-| SAF-02 | — | Pending |
-| SAF-03 | — | Pending |
-| SAF-04 | — | Pending |
-| SAF-05 | — | Pending |
-| SAF-06 | — | Pending |
-| SAF-07 | — | Pending |
-| SAF-08 | — | Pending |
-| SAF-09 | — | Pending |
-| EXE-01 | — | Pending |
-| EXE-02 | — | Pending |
-| EXE-03 | — | Pending |
-| EXE-04 | — | Pending |
-| EXE-05 | — | Pending |
-| EXE-06 | — | Pending |
-| EXE-07 | — | Pending |
-| EXE-08 | — | Pending |
-| EXE-09 | — | Pending |
-| POS-01 | — | Pending |
-| POS-02 | — | Pending |
-| POS-03 | — | Pending |
-| POS-04 | — | Pending |
-| POS-05 | — | Pending |
-| POS-06 | — | Pending |
-| PER-01 | — | Pending |
-| PER-02 | — | Pending |
-| PER-03 | — | Pending |
-| PER-04 | — | Pending |
-| PER-05 | — | Pending |
-| OPS-01 | — | Pending |
-| OPS-02 | — | Pending |
-| OPS-03 | — | Pending |
-| OPS-04 | — | Pending |
-| OPS-05 | — | Pending |
-| OPS-06 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| DASH-03 | — | Pending |
-| DASH-04 | — | Pending |
-| DASH-05 | — | Pending |
-| DASH-06 | — | Pending |
+| DET-01 | Phase 2 | Pending |
+| DET-02 | Phase 2 | Pending |
+| DET-03 | Phase 2 | Pending |
+| DET-04 | Phase 2 | Pending |
+| DET-05 | Phase 2 | Pending |
+| SAF-01 | Phase 3 | Pending |
+| SAF-02 | Phase 3 | Pending |
+| SAF-03 | Phase 3 | Pending |
+| SAF-04 | Phase 3 | Pending |
+| SAF-05 | Phase 3 | Pending |
+| SAF-06 | Phase 3 | Pending |
+| SAF-07 | Phase 3 | Pending |
+| SAF-08 | Phase 3 | Pending |
+| SAF-09 | Phase 3 | Pending |
+| EXE-01 | Phase 5 | Pending |
+| EXE-02 | Phase 5 | Pending |
+| EXE-03 | Phase 5 | Pending |
+| EXE-04 | Phase 5 | Pending |
+| EXE-05 | Phase 5 | Pending |
+| EXE-06 | Phase 5 | Pending |
+| EXE-07 | Phase 5 | Pending |
+| EXE-08 | Phase 5 | Pending |
+| EXE-09 | Phase 5 | Pending |
+| POS-01 | Phase 7 | Pending |
+| POS-02 | Phase 7 | Pending |
+| POS-03 | Phase 7 | Pending |
+| POS-04 | Phase 7 | Pending |
+| POS-05 | Phase 7 | Pending |
+| POS-06 | Phase 7 | Pending |
+| PER-01 | Phase 4 | Pending |
+| PER-02 | Phase 4 | Pending |
+| PER-03 | Phase 6 | Pending |
+| PER-04 | Phase 4 | Pending |
+| PER-05 | Phase 6 | Pending |
+| OPS-01 | Phase 1 | Pending |
+| OPS-02 | Phase 1 | Pending |
+| OPS-03 | Phase 1 | Pending |
+| OPS-04 | Phase 1 | Pending |
+| OPS-05 | Phase 1 | Pending |
+| OPS-06 | Phase 1 | Pending |
+| DASH-01 | Phase 8 | Pending |
+| DASH-02 | Phase 8 | Pending |
+| DASH-03 | Phase 8 | Pending |
+| DASH-04 | Phase 8 | Pending |
+| DASH-05 | Phase 8 | Pending |
+| DASH-06 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 45 total
-- Mapped to phases: 0
-- Unmapped: 45
+- v1 requirements: 46 total
+- Mapped to phases: 46
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after initial definition*
+*Last updated: 2026-02-20 after roadmap creation (traceability mapped)*
