@@ -12,7 +12,7 @@ SolSniper is built as a reactive pipeline: foundation utilities first, then dete
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Operations** - Config, logging, RPC manager, resilient WebSocket, wallet security, graceful shutdown
+- [x] **Phase 1: Foundation & Operations** - Config, logging, RPC manager, resilient WebSocket, wallet security, graceful shutdown (completed 2026-02-20)
 - [ ] **Phase 2: Token Detection** - PumpPortal and Raydium WebSocket listeners with auto-reconnect and heartbeat
 - [ ] **Phase 3: Safety Pipeline** - Parallel tiered safety checks with aggregate scoring and threshold enforcement
 - [ ] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention
@@ -151,7 +151,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Operations | 1/2 | In Progress|  |
+| 1. Foundation & Operations | 2/2 | Complete   | 2026-02-20 |
 | 2. Token Detection | 0/1 | Not started | - |
 | 3. Safety Pipeline | 0/2 | Not started | - |
 | 4. Trade Persistence | 0/1 | Not started | - |

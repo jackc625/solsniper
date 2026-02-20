@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 1: Foundation & Operations
+**Current focus:** Phase 2: Token Detection (Phase 1 complete)
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation & Operations)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-20 -- Plan 01 complete (scaffold + config validation + logger)
+Phase: 1 of 8 (Foundation & Operations) - COMPLETE
+Plan: 2 of 2 in current phase - COMPLETE
+Status: Phase 1 complete, ready for Phase 2
+Last activity: 2026-02-20 -- Plan 02 complete (RPC manager + wallet + entry point)
 
-Progress: [█░░░░░░░░░] 6%
+Progress: [██░░░░░░░░] 13%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 17 min
-- Total execution time: 0.3 hours
+- Total plans completed: 2
+- Average duration: 19.5 min
+- Total execution time: 0.65 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-operations | 1/2 | 17 min | 17 min |
+| 01-foundation-operations | 2/2 | 39 min | 19.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 17 min
-- Trend: baseline
+- Last 5 plans: 17 min, 22 min
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -50,6 +50,8 @@ Recent decisions affecting current work:
 - [01-01]: debug default log level in dev (not trace -- too verbose for daily debugging)
 - [01-01]: withLatency always logs latency with no threshold gate -- complete dataset more useful than selective
 - [01-01]: Pino serializer strips keys containing PRIVATE_KEY or SECRET for belt-and-suspenders OPS-04 protection
+- [Phase 01-02]: Named import from eventemitter3 { EventEmitter } not default import -- default causes TS2507 constructor error with Node16 module resolution
+- [Phase 01-02]: vitest.config.ts loads .env via dotenv + sets NODE_ENV=development -- env.ts calls process.exit(1) on validation failure, so test environment must supply valid values
 
 ### Pending Todos
 
@@ -63,5 +65,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 01-01-PLAN.md (scaffold + config validation + pino logger)
-Resume file: .planning/phases/01-foundation-operations/01-02-PLAN.md
+Stopped at: Completed 01-02-PLAN.md (RPC manager + wallet + entry point)
+Resume file: .planning/phases/02-token-detection/02-01-PLAN.md
