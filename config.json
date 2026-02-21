@@ -4,5 +4,14 @@
   "maxConcurrentPositions": 3,
   "stopLossPct": -50,
   "takeProfitPct": 300,
-  "minSafetyScore": 60
+  "minSafetyScore": 60,
+  "detection": {
+    "wsHeartbeatIntervalMs": 30000,
+    "wsBaseBackoffMs": 3000,
+    "wsMaxBackoffMs": 60000,
+    "wsExcessiveReconnectThreshold": 5,
+    "wsExcessiveReconnectWindowMs": 600000,
+    "statsIntervalMs": 900000,
+    "dedupWindowMs": 3600000
+  }
 }

@@ -7,6 +7,9 @@ const EnvSchema = z.object({
   SOLSNIPER_PRIVATE_KEY: z.string().min(32, 'Private key too short — must be a valid base58 encoded key'),
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('debug'),
+  // Detection source toggles — deployment-time switches, not trading parameters
+  PUMPPORTAL_ENABLED: z.coerce.boolean().default(true),
+  RAYDIUM_ENABLED: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

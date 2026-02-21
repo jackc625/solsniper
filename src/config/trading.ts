@@ -2,6 +2,16 @@ import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
 
+const DetectionConfigSchema = z.object({
+  wsHeartbeatIntervalMs: z.number().int().positive().default(30000),
+  wsBaseBackoffMs: z.number().int().positive().default(3000),
+  wsMaxBackoffMs: z.number().int().positive().default(60000),
+  wsExcessiveReconnectThreshold: z.number().int().positive().default(5),
+  wsExcessiveReconnectWindowMs: z.number().int().positive().default(600000),
+  statsIntervalMs: z.number().int().positive().default(900000),
+  dedupWindowMs: z.number().int().positive().default(3600000),
+});
+
 const TradingConfigSchema = z.object({
   buyAmountSol: z.number().positive().max(10),
   maxSlippageBps: z.number().int().min(50).max(4900),
@@ -9,6 +19,7 @@ const TradingConfigSchema = z.object({
   stopLossPct: z.number().negative(),
   takeProfitPct: z.number().positive(),
   minSafetyScore: z.number().int().min(0).max(100),
+  detection: DetectionConfigSchema,
 });
 
 export type TradingConfig = z.infer<typeof TradingConfigSchema>;
