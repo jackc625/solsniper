@@ -5,13 +5,18 @@ import { env } from './config/env.js';
 import { tradingConfig } from './config/trading.js';
 import { logger, createModuleLogger } from './core/logger.js';
 import { RpcManager } from './core/rpc-manager.js';
+import { DetectionManager } from './detection/detection-manager.js';
 import { getWalletPublicKey } from './utils/wallet.js';
 
 const log = createModuleLogger('main');
 
 let isShuttingDown = false;
 
-async function shutdown(signal: string, rpcManager: RpcManager): Promise<void> {
+async function shutdown(
+  signal: string,
+  rpcManager: RpcManager,
+  detectionManager: DetectionManager
+): Promise<void> {
   if (isShuttingDown) return; // Prevent double-shutdown
   isShuttingDown = true;
 
@@ -27,7 +32,9 @@ async function shutdown(signal: string, rpcManager: RpcManager): Promise<void> {
     // 1. Close RPC health check timers
     rpcManager.close();
 
-    // 2. Phase 2+: close WebSocket listeners
+    // 2. Close detection listeners (WebSocket + onLogs subscriptions)
+    await detectionManager.stop();
+
     // 3. Phase 4+: flush SQLite writes
 
     // 4. Flush pino logger (ensures buffered logs written)
@@ -60,17 +67,19 @@ async function main(): Promise<void> {
   // 4. Log trading config (safe — no secrets)
   log.info({ tradingConfig }, 'Trading configuration loaded');
 
-  // 5. Register shutdown handlers
-  const handler = (signal: string) => { shutdown(signal, rpcManager); };
+  // 5. Initialize detection manager
+  const detectionManager = new DetectionManager(env, tradingConfig, rpcManager.getConnection());
+  detectionManager.on('token', (event) => {
+    // Phase 3+: pass to safety pipeline
+    log.debug({ mint: event.mint }, 'Token event received by main — awaiting safety pipeline (Phase 3)');
+  });
+  detectionManager.start();
+  log.info('Detection manager started');
+
+  // 6. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
-
-  log.info('SolSniper ready — waiting for Phase 2 (detection) to be implemented');
-
-  // Keep the event loop alive until Phase 2 adds real listeners (WebSocket, etc.)
-  const keepalive = setInterval(() => {}, 60_000);
-  process.once('SIGTERM', () => clearInterval(keepalive));
-  process.once('SIGINT', () => clearInterval(keepalive));
 }
 
 main().catch((err) => {
