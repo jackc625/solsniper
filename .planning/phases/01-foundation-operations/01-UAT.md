@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 01-foundation-operations
 source: 01-01-SUMMARY.md, 01-02-SUMMARY.md
 started: 2026-02-21T00:00:00Z
@@ -57,7 +57,10 @@ skipped: 0
   reason: "User reported: Bot currently does not staying running long enough to even press Ctrl+C. The bot instantly exits with a code 1 currently. All init logs appear correctly but process terminates immediately after."
   severity: major
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "main() in src/index.ts completes and nothing keeps the Node.js event loop alive. RPC recovery polling only starts after failures. Signal handlers (process.on SIGTERM/SIGINT) do not prevent the event loop from draining. Once main() resolves, Node exits, and the .catch() handler logs 'Fatal startup error' with exit(1)."
+  artifacts:
+    - path: "src/index.ts"
+      issue: "main() has no keepalive mechanism — event loop drains after init completes"
+  missing:
+    - "Add a keepalive mechanism (e.g., setInterval with .unref() replaced by a ref'd interval, or a simple blocking Promise) at end of main() to keep the process running until Phase 2 adds real listeners"
   debug_session: ""
