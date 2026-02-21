@@ -66,7 +66,11 @@ async function main(): Promise<void> {
   process.on('SIGINT', () => handler('SIGINT'));
 
   log.info('SolSniper ready — waiting for Phase 2 (detection) to be implemented');
-  // Phase 2+: start detection listeners, position monitor, etc.
+
+  // Keep the event loop alive until Phase 2 adds real listeners (WebSocket, etc.)
+  const keepalive = setInterval(() => {}, 60_000);
+  process.once('SIGTERM', () => clearInterval(keepalive));
+  process.once('SIGINT', () => clearInterval(keepalive));
 }
 
 main().catch((err) => {
