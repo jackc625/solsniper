@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 2: Token Detection (Phase 1 complete)
+**Current focus:** Phase 2: Token Detection (Plan 1 complete, Plan 2 next)
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation & Operations) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
-Status: Phase 1 complete, ready for Phase 2
-Last activity: 2026-02-20 -- Plan 02 complete (RPC manager + wallet + entry point)
+Phase: 2 of 8 (Token Detection)
+Plan: 1 of 4 in current phase - COMPLETE
+Status: Phase 2 Plan 1 complete, ready for Plan 2 (PumpPortal listener)
+Last activity: 2026-02-21 -- Plan 02-01 complete (ResilientWebSocket + types + config)
 
-Progress: [██░░░░░░░░] 13%
+Progress: [███░░░░░░░] 19%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 19.5 min
-- Total execution time: 0.65 hours
+- Total plans completed: 3
+- Average duration: 15.3 min
+- Total execution time: 0.71 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-operations | 2/2 | 39 min | 19.5 min |
+| 02-token-detection | 1/4 | 7 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 17 min, 22 min
-- Trend: stable
+- Last 5 plans: 17 min, 22 min, 7 min
+- Trend: fast (simple infrastructure task)
 
 *Updated after each plan completion*
 
@@ -52,6 +53,10 @@ Recent decisions affecting current work:
 - [01-01]: Pino serializer strips keys containing PRIVATE_KEY or SECRET for belt-and-suspenders OPS-04 protection
 - [Phase 01-02]: Named import from eventemitter3 { EventEmitter } not default import -- default causes TS2507 constructor error with Node16 module resolution
 - [Phase 01-02]: vitest.config.ts loads .env via dotenv + sets NODE_ENV=development -- env.ts calls process.exit(1) on validation failure, so test environment must supply valid values
+- [02-01]: vi.hoisted() required for MockWebSocket in vi.mock factory -- vitest hoists vi.mock calls before imports, causing TDZ errors if mock class declared at module scope
+- [02-01]: Heartbeat silence detection uses >= (not >) so stale detection fires precisely at 2x interval tick
+- [02-01]: ws is a runtime dependency (not devDep) -- ResilientWebSocket is production code
+- [02-01]: Detection toggles (PUMPPORTAL_ENABLED, RAYDIUM_ENABLED) are env vars not config.json -- deployment-time switches belong in env
 
 ### Pending Todos
 
@@ -64,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Completed 01-02-PLAN.md (RPC manager + wallet + entry point)
-Resume file: .planning/phases/02-token-detection/02-01-PLAN.md
+Last session: 2026-02-21
+Stopped at: Completed 02-01-PLAN.md (ResilientWebSocket + detection types + env config)
+Resume file: .planning/phases/02-token-detection/02-02-PLAN.md

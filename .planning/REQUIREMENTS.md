@@ -11,9 +11,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **DET-01**: Bot detects new token creation on Pump.fun via PumpPortal WebSocket in real-time
 - [ ] **DET-02**: Bot detects new Raydium pool creation via Solana RPC logsSubscribe
-- [ ] **DET-03**: WebSocket connections auto-reconnect with exponential backoff on disconnect
-- [ ] **DET-04**: WebSocket wrapper detects silent connection death via heartbeat pings (15-30s interval)
-- [ ] **DET-05**: Bot logs every reconnection event with counter and alerts on excessive reconnections
+- [x] **DET-03**: WebSocket connections auto-reconnect with exponential backoff on disconnect
+- [x] **DET-04**: WebSocket wrapper detects silent connection death via heartbeat pings (15-30s interval)
+- [x] **DET-05**: Bot logs every reconnection event with counter and alerts on excessive reconnections
 
 ### Safety
 
@@ -122,9 +122,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DET-01 | Phase 2 | Pending |
 | DET-02 | Phase 2 | Pending |
-| DET-03 | Phase 2 | Pending |
-| DET-04 | Phase 2 | Pending |
-| DET-05 | Phase 2 | Pending |
+| DET-03 | Phase 2 | Complete |
+| DET-04 | Phase 2 | Complete |
+| DET-05 | Phase 2 | Complete |
 | SAF-01 | Phase 3 | Pending |
 | SAF-02 | Phase 3 | Pending |
 | SAF-03 | Phase 3 | Pending |
