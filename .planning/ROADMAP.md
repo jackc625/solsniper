@@ -49,10 +49,11 @@ Plans:
   3. When a WebSocket connection drops (network interruption, server disconnect), the bot reconnects automatically with exponential backoff and resumes receiving events without manual intervention
   4. Bot detects silent WebSocket connection death (no data, no close event) via heartbeat pings and triggers reconnection within 30 seconds of last received message
   5. Every reconnection event is logged with a reconnection counter; excessive reconnections (configurable threshold) trigger a warning log
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — ResilientWebSocket base class, detection config/env vars, TokenEvent types
+- [ ] 02-02-PLAN.md — PumpPortal listener, Raydium/PumpSwap listener, DetectionManager, bot lifecycle wiring
 
 ### Phase 3: Safety Pipeline
 **Goal**: Bot evaluates every detected token against a multi-tiered safety pipeline and only allows buying tokens that pass a configurable safety score threshold
@@ -152,7 +153,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Operations | 2/2 | Complete   | 2026-02-20 |
-| 2. Token Detection | 0/1 | Not started | - |
+| 2. Token Detection | 0/2 | Not started | - |
 | 3. Safety Pipeline | 0/2 | Not started | - |
 | 4. Trade Persistence | 0/1 | Not started | - |
 | 5. Execution Engine | 0/3 | Not started | - |
