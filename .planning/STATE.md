@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 2: Token Detection (Plan 1 complete, Plan 2 next)
+**Current focus:** Phase 2: Token Detection (Plan 2 complete, Plan 3 next)
 
 ## Current Position
 
 Phase: 2 of 8 (Token Detection)
-Plan: 1 of 4 in current phase - COMPLETE
-Status: Phase 2 Plan 1 complete, ready for Plan 2 (PumpPortal listener)
-Last activity: 2026-02-21 -- Plan 02-01 complete (ResilientWebSocket + types + config)
+Plan: 2 of 4 in current phase - COMPLETE
+Status: Phase 2 Plan 2 complete, ready for Plan 3 (detection testing/hardening)
+Last activity: 2026-02-21 -- Plan 02-02 complete (PumpPortal + Raydium listeners + DetectionManager)
 
-Progress: [███░░░░░░░] 19%
+Progress: [████░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -28,11 +28,11 @@ Progress: [███░░░░░░░] 19%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-operations | 2/2 | 39 min | 19.5 min |
-| 02-token-detection | 1/4 | 7 min | 7 min |
+| 02-token-detection | 2/4 | 13 min | 6.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 17 min, 22 min, 7 min
-- Trend: fast (simple infrastructure task)
+- Last 5 plans: 17 min, 22 min, 7 min, 6 min
+- Trend: fast (detection implementation tasks)
 
 *Updated after each plan completion*
 
@@ -57,6 +57,10 @@ Recent decisions affecting current work:
 - [02-01]: Heartbeat silence detection uses >= (not >) so stale detection fires precisely at 2x interval tick
 - [02-01]: ws is a runtime dependency (not devDep) -- ResilientWebSocket is production code
 - [02-01]: Detection toggles (PUMPPORTAL_ENABLED, RAYDIUM_ENABLED) are env vars not config.json -- deployment-time switches belong in env
+- [Phase 02-02]: connection.onLogs() requires PublicKey (not string) as filter — LogsFilter type excludes raw strings
+- [Phase 02-02]: vi.fn() class field in vi.hoisted() is instance property not on prototype — export shared spy ref, clear in beforeEach, assert on ref directly
+- [Phase 02-02]: PumpSwap mint extraction uses defensive account scan (first non-SOL, non-program addr) — account layout unknown until first live detection
+- [Phase 02-02]: Dedup uses Map<string, number> (mint -> timestamp) not Set — enables age-based eviction to prevent unbounded growth
 
 ### Pending Todos
 
@@ -70,5 +74,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 02-01-PLAN.md (ResilientWebSocket + detection types + env config)
-Resume file: .planning/phases/02-token-detection/02-02-PLAN.md
+Stopped at: Completed 02-02-PLAN.md (PumpPortal + Raydium listeners + DetectionManager)
+Resume file: .planning/phases/02-token-detection/02-03-PLAN.md
