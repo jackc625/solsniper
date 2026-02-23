@@ -65,11 +65,12 @@ Plans:
   3. Bot hard-blocks any token that has no valid sell route via Jupiter quote simulation
   4. All three Tier 1 checks (mint authority, freeze authority, sell simulation) complete in parallel in under 300ms for the typical case
   5. Bot computes an aggregate safety score incorporating Tier 1 hard checks, Tier 2 RugCheck and holder concentration data, and Tier 3 creator history analysis, and rejects tokens below a configurable threshold
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — Safety types, config, cache, blocklist, @solana/spl-token install, Tier 1 hard checks (authority + sell route) with TDD
+- [ ] 03-02-PLAN.md — Tier 2 RugCheck API + holder concentration, Tier 3 creator history with blocklist integration, TDD
+- [ ] 03-03-PLAN.md — SafetyPipeline orchestrator with aggregate scoring, soft blocks, caching, detailed logging, and index.ts wiring
 
 ### Phase 4: Trade Persistence
 **Goal**: Every trade intent and state transition is durably recorded in SQLite before any on-chain action occurs, preventing duplicate buys and enabling crash recovery
@@ -154,7 +155,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 |-------|----------------|--------|-----------|
 | 1. Foundation & Operations | 2/2 | Complete   | 2026-02-20 |
 | 2. Token Detection | 1/2 | In Progress|  |
-| 3. Safety Pipeline | 0/2 | Not started | - |
+| 3. Safety Pipeline | 0/3 | Not started | - |
 | 4. Trade Persistence | 0/1 | Not started | - |
 | 5. Execution Engine | 0/3 | Not started | - |
 | 6. Crash Recovery | 0/1 | Not started | - |
