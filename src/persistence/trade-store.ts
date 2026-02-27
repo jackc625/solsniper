@@ -44,6 +44,7 @@ export class TradeStore {
   private readonly stmtGetMonitoring: BetterSqlite3.Statement;
   private readonly stmtGetDetected: BetterSqlite3.Statement;
   private readonly stmtUpdateStateById: BetterSqlite3.Statement;
+  private readonly stmtSetMonitoringAmount: BetterSqlite3.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -110,6 +111,11 @@ export class TradeStore {
          updated_at    = @now,
          error_message = COALESCE(@error_message, error_message)
        WHERE id = @id AND state = @expectedState`
+    );
+
+    this.stmtSetMonitoringAmount = this.db.prepare(
+      `UPDATE trades SET amount_tokens = @amount_tokens, updated_at = @now
+       WHERE mint = @mint AND state = 'MONITORING'`
     );
 
     // Rebuild the active Set from any non-terminal rows left in the DB.
@@ -212,6 +218,22 @@ export class TradeStore {
    */
   getMonitoringTrades(): Trade[] {
     return (this.stmtGetMonitoring.all() as Record<string, unknown>[]).map(r => this.mapRow(r));
+  }
+
+  /**
+   * Updates amount_tokens for a MONITORING trade without state transition.
+   * Used by PositionManager to backfill token amounts for PumpPortal trades
+   * (which enter MONITORING with amountTokens = undefined).
+   *
+   * Returns number of rows changed (0 if trade not in MONITORING state).
+   */
+  updateMonitoringAmount(mint: string, amountTokens: number): number {
+    const result = this.stmtSetMonitoringAmount.run({
+      mint,
+      amount_tokens: amountTokens,
+      now: Date.now(),
+    });
+    return result.changes;
   }
 
   /**
