@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T21:57:44.661Z"
+last_updated: "2026-02-27T22:07:30.474Z"
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 23
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 8 of 8 (Web Dashboard) - IN PROGRESS
-Plan: 3 of 5 in current phase - COMPLETE
-Status: Phase 8 Plan 03 complete — Preact+Vite SPA frontend: three-tab layout, SSE LiveFeed, Performance table, Settings form, dashboard/dist/ compiled
-Last activity: 2026-02-27 -- Plan 08-03 complete (Preact+Vite scaffold, store primitives, Header/LiveFeed/Performance/Settings components, pnpm build:dashboard)
+Plan: 4 of 5 in current phase - COMPLETE
+Status: Phase 8 Plan 04 complete — BotEvent wiring into ExecutionEngine/SellLadder/SafetyPipeline; Fastify dashboard server integrated into main() startup/shutdown lifecycle
+Last activity: 2026-02-27 -- Plan 08-04 complete (BotEvents flowing through bus; dashboard server starts at step 12.5 on 127.0.0.1:DASHBOARD_PORT; TOKEN_DETECTED/BUY_*/SELL_*/ERROR all emitting)
 
-Progress: [█████████░] 91% (21/23 plans complete)
+Progress: [█████████░] 96% (22/23 plans complete)
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [█████████░] 91% (21/23 plans complete)
 | Phase 08-web-dashboard P01 | 4 | 2 tasks | 4 files |
 | Phase 08-web-dashboard P02 | 6 | 2 tasks | 7 files |
 | Phase 08-web-dashboard P03 | 12 | 2 tasks | 12 files |
+| Phase 08-web-dashboard P04 | 5 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,7 @@ Recent decisions affecting current work:
 - [Phase 08-03]: dashboard/tsconfig.json separate from root tsconfig — targets browser (ES2020 DOM) with moduleResolution=bundler for Vite
 - [Phase 08-03]: EventSource registers listeners for both generic 'message' and each BotEventType — handles both SSE data= and event= field formats
 - [Phase 08-03]: Settings patch limited to known patchable fields only — avoids overwriting unknown config keys on POST /api/config
+- [Phase 08-web-dashboard]: BUY_SENT emitted before buy call so dashboard sees token at earliest possible moment; SELL_TRIGGERED before state transition; SafetyPipeline catch re-throws; TOKEN_DETECTED as first line in result.pass block
 
 ### Pending Todos
 
@@ -161,8 +163,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 08-03-PLAN.md (Preact+Vite SPA: scaffold, store signals, Header/LiveFeed/Performance/Settings components, pnpm build:dashboard)
+Last activity: 2026-02-27 - Completed 08-04-PLAN.md (BotEvent wiring + Fastify dashboard server integration complete)
 
 Last session: 2026-02-27
-Stopped at: Completed 08-03-PLAN.md (Preact+Vite dashboard SPA complete, dashboard/dist/ compiled, 178 bot tests passing)
-Resume file: .planning/phases/08-web-dashboard/08-04-PLAN.md
+Stopped at: Completed 08-04-PLAN.md (BotEvents wired, dashboard server integrated, all 178 tests passing)
+Resume file: .planning/phases/08-web-dashboard/08-05-PLAN.md
