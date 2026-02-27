@@ -39,6 +39,11 @@ export class TradeStore {
   private readonly stmtInsert: BetterSqlite3.Statement;
   private readonly stmtUpdateState: BetterSqlite3.Statement;
   private readonly stmtGetNonTerminal: BetterSqlite3.Statement;
+  private readonly stmtGetBuying: BetterSqlite3.Statement;
+  private readonly stmtGetSelling: BetterSqlite3.Statement;
+  private readonly stmtGetMonitoring: BetterSqlite3.Statement;
+  private readonly stmtGetDetected: BetterSqlite3.Statement;
+  private readonly stmtUpdateStateById: BetterSqlite3.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -78,6 +83,33 @@ export class TradeStore {
 
     this.stmtGetNonTerminal = this.db.prepare(
       `SELECT mint FROM trades WHERE state IN (${NON_TERMINAL_STATES.map(() => '?').join(',')})`
+    );
+
+    this.stmtGetBuying = this.db.prepare(
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message
+       FROM trades WHERE state = 'BUYING' ORDER BY updated_at DESC`
+    );
+
+    this.stmtGetSelling = this.db.prepare(
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message
+       FROM trades WHERE state = 'SELLING' ORDER BY updated_at DESC`
+    );
+
+    this.stmtGetMonitoring = this.db.prepare(
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens
+       FROM trades WHERE state = 'MONITORING' ORDER BY updated_at DESC`
+    );
+
+    this.stmtGetDetected = this.db.prepare(
+      `SELECT id, mint FROM trades WHERE state = 'DETECTED'`
+    );
+
+    this.stmtUpdateStateById = this.db.prepare(
+      `UPDATE trades SET
+         state         = @state,
+         updated_at    = @now,
+         error_message = COALESCE(@error_message, error_message)
+       WHERE id = @id AND state = @expectedState`
     );
 
     // Rebuild the active Set from any non-terminal rows left in the DB.
@@ -158,6 +190,75 @@ export class TradeStore {
   }
 
   /**
+   * Returns all trades currently in BUYING state.
+   * Ordered by updated_at DESC.
+   */
+  getBuyingTrades(): Trade[] {
+    return (this.stmtGetBuying.all() as Record<string, unknown>[]).map(r => this.mapRow(r));
+  }
+
+  /**
+   * Returns all trades currently in SELLING state.
+   * Ordered by updated_at DESC — most recently updated first, useful for
+   * duplicate-SELLING detection during crash recovery.
+   */
+  getSellingTrades(): Trade[] {
+    return (this.stmtGetSelling.all() as Record<string, unknown>[]).map(r => this.mapRow(r));
+  }
+
+  /**
+   * Returns all trades currently in MONITORING state.
+   * Ordered by updated_at DESC.
+   */
+  getMonitoringTrades(): Trade[] {
+    return (this.stmtGetMonitoring.all() as Record<string, unknown>[]).map(r => this.mapRow(r));
+  }
+
+  /**
+   * Returns all trades currently in DETECTED state (id + mint only).
+   */
+  getDetectedTrades(): Pick<Trade, 'id' | 'mint'>[] {
+    return this.stmtGetDetected.all() as Array<{ id: number; mint: string }>;
+  }
+
+  /**
+   * Id-precise state transition — for deduplicating multiple SELLING rows
+   * for the same mint during crash recovery.
+   *
+   * Uses the row id instead of mint+state in the WHERE clause, so callers
+   * can target a specific row when duplicates exist.
+   *
+   * Returns the number of rows changed (1 = success, 0 = optimistic lock miss).
+   * Removes the mint from activeMints when transitioning to a terminal state.
+   */
+  transitionById(
+    id: number,
+    mint: string,
+    from: TradeState,
+    to: TradeState,
+    extra: Partial<Pick<Trade, 'errorMessage'>> = {}
+  ): number {
+    const now = Date.now();
+    const result = this.stmtUpdateStateById.run({
+      id,
+      state: to,
+      now,
+      expectedState: from,
+      error_message: extra.errorMessage ?? null,
+    });
+    const changes = result.changes;
+    if (changes > 0 && TERMINAL_STATES.has(to)) {
+      this.activeMints.delete(mint);
+      log.debug({ id, mint, from, to }, 'transitionById: reached terminal state, removed from active set');
+    } else if (changes > 0) {
+      log.debug({ id, mint, from, to }, 'transitionById: non-terminal state update');
+    } else {
+      log.warn({ id, mint, from, to }, 'transitionById: optimistic lock miss (state or id mismatch)');
+    }
+    return changes;
+  }
+
+  /**
    * Flushes and closes the underlying SQLite database.
    */
   close(): void {
@@ -167,6 +268,18 @@ export class TradeStore {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  private mapRow(row: Record<string, unknown>): Trade {
+    return {
+      id: row['id'] as number,
+      mint: row['mint'] as string,
+      state: row['state'] as TradeState,
+      createdAt: row['created_at'] as number,
+      updatedAt: row['updated_at'] as number,
+      amountTokens: row['amount_tokens'] != null ? (row['amount_tokens'] as number) : undefined,
+      errorMessage: row['error_message'] != null ? (row['error_message'] as string) : undefined,
+    };
+  }
 
   private _rebuildActiveSet(): void {
     const rows = this.stmtGetNonTerminal.all(...NON_TERMINAL_STATES) as Array<{ mint: string }>;
