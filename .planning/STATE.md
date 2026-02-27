@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T20:32:45.643Z"
+last_updated: "2026-02-27T21:46:04.028Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
-  total_plans: 18
-  completed_plans: 18
+  total_plans: 23
+  completed_plans: 19
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: 7 of 8 (Position Management) - COMPLETE
-Plan: 3 of 3 in current phase - COMPLETE
-Status: Phase 7 Plan 03 complete — PositionManager wired into index.ts, POS-06 enforced, 178/178 tests passing
-Last activity: 2026-02-27 -- Plan 07-03 complete (index.ts wiring, position limit guard, shutdown teardown order)
+Phase: 8 of 8 (Web Dashboard) - IN PROGRESS
+Plan: 1 of 5 in current phase - COMPLETE
+Status: Phase 8 Plan 01 complete — Foundation contracts: getRuntimeConfig/patchRuntimeConfig, DASHBOARD_PORT/DASHBOARD_API_KEY env vars, BotEventBus singleton
+Last activity: 2026-02-27 -- Plan 08-01 complete (mutable runtime config, dashboard env vars, BotEventBus singleton)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 83% (19/23 plans complete)
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [██████████] 100%
 | Phase 06-crash-recovery P02 | 10 | 3 tasks | 3 files |
 | Phase 07-position-management P02 | 4 | 2 tasks | 2 files |
 | Phase 07-position-management P03 | 4 | 1 tasks | 1 files |
+| Phase 08-web-dashboard P01 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,9 @@ Recent decisions affecting current work:
 - [Phase 07-03]: PositionManager initialized before recovery but started after — start() must wait for recovered MONITORING trades to be in store
 - [Phase 07-03]: positionManager.stop() is first action in shutdown() — prevents new sell triggers while RPC connections still needed for in-flight sells
 - [Phase 07-03]: POS-06 guard placed before isActive() duplicate guard in token handler — position limit check is semantically prior
+- [Phase 08-web-dashboard]: patchRuntimeConfig shallow-merges updates via spread — callers must pass validated Partial<TradingConfig>
+- [Phase 08-web-dashboard]: botEventBus uses single event name 'event' with typed BotEvent payload — simpler than per-type event names for SSE listener registration
+- [Phase 08-web-dashboard]: DASHBOARD_API_KEY absent means auth disabled (opt-in security) — consistent with existing optional API keys pattern in env.ts
 
 ### Pending Todos
 
@@ -149,8 +153,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 07-03-PLAN.md (PositionManager wired into index.ts, POS-06 enforced, 178 tests passing)
+Last activity: 2026-02-27 - Completed 08-01-PLAN.md (foundation contracts: getRuntimeConfig/patchRuntimeConfig, dashboard env vars, BotEventBus singleton)
 
 Last session: 2026-02-27
-Stopped at: Completed 07-03-PLAN.md (PositionManager wired into index.ts, POS-06 enforced)
-Resume file: .planning/phases/08-dashboard/ (Phase 8 next — dashboard)
+Stopped at: Completed 08-01-PLAN.md (getRuntimeConfig/patchRuntimeConfig, DASHBOARD_PORT/DASHBOARD_API_KEY, BotEventBus singleton)
+Resume file: .planning/phases/08-web-dashboard/08-02-PLAN.md
