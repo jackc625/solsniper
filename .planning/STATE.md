@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T20:08:48Z"
+last_updated: "2026-02-27T20:19:30.723Z"
 progress:
-  total_phases: 8
+  total_phases: 7
   completed_phases: 6
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 18
+  completed_plans: 17
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 7 of 8 (Position Management) - IN PROGRESS
-Plan: 1 of N in current phase - COMPLETE
-Status: Phase 7 Plan 01 complete — TradingConfig positionManagement block, config.jsonc defaults, TradeStore.updateMonitoringAmount()
-Last activity: 2026-02-27 -- Plan 07-01 complete (PositionManagementConfigSchema, config.jsonc block, TradeStore backfill method)
+Plan: 2 of N in current phase - COMPLETE
+Status: Phase 7 Plan 02 complete — PositionManager class with all exit triggers (stop-loss, tiered TP, trailing stop), 16 unit tests
+Last activity: 2026-02-27 -- Plan 07-02 complete (PositionManager, 178 tests passing, zero regressions)
 
 Progress: [█████████░] 87%
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 87%
 |-------|-------|-------|----------|
 | 06-crash-recovery | 1/2 | 3 min | 3 min |
 | Phase 06-crash-recovery P02 | 10 | 3 tasks | 3 files |
+| Phase 07-position-management P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,9 @@ Recent decisions affecting current work:
 - [Phase 07-01]: Keep top-level stopLossPct and takeProfitPct in TradingConfigSchema — backward compat; positionManagement.stopLossPct is what PositionManager uses
 - [Phase 07-01]: Dedicated stmtSetMonitoringAmount for PumpPortal backfill — cleaner than reusing transition() for same-state MONITORING update
 - [Phase 07-01]: TierSchema at field is a price multiplier (2 = 2x entry value in SOL), pct is percent of remaining tokens to sell at that tier
+- [Phase 07-02]: fireSell() captures promise ref before void to allow .finally() cleanup while maintaining fire-and-forget semantics
+- [Phase 07-02]: Math.round() before BigInt() conversion for float amountTokens — SQLite stores amount_tokens as REAL
+- [Phase 07-02]: High watermark initialized to trade.amountSol (entry price) on first tick — prevents false trailing stop triggers on startup
 
 ### Pending Todos
 
@@ -141,8 +145,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 07-01-PLAN.md (PositionManagementConfigSchema, config.jsonc positionManagement block, TradeStore.updateMonitoringAmount())
+Last activity: 2026-02-27 - Completed 07-02-PLAN.md (PositionManager class with all exit triggers, 16 unit tests, 178 total passing)
 
 Last session: 2026-02-27
-Stopped at: Completed 07-01-PLAN.md (TradingConfig extended with positionManagement, TradeStore backfill method ready for PositionManager)
-Resume file: .planning/phases/07-position-management/ (07-02 next)
+Stopped at: Completed 07-02-PLAN.md (PositionManager implemented with stop-loss/tiered-TP/trailing-stop/backfill/sellsInFlight)
+Resume file: .planning/phases/07-position-management/ (07-03 next — index.ts wiring)
