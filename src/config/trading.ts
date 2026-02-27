@@ -62,6 +62,24 @@ const ExecutionConfigSchema = z.object({
 
 export type ExecutionConfig = z.infer<typeof ExecutionConfigSchema>;
 
+const TierSchema = z.object({
+  at: z.number().positive(),             // multiplier (e.g. 2 = 2x entry price)
+  pct: z.number().int().min(1).max(100), // percent of tokens to sell at this tier
+});
+
+const PositionManagementConfigSchema = z.object({
+  pollIntervalMs: z.number().int().positive().default(5000),
+  stopLossPct: z.number().negative().default(-50),
+  tieredTp: z.array(TierSchema).default([
+    { at: 2, pct: 33 },
+    { at: 5, pct: 33 },
+    { at: 10, pct: 34 },
+  ]),
+  trailingStopPct: z.number().min(0).max(100).default(0), // 0 = disabled
+});
+
+export type PositionManagementConfig = z.infer<typeof PositionManagementConfigSchema>;
+
 const TradingConfigSchema = z.object({
   buyAmountSol: z.number().positive().max(10),
   maxSlippageBps: z.number().int().min(50).max(4900),
@@ -72,6 +90,7 @@ const TradingConfigSchema = z.object({
   detection: DetectionConfigSchema,
   safety: SafetyConfigSchema,
   execution: ExecutionConfigSchema,
+  positionManagement: PositionManagementConfigSchema,
 });
 
 export type TradingConfig = z.infer<typeof TradingConfigSchema>;

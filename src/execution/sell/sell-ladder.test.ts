@@ -84,6 +84,12 @@ function makeTradingConfig(): TradingConfig {
         emergencyPriorityMultiplier: 10,
       },
     },
+    positionManagement: {
+      pollIntervalMs: 5000,
+      stopLossPct: -50,
+      tieredTp: [{ at: 2, pct: 33 }, { at: 5, pct: 33 }, { at: 10, pct: 34 }],
+      trailingStopPct: 0,
+    },
   };
 }
 
