@@ -17,15 +17,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Safety
 
-- [ ] **SAF-01**: Bot checks mint authority is null (revoked) before buying — hard block if present
-- [ ] **SAF-02**: Bot checks freeze authority is null before buying — hard block if present
-- [ ] **SAF-03**: Bot validates sell route exists via Jupiter quote simulation — hard block if no route
-- [ ] **SAF-04**: All Tier 1 checks (SAF-01, SAF-02, SAF-03) run in parallel via Promise.all, completing in <300ms
+- [x] **SAF-01**: Bot checks mint authority is null (revoked) before buying — hard block if present
+- [x] **SAF-02**: Bot checks freeze authority is null before buying — hard block if present
+- [x] **SAF-03**: Bot validates sell route exists via Jupiter quote simulation — hard block if no route
+- [x] **SAF-04**: All Tier 1 checks (SAF-01, SAF-02, SAF-03) run in parallel via Promise.all, completing in <300ms
 - [ ] **SAF-05**: Bot queries RugCheck.xyz API for token safety scoring (Tier 2, non-blocking)
 - [ ] **SAF-06**: Bot checks top holder concentration via getTokenLargestAccounts (Tier 2, async)
 - [ ] **SAF-07**: Bot analyzes creator wallet history for prior rugs via Helius parsed TX API (Tier 3, async)
-- [ ] **SAF-08**: Bot computes aggregate safety score from all check results
-- [ ] **SAF-09**: Bot enforces configurable minimum safety score threshold before buying
+- [x] **SAF-08**: Bot computes aggregate safety score from all check results
+- [x] **SAF-09**: Bot enforces configurable minimum safety score threshold before buying
 
 ### Execution
 
@@ -125,15 +125,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DET-03 | Phase 2 | Complete |
 | DET-04 | Phase 2 | Complete |
 | DET-05 | Phase 2 | Complete |
-| SAF-01 | Phase 3 | Pending |
-| SAF-02 | Phase 3 | Pending |
-| SAF-03 | Phase 3 | Pending |
-| SAF-04 | Phase 3 | Pending |
+| SAF-01 | Phase 3 | Complete |
+| SAF-02 | Phase 3 | Complete |
+| SAF-03 | Phase 3 | Complete |
+| SAF-04 | Phase 3 | Complete |
 | SAF-05 | Phase 3 | Pending |
 | SAF-06 | Phase 3 | Pending |
 | SAF-07 | Phase 3 | Pending |
-| SAF-08 | Phase 3 | Pending |
-| SAF-09 | Phase 3 | Pending |
+| SAF-08 | Phase 3 | Complete |
+| SAF-09 | Phase 3 | Complete |
 | EXE-01 | Phase 5 | Pending |
 | EXE-02 | Phase 5 | Pending |
 | EXE-03 | Phase 5 | Pending |

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 2: Token Detection (Plan 2 complete, Plan 3 next)
+**Current focus:** Phase 3: Safety Pipeline (Plan 1 complete, Plan 2 next)
 
 ## Current Position
 
-Phase: 2 of 8 (Token Detection)
-Plan: 2 of 4 in current phase - COMPLETE
-Status: Phase 2 Plan 2 complete, ready for Plan 3 (detection testing/hardening)
-Last activity: 2026-02-21 -- Plan 02-02 complete (PumpPortal + Raydium listeners + DetectionManager)
+Phase: 3 of 8 (Safety Pipeline)
+Plan: 1 of 4 in current phase - COMPLETE
+Status: Phase 3 Plan 1 complete, ready for Plan 2 (Tier 2: RugCheck + holder concentration)
+Last activity: 2026-02-26 -- Plan 03-01 complete (Tier 1 checks + shared safety infrastructure)
 
 Progress: [████░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 15.3 min
-- Total execution time: 0.71 hours
+- Total plans completed: 4
+- Average duration: 13.5 min
+- Total execution time: 0.90 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████░░░░░░] 25%
 |-------|-------|-------|----------|
 | 01-foundation-operations | 2/2 | 39 min | 19.5 min |
 | 02-token-detection | 2/4 | 13 min | 6.5 min |
+| 03-safety-pipeline | 1/4 | 6 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 17 min, 22 min, 7 min, 6 min
-- Trend: fast (detection implementation tasks)
+- Last 5 plans: 22 min, 7 min, 6 min, 6 min
+- Trend: fast (implementation tasks with clear specs)
 
 *Updated after each plan completion*
 
@@ -61,6 +62,10 @@ Recent decisions affecting current work:
 - [Phase 02-02]: vi.fn() class field in vi.hoisted() is instance property not on prototype — export shared spy ref, clear in beforeEach, assert on ref directly
 - [Phase 02-02]: PumpSwap mint extraction uses defensive account scan (first non-SOL, non-program addr) — account layout unknown until first live detection
 - [Phase 02-02]: Dedup uses Map<string, number> (mint -> timestamp) not Set — enables age-based eviction to prevent unbounded growth
+- [03-01]: checkAuthorities() uses single getMint() call for both mint and freeze authority checks -- 1 RPC round-trip satisfies SAF-04 parallelism
+- [03-01]: MockPublicKey in tests must be real valid base58 address -- PublicKey constructor validates encoding, fake strings throw "Invalid public key input"
+- [03-01]: vi.stubGlobal('fetch', mockFetch) used for Jupiter sell route tests -- simpler than vi.mock for global built-in mocking
+- [03-01]: SafetyConfigSchema nested inside TradingConfigSchema under 'safety' key -- all safety config in config.json per user decision
 
 ### Pending Todos
 
@@ -73,6 +78,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed 02-02-PLAN.md (PumpPortal + Raydium listeners + DetectionManager)
-Resume file: .planning/phases/02-token-detection/02-03-PLAN.md
+Last session: 2026-02-26
+Stopped at: Completed 03-01-PLAN.md (Tier 1 safety checks + shared infrastructure)
+Resume file: .planning/phases/03-safety-pipeline/03-02-PLAN.md
