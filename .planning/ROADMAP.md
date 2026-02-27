@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Execution Engine** - Jupiter and PumpPortal buy, sell escalation ladder with Jito bundles, multi-RPC broadcast (completed 2026-02-27)
 - [x] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart (completed 2026-02-27)
 - [x] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits (completed 2026-02-27)
-- [ ] **Phase 8: Web Dashboard** - Live trade feed via SSE, P&L tracking, filter configuration, in-process HTTP server
+- [x] **Phase 8: Web Dashboard** - Live trade feed via SSE, P&L tracking, filter configuration, in-process HTTP server (completed 2026-02-27)
 
 ## Phase Details
 
@@ -143,11 +143,14 @@ Plans:
   3. Operator can adjust safety filter thresholds and scoring weights through the dashboard UI, and changes take effect immediately without restarting the bot process
   4. Operator can adjust buy amount and maximum concurrent position limits through the dashboard UI, effective immediately
   5. Dashboard runs as an in-process HTTP server within the bot process (not a separate service), requiring no additional deployment or IPC configuration
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [x] 08-01-PLAN.md — BotEventBus contracts, TypeScript interfaces, env vars (DASHBOARD_PORT, DASHBOARD_API_KEY)
+- [x] 08-02-PLAN.md — Fastify HTTP server: SSE /events, /api/trades, /api/stats, /api/config, auth hook
+- [x] 08-03-PLAN.md — Preact+Vite SPA: Header bar, Live Feed, Performance, Settings tabs with dark terminal theme
+- [x] 08-04-PLAN.md — BotEvent emissions wired into ExecutionEngine, SellLadder, SafetyPipeline, index.ts lifecycle
+- [x] 08-05-PLAN.md — End-to-end human verification of dashboard: all tabs, SSE, Settings save, header stats confirmed
 
 ## Progress
 
@@ -163,4 +166,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
 | 6. Crash Recovery | 2/2 | Complete   | 2026-02-27 |
 | 7. Position Management | 3/3 | Complete   | 2026-02-27 |
-| 8. Web Dashboard | 4/5 | In Progress|  |
+| 8. Web Dashboard | 5/5 | Complete   | 2026-02-27 |
