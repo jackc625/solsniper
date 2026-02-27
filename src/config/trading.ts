@@ -2,6 +2,29 @@ import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
 
+const HolderConfigSchema = z.object({
+  top1SoftBlockThreshold: z.number().min(0).max(1).default(0.25),
+  top10SoftBlockThreshold: z.number().min(0).max(1).default(0.50),
+});
+
+const SafetyWeightsSchema = z.object({
+  rugCheck: z.number().int().min(0).max(100).default(40),
+  holder: z.number().int().min(0).max(100).default(30),
+  creator: z.number().int().min(0).max(100).default(30),
+});
+
+const SafetyConfigSchema = z.object({
+  tier2TimeoutMs: z.number().int().positive().default(2000),
+  tier3TimeoutMs: z.number().int().positive().default(5000),
+  cacheTtlMs: z.number().int().positive().default(300000),  // 5 minutes
+  weights: SafetyWeightsSchema,
+  holder: HolderConfigSchema,
+  rugCheckScoreInverted: z.boolean().default(true),  // true = RugCheck score is risk (higher=worse), invert for safety
+  blocklistPath: z.string().default('./data/creator-blocklist.json'),
+});
+
+export type SafetyConfig = z.infer<typeof SafetyConfigSchema>;
+
 const DetectionConfigSchema = z.object({
   wsHeartbeatIntervalMs: z.number().int().positive().default(30000),
   wsBaseBackoffMs: z.number().int().positive().default(3000),
@@ -20,6 +43,7 @@ const TradingConfigSchema = z.object({
   takeProfitPct: z.number().positive(),
   minSafetyScore: z.number().int().min(0).max(100),
   detection: DetectionConfigSchema,
+  safety: SafetyConfigSchema,
 });
 
 export type TradingConfig = z.infer<typeof TradingConfigSchema>;

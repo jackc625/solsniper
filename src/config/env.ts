@@ -10,6 +10,9 @@ const EnvSchema = z.object({
   // Detection source toggles — deployment-time switches, not trading parameters
   PUMPPORTAL_ENABLED: z.coerce.boolean().default(true),
   RAYDIUM_ENABLED: z.coerce.boolean().default(true),
+  // Safety pipeline API keys — optional, enable advanced checks when present
+  RUGCHECK_API_KEY: z.string().optional(),
+  HELIUS_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

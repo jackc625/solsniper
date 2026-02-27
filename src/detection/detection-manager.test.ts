@@ -75,6 +75,15 @@ function makeTradingConfig(overrides: Partial<TradingConfig['detection']> = {}):
       dedupWindowMs: 3600000,
       ...overrides,
     },
+    safety: {
+      tier2TimeoutMs: 2000,
+      tier3TimeoutMs: 5000,
+      cacheTtlMs: 300000,
+      weights: { rugCheck: 40, holder: 30, creator: 30 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50 },
+      rugCheckScoreInverted: true,
+      blocklistPath: './data/creator-blocklist.json',
+    },
   };
 }
 

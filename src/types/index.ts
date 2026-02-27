@@ -41,5 +41,23 @@ export interface ResilientWsConfig {
   excessiveReconnectWindowMs: number;
 }
 
-// Plan 03+: TokenInfo, SafetyScore
+// Phase 03: Safety pipeline types
+export interface CheckResult {
+  pass: boolean;
+  source: string;
+  score?: number;      // 0-100, higher = safer (only for scoring checks, not hard blocks)
+  detail: string;
+}
+
+export interface SafetyResult {
+  pass: boolean;
+  mint: string;
+  aggregateScore: number;   // 0-100
+  tier1: CheckResult[];
+  tier2: CheckResult[];
+  tier3: CheckResult[];
+  rejectionReasons: string[];
+  durationMs: number;
+}
+
 // Plan 04+: Position, Trade types
