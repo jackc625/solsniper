@@ -61,3 +61,27 @@ export interface SafetyResult {
 }
 
 // Plan 04+: Position, Trade types
+
+export type TradeState =
+  | 'DETECTED'
+  | 'BUYING'
+  | 'MONITORING'
+  | 'SELLING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'ABANDONED';
+
+export interface Trade {
+  id: number;
+  mint: string;
+  state: TradeState;
+  createdAt: number;      // Unix ms (INTEGER column)
+  updatedAt: number;      // Unix ms
+  buySignature?: string;
+  sellSignature?: string;
+  amountSol?: number;
+  amountTokens?: number;
+  buyPriceSol?: number;
+  sellPriceSol?: number;
+  errorMessage?: string;
+}
