@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
 import { configSignal, fetchConfig, saveConfig } from '../store/config.js';
-import { useSignal } from '@preact/signals';
 
 const INPUT_STYLE: Record<string, string> = {
   background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)',
@@ -13,7 +12,6 @@ const LABEL_STYLE: Record<string, string> = {
 };
 
 export function Settings() {
-  const cfg = useSignal(configSignal);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -24,8 +22,8 @@ export function Settings() {
 
   useEffect(() => {
     // Sync draft from signal when config loads
-    setDraft(cfg.value as Record<string, unknown>);
-  }, [cfg.value]);
+    setDraft(configSignal.value as Record<string, unknown>);
+  }, [configSignal.value]);
 
   const set = (path: string[], value: unknown) => {
     setDraft((prev) => {

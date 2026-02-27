@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { feedEvents, connectFeed, type FeedEvent } from '../store/feed.js';
-import { useSignal } from '@preact/signals';
 
 const BADGE_COLORS: Record<string, string> = {
   TOKEN_DETECTED: 'var(--gray)',
@@ -38,7 +37,6 @@ function FeedRow({ event }: { event: FeedEvent }) {
 export function LiveFeed() {
   const listRef = useRef<HTMLDivElement>(null);
   const [isLive, setIsLive] = useState(true);
-  const events = useSignal(feedEvents);
 
   // Connect SSE on mount
   useEffect(() => {
@@ -51,7 +49,7 @@ export function LiveFeed() {
     if (isLive && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [events.value, isLive]);
+  }, [feedEvents.value, isLive]);
 
   const handleScroll = () => {
     const el = listRef.current;
@@ -81,12 +79,12 @@ export function LiveFeed() {
         onScroll={handleScroll}
         style={{ flex: 1, overflowY: 'auto', fontFamily: 'var(--mono)' }}
       >
-        {events.value.length === 0 && (
+        {feedEvents.value.length === 0 && (
           <div style={{ padding: '2rem', color: 'var(--gray)', textAlign: 'center' }}>
             Waiting for events...
           </div>
         )}
-        {events.value.map((e, i) => <FeedRow key={`${e.ts}-${i}`} event={e} />)}
+        {feedEvents.value.map((e, i) => <FeedRow key={`${e.ts}-${i}`} event={e} />)}
       </div>
     </div>
   );
