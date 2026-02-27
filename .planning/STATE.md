@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-last_updated: "2026-02-27T03:43:25Z"
+status: unknown
+last_updated: "2026-02-27T03:49:54.979Z"
 progress:
-  total_phases: 8
-  completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 9
+  completed_plans: 9
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 4: Trade Persistence (Plan 1 complete, Plan 2 next)
+**Current focus:** Phase 5: Trade Execution (Phase 4 complete)
 
 ## Current Position
 
-Phase: 4 of 8 (Trade Persistence)
-Plan: 1 of 1 in current phase - COMPLETE
-Status: Phase 4 Plan 1 complete, TradeStore implemented and tested
-Last activity: 2026-02-27 -- Plan 04-01 complete (TradeStore: synchronous SQLite persistence with in-memory duplicate guard, optimistic locking, crash-recovery Set rebuild)
+Phase: 4 of 8 (Trade Persistence) - COMPLETE
+Plan: 2 of 2 in current phase - COMPLETE
+Status: Phase 4 complete, TradeStore wired into src/index.ts end-to-end
+Last activity: 2026-02-27 -- Plan 04-02 complete (TradeStore wired into main(), token event handler, and shutdown(); duplicate guard and write-ahead enforced in production code path)
 
-Progress: [████████░░] 50%
+Progress: [████████░░] 56%
 
 ## Performance Metrics
 
@@ -43,10 +43,10 @@ Progress: [████████░░] 50%
 | 01-foundation-operations | 2/2 | 39 min | 19.5 min |
 | 02-token-detection | 2/4 | 13 min | 6.5 min |
 | 03-safety-pipeline | 3/4 | 17 min | 5.7 min |
-| 04-trade-persistence | 1/1 | 6 min | 6 min |
+| 04-trade-persistence | 2/2 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 6 min, 6 min, 6 min, 5 min, 6 min
+- Last 5 plans: 4 min, 6 min, 6 min, 6 min, 5 min
 - Trend: fast (implementation tasks with clear specs)
 
 *Updated after each plan completion*
@@ -92,6 +92,8 @@ Recent decisions affecting current work:
 - [04-01]: pnpm.onlyBuiltDependencies in package.json for better-sqlite3 -- pnpm 10 requires explicit build approval; prebuild-install downloads prebuilt binary from GitHub releases
 - [04-01]: WAL pragma guarded by dbPath !== ':memory:' -- SQLite silently reverts WAL on in-memory DBs
 - [04-01]: stmtGetNonTerminal uses positional ? placeholders for IN clause -- named params not supported for arrays in better-sqlite3
+- [Phase 04-02]: getActiveCount() not added to TradeStore log — method not on TradeStore interface; used simple TradeStore initialized log without activeMints field
+- [Phase 04-02]: isActive() guard placed before createBuyingRecord() in token handler — matches PER-04 duplicate guard requirement; both synchronous with no async gap
 
 ### Pending Todos
 
@@ -105,5 +107,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 04-01-PLAN.md (TradeStore: synchronous SQLite persistence with in-memory duplicate guard, optimistic locking, crash-recovery Set rebuild)
+Stopped at: Completed 04-02-PLAN.md (TradeStore wired into src/index.ts: duplicate guard, write-ahead, and graceful shutdown)
 Resume file: .planning/phases/05-trade-execution/05-01-PLAN.md

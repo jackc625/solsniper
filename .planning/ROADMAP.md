@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 1. Foundation & Operations | 2/2 | Complete   | 2026-02-20 |
 | 2. Token Detection | 1/2 | In Progress|  |
 | 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
-| 4. Trade Persistence | 1/1 | Complete    | 2026-02-27 |
+| 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
 | 5. Execution Engine | 0/3 | Not started | - |
 | 6. Crash Recovery | 0/1 | Not started | - |
 | 7. Position Management | 0/2 | Not started | - |
