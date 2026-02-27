@@ -68,8 +68,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Dashboard
 
 - [x] **DASH-01**: Web dashboard displays real-time trade feed (snipes, buys, sells) via SSE
-- [ ] **DASH-02**: Web dashboard shows per-trade P&L (entry price, current price, profit/loss)
-- [ ] **DASH-03**: Web dashboard shows overall portfolio performance (total P&L, win rate, trade count)
+- [x] **DASH-02**: Web dashboard shows per-trade P&L (entry price, current price, profit/loss)
+- [x] **DASH-03**: Web dashboard shows overall portfolio performance (total P&L, win rate, trade count)
 - [x] **DASH-04**: Web dashboard provides UI to adjust safety filter thresholds without bot restart
 - [x] **DASH-05**: Web dashboard provides UI to adjust buy amount and position limits without bot restart
 - [x] **DASH-06**: Dashboard runs as in-process HTTP server (Express/Fastify), not a separate service
@@ -161,8 +161,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-05 | Phase 1 | Complete |
 | OPS-06 | Phase 1 | Complete |
 | DASH-01 | Phase 8 | Complete |
-| DASH-02 | Phase 8 | Pending |
-| DASH-03 | Phase 8 | Pending |
+| DASH-02 | Phase 8 | Complete |
+| DASH-03 | Phase 8 | Complete |
 | DASH-04 | Phase 8 | Complete |
 | DASH-05 | Phase 8 | Complete |
 | DASH-06 | Phase 8 | Complete |

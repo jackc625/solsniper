@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 8 of 8 (Web Dashboard) - IN PROGRESS
-Plan: 2 of 5 in current phase - COMPLETE
-Status: Phase 8 Plan 02 complete — Fastify backend: createDashboardServer factory, apiKeyAuth hook, SSE /events, REST /api/trades /api/stats /api/config
-Last activity: 2026-02-27 -- Plan 08-02 complete (Fastify server, SSE events route, trades/stats REST, config GET/PATCH)
+Plan: 3 of 5 in current phase - COMPLETE
+Status: Phase 8 Plan 03 complete — Preact+Vite SPA frontend: three-tab layout, SSE LiveFeed, Performance table, Settings form, dashboard/dist/ compiled
+Last activity: 2026-02-27 -- Plan 08-03 complete (Preact+Vite scaffold, store primitives, Header/LiveFeed/Performance/Settings components, pnpm build:dashboard)
 
-Progress: [████████░░] 87% (20/23 plans complete)
+Progress: [█████████░] 91% (21/23 plans complete)
 
 ## Performance Metrics
 
@@ -161,8 +161,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 08-02-PLAN.md (Fastify server factory, apiKeyAuth, SSE events, trades/stats REST, config GET/PATCH)
+Last activity: 2026-02-27 - Completed 08-03-PLAN.md (Preact+Vite SPA: scaffold, store signals, Header/LiveFeed/Performance/Settings components, pnpm build:dashboard)
 
 Last session: 2026-02-27
-Stopped at: Completed 08-02-PLAN.md (createDashboardServer, apiKeyAuth, eventsRoute, tradesRoute, configRoute)
-Resume file: .planning/phases/08-web-dashboard/08-03-PLAN.md
+Stopped at: Completed 08-03-PLAN.md (Preact+Vite dashboard SPA complete, dashboard/dist/ compiled, 178 bot tests passing)
+Resume file: .planning/phases/08-web-dashboard/08-04-PLAN.md
