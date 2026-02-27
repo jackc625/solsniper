@@ -14,6 +14,9 @@ import { TradeStore } from './persistence/trade-store.js';
 import { PublicKey } from '@solana/web3.js';
 import { RecoveryManager } from './recovery/recovery-manager.js';
 import { PositionManager } from './position/position-manager.js';
+import { createDashboardServer } from './dashboard/dashboard-server.js';
+import { botEventBus } from './dashboard/bot-event-bus.js';
+import type { FastifyInstance } from 'fastify';
 
 const log = createModuleLogger('main');
 
@@ -24,7 +27,8 @@ async function shutdown(
   rpcManager: RpcManager,
   detectionManager: DetectionManager,
   tradeStore: TradeStore,
-  positionManager: PositionManager
+  positionManager: PositionManager,
+  dashboardServer: FastifyInstance,
 ): Promise<void> {
   if (isShuttingDown) return; // Prevent double-shutdown
   isShuttingDown = true;
@@ -41,6 +45,9 @@ async function shutdown(
     // 0. Stop position manager polling (synchronous, clears setTimeout)
     // Must stop first — prevents new sell triggers during teardown while connections are still open
     positionManager.stop();
+
+    // 0.5. Close dashboard HTTP server (SSE clients get 503; drains in-flight API requests)
+    await dashboardServer.close();
 
     // 1. Close RPC health check timers
     rpcManager.close();
@@ -141,6 +148,11 @@ async function main(): Promise<void> {
   positionManager.start();
   log.info('PositionManager started');
 
+  // 12.5. Start dashboard HTTP server (in-process, read-only observer)
+  const dashboardServer = await createDashboardServer(tradeStore);
+  await dashboardServer.listen({ port: env.DASHBOARD_PORT, host: '127.0.0.1' });
+  log.info({ port: env.DASHBOARD_PORT }, 'Dashboard HTTP server listening');
+
   // 13. Start detection (safe: recovery is done, duplicate guard populated)
   const detectionManager = new DetectionManager(env, tradingConfig, rpcManager.getConnection());
   detectionManager.start();
@@ -151,6 +163,7 @@ async function main(): Promise<void> {
     try {
       const result = await safetyPipeline.evaluate(event);
       if (result.pass) {
+        botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}` });
         // POS-06: Enforce max concurrent position limit
         const activePositions = tradeStore.getMonitoringTrades().length;
         if (activePositions >= tradingConfig.maxConcurrentPositions) {
@@ -175,7 +188,7 @@ async function main(): Promise<void> {
   });
 
   // 15. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
-  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore, positionManager); };
+  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore, positionManager, dashboardServer); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
 }
