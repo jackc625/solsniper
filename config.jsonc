@@ -119,5 +119,29 @@
       // Priority fee multiplier during emergency sells (e.g. 10 = 10x base fee).
       "emergencyPriorityMultiplier": 10
     }
+  },
+
+  "positionManagement": {
+    // Price polling interval in milliseconds. Default: 5 seconds.
+    // Rate limit note: at 5s intervals, max ~12 req/min per position.
+    // Free-tier Jupiter limit is 60 req/min — safe for up to 5 concurrent positions.
+    "pollIntervalMs": 5000,
+
+    // Stop-loss threshold as a percentage. Negative value.
+    // -50 = sell when position drops 50% from entry value.
+    "stopLossPct": -50,
+
+    // Tiered take-profit ladder. Sells pct% of tokens at each multiplier.
+    // at: price multiplier relative to entry (2 = 2x entry value in SOL).
+    // pct: percent of REMAINING tokens to sell at this tier.
+    "tieredTp": [
+      { "at": 2, "pct": 33 },
+      { "at": 5, "pct": 33 },
+      { "at": 10, "pct": 34 }
+    ],
+
+    // Trailing stop-loss percentage drop from high watermark.
+    // 0 = disabled (default). 20 = sell when price drops 20% from peak.
+    "trailingStopPct": 0
   }
 }
