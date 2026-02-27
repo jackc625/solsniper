@@ -1,0 +1,69 @@
+import type { CheckResult } from '../../types/index.js';
+import { createModuleLogger } from '../../core/logger.js';
+
+const log = createModuleLogger('tier2-rugcheck');
+const RUGCHECK_BASE_URL = 'https://api.rugcheck.xyz/v1/tokens';
+
+interface RugCheckResponse {
+  score: number;
+  score_normalised: number;
+  risks: Array<{ name: string; level: string; description: string; score: number }>;
+}
+
+/**
+ * Queries the RugCheck API for a token safety report and converts the risk score
+ * to a safety scale (higher = safer) by inverting: safetyScore = 100 - score_normalised.
+ *
+ * RugCheck scores are risk-oriented (higher = riskier), so we invert them.
+ * This is a scoring signal (pass is always true) — soft blocks are applied by the orchestrator.
+ *
+ * Pessimistic failure:
+ * - Non-200 response: score = 0, detail = 'HTTP {status}'
+ * - Fetch error or timeout: score = 0, detail = 'timeout_or_error'
+ *
+ * Satisfies: SAF-05
+ */
+export async function checkRugCheck(
+  mint: string,
+  apiKey: string | undefined,
+  signal: AbortSignal,
+): Promise<CheckResult> {
+  const url = `${RUGCHECK_BASE_URL}/${mint}/report/summary`;
+
+  try {
+    const response = await fetch(url, {
+      signal,
+      headers: {
+        'X-API-KEY': apiKey ?? '',
+      },
+    });
+
+    if (!response.ok) {
+      log.warn({ mint, status: response.status }, 'RugCheck API returned non-200 status');
+      return {
+        pass: true,
+        score: 0,
+        source: 'rugcheck',
+        detail: `HTTP ${response.status}`,
+      };
+    }
+
+    const data = (await response.json()) as RugCheckResponse;
+    const safetyScore = Math.max(0, Math.min(100, Math.round(100 - data.score_normalised)));
+
+    return {
+      pass: true,
+      score: safetyScore,
+      source: 'rugcheck',
+      detail: `score_normalised=${data.score_normalised} risks=${data.risks.length}`,
+    };
+  } catch (err: unknown) {
+    log.warn({ mint, err }, 'RugCheck API fetch error or timeout');
+    return {
+      pass: true,
+      score: 0,
+      source: 'rugcheck',
+      detail: 'timeout_or_error',
+    };
+  }
+}
