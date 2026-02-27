@@ -160,6 +160,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
 | 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
 | 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
-| 6. Crash Recovery | 0/2 | Not started | - |
+| 6. Crash Recovery | 1/2 | In Progress|  |
 | 7. Position Management | 0/2 | Not started | - |
 | 8. Web Dashboard | 0/2 | Not started | - |

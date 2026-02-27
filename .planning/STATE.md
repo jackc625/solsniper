@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T17:22:45.208Z"
+last_updated: "2026-02-27T18:25:30.740Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 6: Monitoring (starting next)
+**Current focus:** Phase 6: Crash Recovery (in progress)
 
 ## Current Position
 
-Phase: 5 of 8 (Execution Engine) - COMPLETE
-Plan: 4 of 4 in current phase - COMPLETE
-Status: Phase 5 Plan 04 complete — ExecutionEngine and SellLadder wired into index.ts; bot end-to-end wired
-Last activity: 2026-02-27 -- Plan 05-04 complete (ExecutionEngine.buy() wired, SellLadder ready for Phase 7, 128 tests passing)
+Phase: 6 of 8 (Crash Recovery) - IN PROGRESS
+Plan: 1 of 2 in current phase - COMPLETE
+Status: Phase 6 Plan 01 complete — TradeStore extended with 5 new methods for RecoveryManager; 40 tests passing
+Last activity: 2026-02-27 -- Plan 06-01 complete (getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById added)
 
-Progress: [█████████░] 70%
+Progress: [█████████░] 73%
 
 ## Performance Metrics
 
@@ -51,6 +51,10 @@ Progress: [█████████░] 70%
 - Trend: fast (implementation tasks with clear specs)
 
 *Updated after each plan completion*
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 06-crash-recovery | 1/2 | 3 min | 3 min |
 
 ## Accumulated Context
 
@@ -109,6 +113,9 @@ Recent decisions affecting current work:
 - [Phase 05-04]: void executionEngine.buy(event) fire-and-forget after write-ahead record — event handler is synchronous, async buy runs in background with internal error handling
 - [Phase 05-04]: getWallet() called once and shared between ExecutionEngine and SellLadder — wallet cached internally, single load cleaner
 - [Phase 05-04]: sellLadder held as local variable with Phase 7 comment — noUnusedLocals not set in tsconfig, no void workaround needed
+- [Phase 06-01]: transitionById takes mint param (not queried from DB) to update activeMints Set without extra SELECT
+- [Phase 06-01]: mapRow maps only the columns present in each query SELECT list — absent columns remain undefined per Trade interface optional fields
+- [Phase 06-01]: stmtUpdateStateById uses COALESCE only for error_message — recovery transitions don't need full field update surface
 
 ### Pending Todos
 
@@ -127,8 +134,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed quick task 1: document config.json values with inline comments
+Last activity: 2026-02-27 - Completed 06-01-PLAN.md (TradeStore extended with 5 new methods, 40 tests passing)
 
 Last session: 2026-02-27
-Stopped at: Completed 05-04-PLAN.md (ExecutionEngine and SellLadder wired into index.ts, bot end-to-end)
-Resume file: .planning/phases/06-monitoring/06-01-PLAN.md
+Stopped at: Completed 06-01-PLAN.md (TradeStore extended with getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById)
+Resume file: .planning/phases/06-crash-recovery/06-02-PLAN.md
