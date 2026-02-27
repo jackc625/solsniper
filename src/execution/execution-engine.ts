@@ -17,6 +17,7 @@ import type { TokenEvent } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
 import type { TradeStore } from '../persistence/trade-store.js';
 import { createModuleLogger } from '../core/logger.js';
+import { botEventBus } from '../dashboard/bot-event-bus.js';
 
 const log = createModuleLogger('execution-engine');
 
@@ -48,6 +49,9 @@ export class ExecutionEngine {
     log.info({ mint, source }, 'Executing buy');
 
     try {
+      // Emit BUY_SENT before dispatching — write-ahead record already created by index.ts
+      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}` });
+
       const result = source === 'pumpportal'
         ? await pumpPortalBuy(mint, this.config, this.wallet, this.connections)
         : await jupiterBuy(mint, this.config, this.wallet, this.connections);
@@ -61,11 +65,13 @@ export class ExecutionEngine {
           amountTokens: result.amountTokens,
           buyPriceSol: result.amountTokens ? buyPriceSol : undefined,
         });
+        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8) });
         log.info({ mint, signature: result.signature }, 'Buy confirmed — trade in MONITORING');
       } else {
         this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
           errorMessage: `BUY_FAILED: ${result.errorMessage ?? 'unknown error'}`,
         });
+        botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: result.errorMessage });
         log.warn({ mint, errorMessage: result.errorMessage }, 'Buy failed — trade marked FAILED');
       }
     } catch (err) {
@@ -73,6 +79,7 @@ export class ExecutionEngine {
       this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
         errorMessage: `BUY_FAILED: ${message}`,
       });
+      botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message });
       log.error({ mint, err }, 'Buy threw unexpectedly — trade marked FAILED');
     }
   }

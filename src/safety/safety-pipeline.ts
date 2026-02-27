@@ -10,6 +10,7 @@ import { checkRugCheck } from './checks/tier2-rugcheck.js';
 import { checkHolderConcentration } from './checks/tier2-holder.js';
 import { checkCreatorHistory } from './checks/tier3-creator.js';
 import { createModuleLogger } from '../core/logger.js';
+import { botEventBus } from '../dashboard/bot-event-bus.js';
 
 /**
  * Orchestrates the three-tier safety pipeline:
@@ -60,6 +61,8 @@ export class SafetyPipeline {
     }
 
     const startTime = Date.now();
+
+    try {
 
     // 2. Tier 1: Hard blocks in parallel via Promise.all (SAF-04)
     const [authResults, sellRouteResult] = await Promise.all([
@@ -183,6 +186,17 @@ export class SafetyPipeline {
     }, 'Token passed safety pipeline');
     this.cache.set(event.mint, result);
     return result;
+
+    } catch (err) {
+      // Unexpected error in safety pipeline — emit ERROR event for dashboard visibility
+      botEventBus.emit('event', {
+        type: 'ERROR',
+        mint: event.mint,
+        ts: Date.now(),
+        detail: err instanceof Error ? err.message : 'Safety check error',
+      });
+      throw err;
+    }
   }
 
   /**
