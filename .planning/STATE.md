@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T21:46:04.028Z"
+last_updated: "2026-02-27T21:57:44.661Z"
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 23
-  completed_plans: 19
+  completed_plans: 21
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 8 of 8 (Web Dashboard) - IN PROGRESS
-Plan: 1 of 5 in current phase - COMPLETE
-Status: Phase 8 Plan 01 complete — Foundation contracts: getRuntimeConfig/patchRuntimeConfig, DASHBOARD_PORT/DASHBOARD_API_KEY env vars, BotEventBus singleton
-Last activity: 2026-02-27 -- Plan 08-01 complete (mutable runtime config, dashboard env vars, BotEventBus singleton)
+Plan: 2 of 5 in current phase - COMPLETE
+Status: Phase 8 Plan 02 complete — Fastify backend: createDashboardServer factory, apiKeyAuth hook, SSE /events, REST /api/trades /api/stats /api/config
+Last activity: 2026-02-27 -- Plan 08-02 complete (Fastify server, SSE events route, trades/stats REST, config GET/PATCH)
 
-Progress: [████████░░] 83% (19/23 plans complete)
+Progress: [████████░░] 87% (20/23 plans complete)
 
 ## Performance Metrics
 
@@ -59,6 +59,8 @@ Progress: [████████░░] 83% (19/23 plans complete)
 | Phase 07-position-management P02 | 4 | 2 tasks | 2 files |
 | Phase 07-position-management P03 | 4 | 1 tasks | 1 files |
 | Phase 08-web-dashboard P01 | 4 | 2 tasks | 4 files |
+| Phase 08-web-dashboard P02 | 6 | 2 tasks | 7 files |
+| Phase 08-web-dashboard P03 | 12 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -135,6 +137,12 @@ Recent decisions affecting current work:
 - [Phase 08-web-dashboard]: patchRuntimeConfig shallow-merges updates via spread — callers must pass validated Partial<TradingConfig>
 - [Phase 08-web-dashboard]: botEventBus uses single event name 'event' with typed BotEvent payload — simpler than per-type event names for SSE listener registration
 - [Phase 08-web-dashboard]: DASHBOARD_API_KEY absent means auth disabled (opt-in security) — consistent with existing optional API keys pattern in env.ts
+- [Phase 08-web-dashboard]: createRequire() used for @fastify/sse CJS module in dashboard-server.ts — prevents TS2769 overload mismatch with Fastify 5 register()
+- [Phase 08-web-dashboard]: import type {} from '@fastify/sse' in events.ts triggers module augmentation (reply.sse, sse route option) without loading runtime code
+- [Phase 08-web-dashboard]: Raw DB cast (tradeStore as any).db for /api/stats completed trade counts — avoids adding getCompletedTrades() to TradeStore in this plan
+- [Phase 08-03]: dashboard/tsconfig.json separate from root tsconfig — targets browser (ES2020 DOM) with moduleResolution=bundler for Vite
+- [Phase 08-03]: EventSource registers listeners for both generic 'message' and each BotEventType — handles both SSE data= and event= field formats
+- [Phase 08-03]: Settings patch limited to known patchable fields only — avoids overwriting unknown config keys on POST /api/config
 
 ### Pending Todos
 
@@ -153,8 +161,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 08-01-PLAN.md (foundation contracts: getRuntimeConfig/patchRuntimeConfig, dashboard env vars, BotEventBus singleton)
+Last activity: 2026-02-27 - Completed 08-02-PLAN.md (Fastify server factory, apiKeyAuth, SSE events, trades/stats REST, config GET/PATCH)
 
 Last session: 2026-02-27
-Stopped at: Completed 08-01-PLAN.md (getRuntimeConfig/patchRuntimeConfig, DASHBOARD_PORT/DASHBOARD_API_KEY, BotEventBus singleton)
-Resume file: .planning/phases/08-web-dashboard/08-02-PLAN.md
+Stopped at: Completed 08-02-PLAN.md (createDashboardServer, apiKeyAuth, eventsRoute, tradesRoute, configRoute)
+Resume file: .planning/phases/08-web-dashboard/08-03-PLAN.md
