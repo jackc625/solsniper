@@ -50,10 +50,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Persistence
 
-- [ ] **PER-01**: All trades persist to SQLite with full state machine (DETECTED → BUYING → MONITORING → SELLING → COMPLETED)
-- [ ] **PER-02**: Bot writes PENDING entry to SQLite before sending any buy transaction (write-ahead)
+- [x] **PER-01**: All trades persist to SQLite with full state machine (DETECTED → BUYING → MONITORING → SELLING → COMPLETED)
+- [x] **PER-02**: Bot writes PENDING entry to SQLite before sending any buy transaction (write-ahead)
 - [ ] **PER-03**: Bot resumes pending trades from SQLite on restart (crash recovery)
-- [ ] **PER-04**: Bot maintains in-memory Set of active buy intents to prevent duplicate concurrent buys
+- [x] **PER-04**: Bot maintains in-memory Set of active buy intents to prevent duplicate concurrent buys
 - [ ] **PER-05**: On restart, bot reconciles PENDING entries against on-chain wallet token accounts
 
 ### Operations
@@ -149,10 +149,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POS-04 | Phase 7 | Pending |
 | POS-05 | Phase 7 | Pending |
 | POS-06 | Phase 7 | Pending |
-| PER-01 | Phase 4 | Pending |
-| PER-02 | Phase 4 | Pending |
+| PER-01 | Phase 4 | Complete |
+| PER-02 | Phase 4 | Complete |
 | PER-03 | Phase 6 | Pending |
-| PER-04 | Phase 4 | Pending |
+| PER-04 | Phase 4 | Complete |
 | PER-05 | Phase 6 | Pending |
 | OPS-01 | Phase 1 | Complete |
 | OPS-02 | Phase 1 | Complete |

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation & Operations** - Config, logging, RPC manager, resilient WebSocket, wallet security, graceful shutdown (completed 2026-02-20)
 - [ ] **Phase 2: Token Detection** - PumpPortal and Raydium WebSocket listeners with auto-reconnect and heartbeat
 - [x] **Phase 3: Safety Pipeline** - Parallel tiered safety checks with aggregate scoring and threshold enforcement (completed 2026-02-27)
-- [ ] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention
+- [x] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention (completed 2026-02-27)
 - [ ] **Phase 5: Execution Engine** - Jupiter and PumpPortal buy, sell escalation ladder with Jito bundles, multi-RPC broadcast
 - [ ] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart
 - [ ] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits
@@ -83,7 +83,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 04-01: TBD
+- [x] 04-01-PLAN.md — TradeStore with SQLite state machine, in-memory duplicate guard, optimistic locking, crash-recovery Set rebuild (TDD, better-sqlite3)
 
 ### Phase 5: Execution Engine
 **Goal**: Bot can buy tokens via Jupiter or PumpPortal based on token state, and reliably sell positions through an escalation ladder that recovers capital even in low-liquidity conditions
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 1. Foundation & Operations | 2/2 | Complete   | 2026-02-20 |
 | 2. Token Detection | 1/2 | In Progress|  |
 | 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
-| 4. Trade Persistence | 0/1 | Not started | - |
+| 4. Trade Persistence | 1/1 | Complete    | 2026-02-27 |
 | 5. Execution Engine | 0/3 | Not started | - |
 | 6. Crash Recovery | 0/1 | Not started | - |
 | 7. Position Management | 0/2 | Not started | - |
