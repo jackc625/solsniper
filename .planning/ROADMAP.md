@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention (completed 2026-02-27)
 - [x] **Phase 5: Execution Engine** - Jupiter and PumpPortal buy, sell escalation ladder with Jito bundles, multi-RPC broadcast (completed 2026-02-27)
 - [x] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart (completed 2026-02-27)
-- [ ] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits
+- [x] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits (completed 2026-02-27)
 - [ ] **Phase 8: Web Dashboard** - Live trade feed via SSE, P&L tracking, filter configuration, in-process HTTP server
 
 ## Phase Details
@@ -162,5 +162,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
 | 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
 | 6. Crash Recovery | 2/2 | Complete   | 2026-02-27 |
-| 7. Position Management | 2/3 | In Progress|  |
+| 7. Position Management | 3/3 | Complete   | 2026-02-27 |
 | 8. Web Dashboard | 0/2 | Not started | - |

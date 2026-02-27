@@ -46,7 +46,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **POS-03**: Bot automatically sells when position reaches configurable take-profit target
 - [x] **POS-04**: Bot supports tiered take-profit (e.g., sell 33% at 2x, 33% at 5x, rest at 10x)
 - [x] **POS-05**: Bot supports trailing stop-loss that follows price upward and sells on reversal
-- [ ] **POS-06**: Bot enforces configurable maximum concurrent position limit
+- [x] **POS-06**: Bot enforces configurable maximum concurrent position limit
 
 ### Persistence
 
@@ -148,7 +148,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POS-03 | Phase 7 | Complete |
 | POS-04 | Phase 7 | Complete |
 | POS-05 | Phase 7 | Complete |
-| POS-06 | Phase 7 | Pending |
+| POS-06 | Phase 7 | Complete |
 | PER-01 | Phase 4 | Complete |
 | PER-02 | Phase 4 | Complete |
 | PER-03 | Phase 6 | Complete |
