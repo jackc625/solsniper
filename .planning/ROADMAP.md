@@ -126,11 +126,12 @@ Plans:
   3. Bot automatically triggers a sell when a position reaches the configurable take-profit target (e.g., 3x entry)
   4. Bot supports tiered take-profit: selling configured percentages at multiple price targets (e.g., 33% at 2x, 33% at 5x, remainder at 10x)
   5. Bot enforces a configurable maximum concurrent position limit, rejecting new buys when the limit is reached
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md — Config schema extension (positionManagement block), config.jsonc defaults, TradeStore.updateMonitoringAmount()
+- [ ] 07-02-PLAN.md — PositionManager class with polling loop, stop-loss, tiered TP, trailing stop, sellsInFlight guard, PumpPortal backfill, unit tests
+- [ ] 07-03-PLAN.md — Wire PositionManager into index.ts: max-position guard (POS-06), start after recovery, stop in shutdown
 
 ### Phase 8: Web Dashboard
 **Goal**: Operator can monitor all bot activity, review performance, and adjust trading parameters through a web interface without restarting the bot
@@ -161,5 +162,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
 | 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
 | 6. Crash Recovery | 2/2 | Complete   | 2026-02-27 |
-| 7. Position Management | 0/2 | Not started | - |
+| 7. Position Management | 0/3 | Not started | - |
 | 8. Web Dashboard | 0/2 | Not started | - |
