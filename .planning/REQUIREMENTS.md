@@ -32,11 +32,11 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **EXE-01**: Bot executes buy via Jupiter Swap API with dynamic slippage
 - [ ] **EXE-02**: Bot executes buy via PumpPortal trade-local API for bonding curve tokens
 - [ ] **EXE-03**: Bot automatically selects Jupiter or PumpPortal based on token state (bonding curve vs migrated)
-- [ ] **EXE-04**: Bot fetches blockhash as the last step before signing (never before safety checks)
-- [ ] **EXE-05**: Bot sends transactions to multiple RPC providers simultaneously for better landing rate
+- [x] **EXE-04**: Bot fetches blockhash as the last step before signing (never before safety checks)
+- [x] **EXE-05**: Bot sends transactions to multiple RPC providers simultaneously for better landing rate
 - [ ] **EXE-06**: Sell escalation ladder retries with increasing aggression: standard → high fee → Jito bundle → chunked sell → emergency
 - [ ] **EXE-07**: Bot constructs and submits Jito bundles for MEV-protected sell execution
-- [ ] **EXE-08**: Bot refreshes blockhash on every retry attempt
+- [x] **EXE-08**: Bot refreshes blockhash on every retry attempt
 - [ ] **EXE-09**: Emergency sell mode uses maximum slippage (49%) for capital recovery
 
 ### Position Management
@@ -137,11 +137,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXE-01 | Phase 5 | Pending |
 | EXE-02 | Phase 5 | Pending |
 | EXE-03 | Phase 5 | Pending |
-| EXE-04 | Phase 5 | Pending |
-| EXE-05 | Phase 5 | Pending |
+| EXE-04 | Phase 5 | Complete |
+| EXE-05 | Phase 5 | Complete |
 | EXE-06 | Phase 5 | Pending |
 | EXE-07 | Phase 5 | Pending |
-| EXE-08 | Phase 5 | Pending |
+| EXE-08 | Phase 5 | Complete |
 | EXE-09 | Phase 5 | Pending |
 | POS-01 | Phase 7 | Pending |
 | POS-02 | Phase 7 | Pending |
@@ -174,4 +174,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after roadmap creation (traceability mapped)*
+*Last updated: 2026-02-27 after 05-01 execution (EXE-04, EXE-05, EXE-08 complete)*

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-02-27T03:54:40.841Z"
+status: in-progress
+last_updated: "2026-02-27T16:54:18Z"
 progress:
-  total_phases: 4
+  total_phases: 8
   completed_phases: 4
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 10
+  completed_plans: 10
 ---
 
 # Project State
@@ -18,23 +18,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 5: Trade Execution (Phase 4 complete)
+**Current focus:** Phase 5: Execution Engine (Plan 01 complete)
 
 ## Current Position
 
-Phase: 4 of 8 (Trade Persistence) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
-Status: Phase 4 complete, TradeStore wired into src/index.ts end-to-end
-Last activity: 2026-02-27 -- Plan 04-02 complete (TradeStore wired into main(), token event handler, and shutdown(); duplicate guard and write-ahead enforced in production code path)
+Phase: 5 of 8 (Execution Engine) - IN PROGRESS
+Plan: 1 of 3 in current phase - COMPLETE
+Status: Phase 5 Plan 01 complete — broadcaster, types, and execution config foundation built
+Last activity: 2026-02-27 -- Plan 05-01 complete (broadcastAndConfirm(), ExecutionConfigSchema, SellStep/BuyResult/SellResult types, RpcManager.getAllConnections())
 
 Progress: [████████░░] 56%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 9.6 min
-- Total execution time: 1.28 hours
+- Total plans completed: 10
+- Average duration: 8.8 min
+- Total execution time: 1.47 hours
 
 **By Phase:**
 
@@ -44,9 +44,10 @@ Progress: [████████░░] 56%
 | 02-token-detection | 2/4 | 13 min | 6.5 min |
 | 03-safety-pipeline | 3/4 | 17 min | 5.7 min |
 | 04-trade-persistence | 2/2 | 10 min | 5 min |
+| 05-execution-engine | 1/3 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min, 6 min, 6 min, 6 min, 5 min
+- Last 5 plans: 4 min, 4 min, 6 min, 6 min, 6 min
 - Trend: fast (implementation tasks with clear specs)
 
 *Updated after each plan completion*
@@ -94,6 +95,10 @@ Recent decisions affecting current work:
 - [04-01]: stmtGetNonTerminal uses positional ? placeholders for IN clause -- named params not supported for arrays in better-sqlite3
 - [Phase 04-02]: getActiveCount() not added to TradeStore log — method not on TradeStore interface; used simple TradeStore initialized log without activeMints field
 - [Phase 04-02]: isActive() guard placed before createBuyingRecord() in token handler — matches PER-04 duplicate guard requirement; both synchronous with no async gap
+- [05-01]: broadcastAndConfirm fetches blockhash from connections[0] only — single round-trip; any valid blockhash is accepted by all connections
+- [05-01]: Promise.allSettled used (not Promise.any) — ensures ALL connections receive the transaction even when some fail
+- [05-01]: skipPreflight=true, maxRetries=0 on sendRawTransaction — Jupiter pre-simulates; caller handles retry with fresh blockhash
+- [05-01]: ExecutionConfig fields use Zod .default() — allows partial or omitted execution section in config.json
 
 ### Pending Todos
 
@@ -107,5 +112,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 04-02-PLAN.md (TradeStore wired into src/index.ts: duplicate guard, write-ahead, and graceful shutdown)
-Resume file: .planning/phases/05-trade-execution/05-01-PLAN.md
+Stopped at: Completed 05-01-PLAN.md (broadcastAndConfirm(), ExecutionConfigSchema, SellStep/BuyResult/SellResult types, RpcManager.getAllConnections(), 7 broadcaster tests)
+Resume file: .planning/phases/05-execution-engine/05-02-PLAN.md

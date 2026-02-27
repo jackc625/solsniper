@@ -98,7 +98,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — ExecutionConfig schema, shared types (BuyResult, SellResult, SellStep), broadcaster (blockhash-last, multi-RPC, confirmation)
+- [x] 05-01-PLAN.md — ExecutionConfig schema, shared types (BuyResult, SellResult, SellStep), broadcaster (blockhash-last, multi-RPC, confirmation)
 - [ ] 05-02-PLAN.md — PumpPortal buyer (raw bytes), Jupiter buyer (base64), ExecutionEngine with routing + TradeStore transitions
 - [ ] 05-03-PLAN.md — Sell ladder: standard/high-fee seller, Jito bundle seller, chunked seller, SellLadder orchestrator with time-based steps
 - [ ] 05-04-PLAN.md — Wire ExecutionEngine and SellLadder into src/index.ts
@@ -158,7 +158,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 2. Token Detection | 1/2 | In Progress|  |
 | 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
 | 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
-| 5. Execution Engine | 0/4 | Not started | - |
+| 5. Execution Engine | 1/4 | In Progress | - |
 | 6. Crash Recovery | 0/1 | Not started | - |
 | 7. Position Management | 0/2 | Not started | - |
 | 8. Web Dashboard | 0/2 | Not started | - |
