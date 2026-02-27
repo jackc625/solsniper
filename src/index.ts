@@ -6,6 +6,7 @@ import { tradingConfig } from './config/trading.js';
 import { logger, createModuleLogger } from './core/logger.js';
 import { RpcManager } from './core/rpc-manager.js';
 import { DetectionManager } from './detection/detection-manager.js';
+import { SafetyPipeline } from './safety/safety-pipeline.js';
 import { getWalletPublicKey } from './utils/wallet.js';
 
 const log = createModuleLogger('main');
@@ -69,14 +70,28 @@ async function main(): Promise<void> {
 
   // 5. Initialize detection manager
   const detectionManager = new DetectionManager(env, tradingConfig, rpcManager.getConnection());
-  detectionManager.on('token', (event) => {
-    // Phase 3+: pass to safety pipeline
-    log.debug({ mint: event.mint }, 'Token event received by main — awaiting safety pipeline (Phase 3)');
-  });
   detectionManager.start();
   log.info('Detection manager started');
 
-  // 6. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  // 5.5. Initialize safety pipeline
+  const safetyPipeline = new SafetyPipeline(rpcManager.getConnection(), tradingConfig, env);
+  log.info('Safety pipeline initialized');
+
+  // 6. Wire token events through safety pipeline
+  detectionManager.on('token', async (event) => {
+    try {
+      const result = await safetyPipeline.evaluate(event);
+      if (result.pass) {
+        // Phase 5+: pass to execution engine
+        log.debug({ mint: event.mint, score: result.aggregateScore }, 'Token approved — awaiting execution engine (Phase 5)');
+      }
+      // Rejections already logged by SafetyPipeline with full detail
+    } catch (err) {
+      log.error({ err, mint: event.mint }, 'Safety pipeline error');
+    }
+  });
+
+  // 7. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
   const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
