@@ -29,9 +29,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Execution
 
-- [ ] **EXE-01**: Bot executes buy via Jupiter Swap API with dynamic slippage
-- [ ] **EXE-02**: Bot executes buy via PumpPortal trade-local API for bonding curve tokens
-- [ ] **EXE-03**: Bot automatically selects Jupiter or PumpPortal based on token state (bonding curve vs migrated)
+- [x] **EXE-01**: Bot executes buy via Jupiter Swap API with dynamic slippage
+- [x] **EXE-02**: Bot executes buy via PumpPortal trade-local API for bonding curve tokens
+- [x] **EXE-03**: Bot automatically selects Jupiter or PumpPortal based on token state (bonding curve vs migrated)
 - [x] **EXE-04**: Bot fetches blockhash as the last step before signing (never before safety checks)
 - [x] **EXE-05**: Bot sends transactions to multiple RPC providers simultaneously for better landing rate
 - [ ] **EXE-06**: Sell escalation ladder retries with increasing aggression: standard → high fee → Jito bundle → chunked sell → emergency
@@ -134,9 +134,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAF-07 | Phase 3 | Complete |
 | SAF-08 | Phase 3 | Complete |
 | SAF-09 | Phase 3 | Complete |
-| EXE-01 | Phase 5 | Pending |
-| EXE-02 | Phase 5 | Pending |
-| EXE-03 | Phase 5 | Pending |
+| EXE-01 | Phase 5 | Complete |
+| EXE-02 | Phase 5 | Complete |
+| EXE-03 | Phase 5 | Complete |
 | EXE-04 | Phase 5 | Complete |
 | EXE-05 | Phase 5 | Complete |
 | EXE-06 | Phase 5 | Pending |

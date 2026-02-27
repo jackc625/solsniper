@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-last_updated: "2026-02-27T16:54:18Z"
+last_updated: "2026-02-27T17:03:17Z"
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 11
+  completed_plans: 11
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 5: Execution Engine (Plan 01 complete)
+**Current focus:** Phase 5: Execution Engine (Plan 02 complete)
 
 ## Current Position
 
 Phase: 5 of 8 (Execution Engine) - IN PROGRESS
-Plan: 1 of 3 in current phase - COMPLETE
-Status: Phase 5 Plan 01 complete — broadcaster, types, and execution config foundation built
-Last activity: 2026-02-27 -- Plan 05-01 complete (broadcastAndConfirm(), ExecutionConfigSchema, SellStep/BuyResult/SellResult types, RpcManager.getAllConnections())
+Plan: 2 of 3 in current phase - COMPLETE
+Status: Phase 5 Plan 02 complete — PumpPortal buyer, Jupiter buyer, and ExecutionEngine routing built
+Last activity: 2026-02-27 -- Plan 05-02 complete (pumpPortalBuy(), jupiterBuy(), ExecutionEngine.buy() with TradeStore wiring)
 
-Progress: [████████░░] 56%
+Progress: [████████░░] 60%
 
 ## Performance Metrics
 
@@ -44,7 +44,7 @@ Progress: [████████░░] 56%
 | 02-token-detection | 2/4 | 13 min | 6.5 min |
 | 03-safety-pipeline | 3/4 | 17 min | 5.7 min |
 | 04-trade-persistence | 2/2 | 10 min | 5 min |
-| 05-execution-engine | 1/3 | 4 min | 4 min |
+| 05-execution-engine | 2/3 | 8 min | 4 min |
 
 **Recent Trend:**
 - Last 5 plans: 4 min, 4 min, 6 min, 6 min, 6 min
@@ -99,6 +99,10 @@ Recent decisions affecting current work:
 - [05-01]: Promise.allSettled used (not Promise.any) — ensures ALL connections receive the transaction even when some fail
 - [05-01]: skipPreflight=true, maxRetries=0 on sendRawTransaction — Jupiter pre-simulates; caller handles retry with fresh blockhash
 - [05-01]: ExecutionConfig fields use Zod .default() — allows partial or omitted execution section in config.json
+- [05-02]: PumpPortal slippage is percent (slippageBps/100), NOT basis points — critical comment added to source
+- [05-02]: Jupiter slippage is basis points passed directly in quoteResponse — no conversion needed
+- [05-02]: amountTokens undefined for PumpPortal (API doesn't return it); Phase 7 price polling fills this
+- [05-02]: ExecutionEngine buy() has no retry — single attempt, speed over resilience per plan spec
 
 ### Pending Todos
 
@@ -112,5 +116,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 05-01-PLAN.md (broadcastAndConfirm(), ExecutionConfigSchema, SellStep/BuyResult/SellResult types, RpcManager.getAllConnections(), 7 broadcaster tests)
-Resume file: .planning/phases/05-execution-engine/05-02-PLAN.md
+Stopped at: Completed 05-02-PLAN.md (pumpPortalBuy(), jupiterBuy(), ExecutionEngine.buy() with TradeStore wiring, 15 new tests, 121 total)
+Resume file: .planning/phases/05-execution-engine/05-03-PLAN.md
