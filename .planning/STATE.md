@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 3: Safety Pipeline (Plan 2 complete, Plan 3 next)
+**Current focus:** Phase 3: Safety Pipeline (Plan 3 complete, Plan 4 next)
 
 ## Current Position
 
 Phase: 3 of 8 (Safety Pipeline)
-Plan: 2 of 4 in current phase - COMPLETE
-Status: Phase 3 Plan 2 complete, ready for Plan 3 (SafetyPipeline orchestrator)
-Last activity: 2026-02-27 -- Plan 03-02 complete (Tier 2: RugCheck + holder concentration; Tier 3: creator history)
+Plan: 3 of 4 in current phase - COMPLETE
+Status: Phase 3 Plan 3 complete, ready for Plan 4 (final phase plan)
+Last activity: 2026-02-27 -- Plan 03-03 complete (SafetyPipeline orchestrator: all three tiers, aggregate scoring, soft blocks, cache, wired into index.ts)
 
-Progress: [█████░░░░░] 37%
+Progress: [██████░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 11.2 min
-- Total execution time: 0.93 hours
+- Total plans completed: 6
+- Average duration: 10.2 min
+- Total execution time: 1.01 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████░░░░░] 37%
 |-------|-------|-------|----------|
 | 01-foundation-operations | 2/2 | 39 min | 19.5 min |
 | 02-token-detection | 2/4 | 13 min | 6.5 min |
-| 03-safety-pipeline | 2/4 | 12 min | 6 min |
+| 03-safety-pipeline | 3/4 | 17 min | 5.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 22 min, 7 min, 6 min, 6 min, 6 min
+- Last 5 plans: 7 min, 6 min, 6 min, 6 min, 5 min
 - Trend: fast (implementation tasks with clear specs)
 
 *Updated after each plan completion*
@@ -70,6 +70,10 @@ Recent decisions affecting current work:
 - [03-02]: Holder concentration uses BigInt arithmetic throughout -- token amounts can exceed Number.MAX_SAFE_INTEGER
 - [03-02]: analyzeCreatorHistory filters by type=TOKEN_MINT before counting -- Helius returns all tx types
 - [03-02]: Test scenario for "no dominance" uses 10%/8%/7%/10% distribution (not 4x25%) -- 4x25% correctly fails the top10=100% threshold check
+- [03-03]: vi.fn(function() { return {...} }) not arrow function for vi.mock constructor mocks -- arrow functions cannot be called with 'new' keyword
+- [03-03]: vi.hoisted() required for shared spy refs across vi.mock factories -- prevents TDZ errors (same pattern as vi.hoisted MockWebSocket in 02-01)
+- [03-03]: resolveSettled() returns pass=true on Promise.allSettled rejection -- errors don't prove danger; score=0 is pessimistic enough to fail aggregate
+- [03-03]: SafetyPipeline has no cleanup method -- in-memory cache (GC), synchronous blocklist writes, no persistent connections or timers
 
 ### Pending Todos
 
@@ -83,5 +87,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 03-02-PLAN.md (Tier 2: RugCheck + holder concentration; Tier 3: creator history)
-Resume file: .planning/phases/03-safety-pipeline/03-03-PLAN.md
+Stopped at: Completed 03-03-PLAN.md (SafetyPipeline orchestrator: all three tiers, aggregate scoring, soft blocks, cache, wired into index.ts)
+Resume file: .planning/phases/03-safety-pipeline/03-04-PLAN.md
