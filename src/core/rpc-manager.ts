@@ -38,6 +38,14 @@ export class RpcManager extends EventEmitter<RpcManagerEvents> {
   }
 
   /**
+   * Returns all configured connections for parallel broadcast.
+   * Both primary and backup receive the transaction simultaneously.
+   */
+  getAllConnections(): Connection[] {
+    return [this.primary, this.backup];
+  }
+
+  /**
    * Returns the current state for logging/monitoring.
    */
   getState(): string {

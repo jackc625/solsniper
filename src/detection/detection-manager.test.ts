@@ -84,6 +84,21 @@ function makeTradingConfig(overrides: Partial<TradingConfig['detection']> = {}):
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
     },
+    execution: {
+      buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1 },
+      sell: {
+        standardSlippageBps: 500,
+        emergencySlippageBps: 4900,
+        standardTimeoutMs: 30000,
+        highFeeTimeoutMs: 20000,
+        highFeeMultiplier: 3,
+        jitoTimeoutMs: 30000,
+        jitoTipLamports: 100000,
+        chunkedTimeoutMs: 60000,
+        emergencyTimeoutMs: 30000,
+        emergencyPriorityMultiplier: 10,
+      },
+    },
   };
 }
 

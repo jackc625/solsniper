@@ -35,6 +35,32 @@ const DetectionConfigSchema = z.object({
   dedupWindowMs: z.number().int().positive().default(3600000),
 });
 
+const ExecutionBuyConfigSchema = z.object({
+  slippageBps: z.number().int().min(50).max(4900).default(1000),            // 10% default
+  priorityFeeBaseLamports: z.number().int().positive().default(100000),     // 0.0001 SOL base
+  priorityFeeMultiplier: z.number().positive().default(1),
+});
+
+const ExecutionSellConfigSchema = z.object({
+  standardSlippageBps: z.number().int().min(50).max(4900).default(500),     // 5% default
+  emergencySlippageBps: z.number().int().min(50).max(4900).default(4900),   // 49% default
+  standardTimeoutMs: z.number().int().positive().default(30000),
+  highFeeTimeoutMs: z.number().int().positive().default(20000),
+  highFeeMultiplier: z.number().positive().default(3),
+  jitoTimeoutMs: z.number().int().positive().default(30000),
+  jitoTipLamports: z.number().int().positive().default(100000),             // 0.0001 SOL default
+  chunkedTimeoutMs: z.number().int().positive().default(60000),
+  emergencyTimeoutMs: z.number().int().positive().default(30000),
+  emergencyPriorityMultiplier: z.number().positive().default(10),
+});
+
+const ExecutionConfigSchema = z.object({
+  buy: ExecutionBuyConfigSchema,
+  sell: ExecutionSellConfigSchema,
+});
+
+export type ExecutionConfig = z.infer<typeof ExecutionConfigSchema>;
+
 const TradingConfigSchema = z.object({
   buyAmountSol: z.number().positive().max(10),
   maxSlippageBps: z.number().int().min(50).max(4900),
@@ -44,6 +70,7 @@ const TradingConfigSchema = z.object({
   minSafetyScore: z.number().int().min(0).max(100),
   detection: DetectionConfigSchema,
   safety: SafetyConfigSchema,
+  execution: ExecutionConfigSchema,
 });
 
 export type TradingConfig = z.infer<typeof TradingConfigSchema>;

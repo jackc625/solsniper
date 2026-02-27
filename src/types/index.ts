@@ -85,3 +85,27 @@ export interface Trade {
   sellPriceSol?: number;
   errorMessage?: string;
 }
+
+// Phase 05: Execution engine types
+
+export type SellStep = 'STANDARD' | 'HIGH_FEE' | 'JITO_BUNDLE' | 'CHUNKED' | 'EMERGENCY';
+
+export interface BroadcastResult {
+  signature: string;
+  blockhash: string;
+  lastValidBlockHeight: number;
+}
+
+export interface BuyResult {
+  success: boolean;
+  signature?: string;
+  amountTokens?: number;   // token amount received (parsed from tx or estimated)
+  errorMessage?: string;
+}
+
+export interface SellResult {
+  success: boolean;
+  step?: SellStep;         // which ladder step confirmed the sell
+  signature?: string;
+  errorMessage?: string;
+}
