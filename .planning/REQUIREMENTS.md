@@ -34,10 +34,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **EXE-03**: Bot automatically selects Jupiter or PumpPortal based on token state (bonding curve vs migrated)
 - [x] **EXE-04**: Bot fetches blockhash as the last step before signing (never before safety checks)
 - [x] **EXE-05**: Bot sends transactions to multiple RPC providers simultaneously for better landing rate
-- [ ] **EXE-06**: Sell escalation ladder retries with increasing aggression: standard → high fee → Jito bundle → chunked sell → emergency
-- [ ] **EXE-07**: Bot constructs and submits Jito bundles for MEV-protected sell execution
+- [x] **EXE-06**: Sell escalation ladder retries with increasing aggression: standard → high fee → Jito bundle → chunked sell → emergency
+- [x] **EXE-07**: Bot constructs and submits Jito bundles for MEV-protected sell execution
 - [x] **EXE-08**: Bot refreshes blockhash on every retry attempt
-- [ ] **EXE-09**: Emergency sell mode uses maximum slippage (49%) for capital recovery
+- [x] **EXE-09**: Emergency sell mode uses maximum slippage (49%) for capital recovery
 
 ### Position Management
 
@@ -139,10 +139,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXE-03 | Phase 5 | Complete |
 | EXE-04 | Phase 5 | Complete |
 | EXE-05 | Phase 5 | Complete |
-| EXE-06 | Phase 5 | Pending |
-| EXE-07 | Phase 5 | Pending |
+| EXE-06 | Phase 5 | Complete |
+| EXE-07 | Phase 5 | Complete |
 | EXE-08 | Phase 5 | Complete |
-| EXE-09 | Phase 5 | Pending |
+| EXE-09 | Phase 5 | Complete |
 | POS-01 | Phase 7 | Pending |
 | POS-02 | Phase 7 | Pending |
 | POS-03 | Phase 7 | Pending |
