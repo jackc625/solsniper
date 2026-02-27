@@ -110,10 +110,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. On restart, bot loads all non-terminal trades from SQLite and resumes monitoring/selling them as appropriate based on their persisted state
   2. On restart, bot reconciles PENDING (pre-confirmation) entries against actual on-chain wallet token accounts to determine whether the buy landed or not, and updates state accordingly
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — TradeStore extensions (getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById) with tests
+- [ ] 06-02-PLAN.md — RecoveryManager class (dual-program balance check, per-trade timeout, SELLING step-back, structured summary log) + index.ts startup resequencing
 
 ### Phase 7: Position Management
 **Goal**: Bot automatically manages open positions with configurable exit strategies, protecting capital with stop-loss and capturing gains with take-profit
@@ -159,6 +160,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
 | 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
 | 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
-| 6. Crash Recovery | 0/1 | Not started | - |
+| 6. Crash Recovery | 0/2 | Not started | - |
 | 7. Position Management | 0/2 | Not started | - |
 | 8. Web Dashboard | 0/2 | Not started | - |
