@@ -207,4 +207,193 @@ describe('TradeStore', () => {
       expect(() => tmpStore.close()).not.toThrow();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // getBuyingTrades()
+  // ---------------------------------------------------------------------------
+  describe('getBuyingTrades()', () => {
+    it('returns empty array when no BUYING trades', () => {
+      expect(store.getBuyingTrades()).toEqual([]);
+    });
+
+    it('returns Trade rows for BUYING trades with id, mint, state fields present', () => {
+      store.createBuyingRecord('mint_buy_1');
+      const trades = store.getBuyingTrades();
+      expect(trades).toHaveLength(1);
+      expect(trades[0]!.mint).toBe('mint_buy_1');
+      expect(trades[0]!.state).toBe('BUYING');
+      expect(typeof trades[0]!.id).toBe('number');
+    });
+
+    it('returns only BUYING trades (not MONITORING or SELLING)', () => {
+      store.createBuyingRecord('mint_buy');
+      store.createBuyingRecord('mint_mon');
+      store.createBuyingRecord('mint_sell');
+      store.transition('mint_mon', 'BUYING', 'MONITORING');
+      store.transition('mint_sell', 'BUYING', 'MONITORING');
+      store.transition('mint_sell', 'MONITORING', 'SELLING');
+      const trades = store.getBuyingTrades();
+      expect(trades).toHaveLength(1);
+      expect(trades[0]!.mint).toBe('mint_buy');
+    });
+
+    it('returns multiple BUYING trades ordered by updated_at DESC', () => {
+      store.createBuyingRecord('mint_buy_first');
+      // Small delay to ensure different updated_at timestamps
+      const store2 = new TradeStore(':memory:');
+      store2.close();
+      store.createBuyingRecord('mint_buy_second');
+      const trades = store.getBuyingTrades();
+      expect(trades).toHaveLength(2);
+      // Both should be returned (order: most recently inserted first)
+      expect(trades.map(t => t.mint)).toContain('mint_buy_first');
+      expect(trades.map(t => t.mint)).toContain('mint_buy_second');
+      // Most recently updated should be first (same or later updated_at)
+      expect(trades[0]!.updatedAt).toBeGreaterThanOrEqual(trades[1]!.updatedAt);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getSellingTrades()
+  // ---------------------------------------------------------------------------
+  describe('getSellingTrades()', () => {
+    it('returns empty array when no SELLING trades', () => {
+      expect(store.getSellingTrades()).toEqual([]);
+    });
+
+    it('returns rows for SELLING trades ordered by updated_at DESC', () => {
+      store.createBuyingRecord('mint_s1');
+      store.transition('mint_s1', 'BUYING', 'MONITORING');
+      store.transition('mint_s1', 'MONITORING', 'SELLING');
+      const trades = store.getSellingTrades();
+      expect(trades).toHaveLength(1);
+      expect(trades[0]!.mint).toBe('mint_s1');
+      expect(trades[0]!.state).toBe('SELLING');
+    });
+
+    it('when two SELLING records exist, first in array is most recently updated', () => {
+      store.createBuyingRecord('mint_a');
+      store.createBuyingRecord('mint_b');
+      store.transition('mint_a', 'BUYING', 'MONITORING');
+      store.transition('mint_b', 'BUYING', 'MONITORING');
+      store.transition('mint_a', 'MONITORING', 'SELLING');
+      store.transition('mint_b', 'MONITORING', 'SELLING');
+      const selling = store.getSellingTrades();
+      expect(selling).toHaveLength(2);
+      // First row should have an updated_at >= second row (DESC order)
+      expect(selling[0]!.updatedAt).toBeGreaterThanOrEqual(selling[1]!.updatedAt);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getMonitoringTrades()
+  // ---------------------------------------------------------------------------
+  describe('getMonitoringTrades()', () => {
+    it('returns empty array when no MONITORING trades', () => {
+      expect(store.getMonitoringTrades()).toEqual([]);
+    });
+
+    it('returns Trade rows for MONITORING trades', () => {
+      store.createBuyingRecord('mint_mon_1');
+      store.transition('mint_mon_1', 'BUYING', 'MONITORING');
+      const trades = store.getMonitoringTrades();
+      expect(trades).toHaveLength(1);
+      expect(trades[0]!.mint).toBe('mint_mon_1');
+      expect(trades[0]!.state).toBe('MONITORING');
+      expect(typeof trades[0]!.id).toBe('number');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getDetectedTrades()
+  // ---------------------------------------------------------------------------
+  describe('getDetectedTrades()', () => {
+    it('returns empty array when only BUYING trades exist (no DETECTED state in TradeStore)', () => {
+      store.createBuyingRecord('mint_buying_only');
+      expect(store.getDetectedTrades()).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // transitionById()
+  // ---------------------------------------------------------------------------
+  describe('transitionById()', () => {
+    it('returns 1 on successful transition (BUYING→FAILED by id)', () => {
+      store.createBuyingRecord('mint_tid');
+      const buying = store.getBuyingTrades();
+      expect(buying).toHaveLength(1);
+      const id = buying[0]!.id;
+      const changes = store.transitionById(id, 'mint_tid', 'BUYING', 'FAILED');
+      expect(changes).toBe(1);
+    });
+
+    it('returns 0 if id matches but state does not match expectedState (optimistic lock miss)', () => {
+      store.createBuyingRecord('mint_tid2');
+      const buying = store.getBuyingTrades();
+      const id = buying[0]!.id;
+      // State is BUYING but we specify MONITORING as expected — should miss
+      const changes = store.transitionById(id, 'mint_tid2', 'MONITORING', 'FAILED');
+      expect(changes).toBe(0);
+    });
+
+    it('returns 0 if id does not exist', () => {
+      const changes = store.transitionById(99999, 'mint_nonexistent', 'BUYING', 'FAILED');
+      expect(changes).toBe(0);
+    });
+
+    it('removes mint from activeMints when transitioning to FAILED', () => {
+      store.createBuyingRecord('mint_term');
+      expect(store.isActive('mint_term')).toBe(true);
+      const buying = store.getBuyingTrades();
+      const id = buying[0]!.id;
+      store.transitionById(id, 'mint_term', 'BUYING', 'FAILED');
+      expect(store.isActive('mint_term')).toBe(false);
+    });
+
+    it('removes mint from activeMints when transitioning to COMPLETED', () => {
+      store.createBuyingRecord('mint_comp');
+      const buying = store.getBuyingTrades();
+      const id = buying[0]!.id;
+      store.transitionById(id, 'mint_comp', 'BUYING', 'COMPLETED');
+      expect(store.isActive('mint_comp')).toBe(false);
+    });
+
+    it('removes mint from activeMints when transitioning to ABANDONED', () => {
+      store.createBuyingRecord('mint_aband');
+      const buying = store.getBuyingTrades();
+      const id = buying[0]!.id;
+      store.transitionById(id, 'mint_aband', 'BUYING', 'ABANDONED');
+      expect(store.isActive('mint_aband')).toBe(false);
+    });
+
+    it('does NOT remove mint from activeMints for non-terminal transitions (BUYING→MONITORING)', () => {
+      store.createBuyingRecord('mint_nonterm');
+      const buying = store.getBuyingTrades();
+      const id = buying[0]!.id;
+      store.transitionById(id, 'mint_nonterm', 'BUYING', 'MONITORING');
+      expect(store.isActive('mint_nonterm')).toBe(true);
+    });
+
+    it('two SELLING rows for same mint: transitionById marks the stale one FAILED without affecting the current one', () => {
+      store.createBuyingRecord('mint_a');
+      store.createBuyingRecord('mint_b');
+      store.transition('mint_a', 'BUYING', 'MONITORING');
+      store.transition('mint_b', 'BUYING', 'MONITORING');
+      store.transition('mint_a', 'MONITORING', 'SELLING');
+      store.transition('mint_b', 'MONITORING', 'SELLING');
+      // Verify both are in getSellingTrades()
+      const selling = store.getSellingTrades();
+      expect(selling).toHaveLength(2);
+      // Transition the older one (index 1, since ordered DESC) to FAILED
+      const staleId = selling[1]!.id;
+      const staleMint = selling[1]!.mint;
+      const currentMint = selling[0]!.mint;
+      const changes = store.transitionById(staleId, staleMint, 'SELLING', 'FAILED', { errorMessage: 'stale' });
+      expect(changes).toBe(1);
+      // Only one SELLING remains
+      expect(store.getSellingTrades()).toHaveLength(1);
+      expect(store.isActive(staleMint)).toBe(false);
+      expect(store.isActive(currentMint)).toBe(true);
+    });
+  });
 });
