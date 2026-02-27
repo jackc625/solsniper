@@ -13,6 +13,7 @@ import { SellLadder } from './execution/sell/sell-ladder.js';
 import { TradeStore } from './persistence/trade-store.js';
 import { PublicKey } from '@solana/web3.js';
 import { RecoveryManager } from './recovery/recovery-manager.js';
+import { PositionManager } from './position/position-manager.js';
 
 const log = createModuleLogger('main');
 
@@ -22,7 +23,8 @@ async function shutdown(
   signal: string,
   rpcManager: RpcManager,
   detectionManager: DetectionManager,
-  tradeStore: TradeStore
+  tradeStore: TradeStore,
+  positionManager: PositionManager
 ): Promise<void> {
   if (isShuttingDown) return; // Prevent double-shutdown
   isShuttingDown = true;
@@ -36,6 +38,10 @@ async function shutdown(
   timeout.unref();
 
   try {
+    // 0. Stop position manager polling (synchronous, clears setTimeout)
+    // Must stop first — prevents new sell triggers during teardown while connections are still open
+    positionManager.stop();
+
     // 1. Close RPC health check timers
     rpcManager.close();
 
@@ -103,7 +109,16 @@ async function main(): Promise<void> {
   );
   log.info({ sellLadderReady: true }, 'ExecutionEngine and SellLadder initialized');
 
-  // 10. Run crash recovery — BLOCKS until complete (PER-03, PER-05)
+  // 10. Initialize position manager (started after recovery completes — see step 12)
+  const positionManager = new PositionManager(
+    tradeStore,
+    sellLadder,
+    rpcManager.getConnection(),
+    new PublicKey(walletPubKeyStr),
+    tradingConfig,
+  );
+
+  // 11. Run crash recovery — BLOCKS until complete (PER-03, PER-05)
   // Detection must not start until recovery is fully done — no racing with live events.
   const recoveryManager = new RecoveryManager(
     tradeStore,
@@ -121,16 +136,28 @@ async function main(): Promise<void> {
     detectedDiscarded: recoverySummary.detectedDiscarded,
   }, 'Recovery complete');
 
-  // 11. Start detection (safe: recovery is done, duplicate guard populated)
+  // 12. Start position manager — monitors MONITORING trades for exit triggers
+  // Starts after recovery so recovered MONITORING trades are already in the store
+  positionManager.start();
+  log.info('PositionManager started');
+
+  // 13. Start detection (safe: recovery is done, duplicate guard populated)
   const detectionManager = new DetectionManager(env, tradingConfig, rpcManager.getConnection());
   detectionManager.start();
   log.info('Detection manager started');
 
-  // 12. Wire token events through safety pipeline and trade persistence
+  // 14. Wire token events through safety pipeline and trade persistence
   detectionManager.on('token', async (event) => {
     try {
       const result = await safetyPipeline.evaluate(event);
       if (result.pass) {
+        // POS-06: Enforce max concurrent position limit
+        const activePositions = tradeStore.getMonitoringTrades().length;
+        if (activePositions >= tradingConfig.maxConcurrentPositions) {
+          log.info({ mint: event.mint, activePositions, limit: tradingConfig.maxConcurrentPositions },
+            'Max concurrent positions reached — buy rejected');
+          return;
+        }
         // Duplicate guard: reject if a non-terminal trade already exists for this mint
         if (tradeStore.isActive(event.mint)) {
           log.debug({ mint: event.mint }, 'Duplicate buy blocked by active-mints guard');
@@ -147,8 +174,8 @@ async function main(): Promise<void> {
     }
   });
 
-  // 13. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
-  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore); };
+  // 15. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore, positionManager); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
 }
