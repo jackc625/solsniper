@@ -53,6 +53,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     LOG_LEVEL: 'debug',
     PUMPPORTAL_ENABLED: true,
     RAYDIUM_ENABLED: true,
+    DASHBOARD_PORT: 3001,
     ...overrides,
   };
 }

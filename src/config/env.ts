@@ -13,6 +13,9 @@ const EnvSchema = z.object({
   // Safety pipeline API keys — optional, enable advanced checks when present
   RUGCHECK_API_KEY: z.string().optional(),
   HELIUS_API_KEY: z.string().optional(),
+  // Dashboard HTTP server — deployment-time settings, not trading parameters
+  DASHBOARD_PORT: z.coerce.number().int().min(1024).max(65535).default(3001),
+  DASHBOARD_API_KEY: z.string().optional(),  // If absent, auth is disabled
 });
 
 export type Env = z.infer<typeof EnvSchema>;

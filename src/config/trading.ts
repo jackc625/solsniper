@@ -118,3 +118,17 @@ if (!configResult.success) {
 }
 
 export const tradingConfig: TradingConfig = configResult.data;
+
+// Runtime mutable shadow — dashboard can patch at runtime.
+// Existing callers continue using tradingConfig for the static initial value.
+// New dashboard-aware code calls getRuntimeConfig() to get live values.
+let _runtimeConfig: TradingConfig = configResult.data;
+
+export function getRuntimeConfig(): TradingConfig {
+  return _runtimeConfig;
+}
+
+export function patchRuntimeConfig(updates: Partial<TradingConfig>): TradingConfig {
+  _runtimeConfig = { ..._runtimeConfig, ...updates };
+  return _runtimeConfig;
+}
