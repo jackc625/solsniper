@@ -8,6 +8,7 @@ import { RpcManager } from './core/rpc-manager.js';
 import { DetectionManager } from './detection/detection-manager.js';
 import { SafetyPipeline } from './safety/safety-pipeline.js';
 import { getWalletPublicKey } from './utils/wallet.js';
+import { TradeStore } from './persistence/trade-store.js';
 
 const log = createModuleLogger('main');
 
@@ -16,7 +17,8 @@ let isShuttingDown = false;
 async function shutdown(
   signal: string,
   rpcManager: RpcManager,
-  detectionManager: DetectionManager
+  detectionManager: DetectionManager,
+  tradeStore: TradeStore
 ): Promise<void> {
   if (isShuttingDown) return; // Prevent double-shutdown
   isShuttingDown = true;
@@ -36,7 +38,8 @@ async function shutdown(
     // 2. Close detection listeners (WebSocket + onLogs subscriptions)
     await detectionManager.stop();
 
-    // 3. Phase 4+: flush SQLite writes
+    // 3. Flush SQLite writes (TradeStore.close() is synchronous — flushes and closes)
+    tradeStore.close();
 
     // 4. Flush pino logger (ensures buffered logs written)
     log.info('Shutdown complete');
@@ -77,13 +80,24 @@ async function main(): Promise<void> {
   const safetyPipeline = new SafetyPipeline(rpcManager.getConnection(), tradingConfig, env);
   log.info('Safety pipeline initialized');
 
-  // 6. Wire token events through safety pipeline
+  // 6. Initialize trade store (write-ahead persistence layer)
+  const tradeStore = new TradeStore('data/trades.db');
+  log.info('TradeStore initialized');
+
+  // 7. Wire token events through safety pipeline and trade persistence
   detectionManager.on('token', async (event) => {
     try {
       const result = await safetyPipeline.evaluate(event);
       if (result.pass) {
+        // Duplicate guard: reject if a non-terminal trade already exists for this mint
+        if (tradeStore.isActive(event.mint)) {
+          log.debug({ mint: event.mint }, 'Duplicate buy blocked by active-mints guard');
+          return;
+        }
+        // Write-ahead: record BUYING state before any on-chain action (PER-02)
+        tradeStore.createBuyingRecord(event.mint);
         // Phase 5+: pass to execution engine
-        log.debug({ mint: event.mint, score: result.aggregateScore }, 'Token approved — awaiting execution engine (Phase 5)');
+        log.debug({ mint: event.mint, score: result.aggregateScore }, 'Trade record created — awaiting execution engine (Phase 5)');
       }
       // Rejections already logged by SafetyPipeline with full detail
     } catch (err) {
@@ -91,8 +105,8 @@ async function main(): Promise<void> {
     }
   });
 
-  // 7. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
-  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager); };
+  // 8. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
 }
