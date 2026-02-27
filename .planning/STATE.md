@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T18:47:47.847Z"
+last_updated: "2026-02-27T20:08:48Z"
 progress:
-  total_phases: 6
+  total_phases: 8
   completed_phases: 6
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 16
+  completed_plans: 16
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 6: Crash Recovery (COMPLETE)
+**Current focus:** Phase 7: Position Management (in progress)
 
 ## Current Position
 
-Phase: 6 of 8 (Crash Recovery) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
-Status: Phase 6 complete — RecoveryManager implemented with full 6-step recovery sequence, 162 tests passing (16 new), index.ts startup restructured
-Last activity: 2026-02-27 -- Plan 06-02 complete (RecoveryManager, tests, index.ts startup reorder)
+Phase: 7 of 8 (Position Management) - IN PROGRESS
+Plan: 1 of N in current phase - COMPLETE
+Status: Phase 7 Plan 01 complete — TradingConfig positionManagement block, config.jsonc defaults, TradeStore.updateMonitoringAmount()
+Last activity: 2026-02-27 -- Plan 07-01 complete (PositionManagementConfigSchema, config.jsonc block, TradeStore backfill method)
 
-Progress: [█████████░] 80%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -120,6 +120,9 @@ Recent decisions affecting current work:
 - [Phase 06-02]: getParsedTokenAccountsByOwner used for both legacy SPL and Token-2022 (GetTokenAccountsByOwnerConfig has no encoding param)
 - [Phase 06-02]: RPC failure on SELLING trade counted as sellingCompleted — no sellingUnrecovered counter; fail-safe-closed pattern treats both empty wallet and RPC fail as gone
 - [Phase 06-02]: Valid base58 Solana pubkeys required in all unit tests — PublicKey constructor throws on invalid base58; use mainnet addresses (WSOL, USDC) not fake strings
+- [Phase 07-01]: Keep top-level stopLossPct and takeProfitPct in TradingConfigSchema — backward compat; positionManagement.stopLossPct is what PositionManager uses
+- [Phase 07-01]: Dedicated stmtSetMonitoringAmount for PumpPortal backfill — cleaner than reusing transition() for same-state MONITORING update
+- [Phase 07-01]: TierSchema at field is a price multiplier (2 = 2x entry value in SOL), pct is percent of remaining tokens to sell at that tier
 
 ### Pending Todos
 
@@ -138,8 +141,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 06-02-PLAN.md (RecoveryManager implemented, 16 tests passing, index.ts restructured)
+Last activity: 2026-02-27 - Completed 07-01-PLAN.md (PositionManagementConfigSchema, config.jsonc positionManagement block, TradeStore.updateMonitoringAmount())
 
 Last session: 2026-02-27
-Stopped at: Completed 06-02-PLAN.md (RecoveryManager with full 6-step recovery, dual token program balance query, index.ts startup reorder)
-Resume file: .planning/phases/07-position-management/ (next phase)
+Stopped at: Completed 07-01-PLAN.md (TradingConfig extended with positionManagement, TradeStore backfill method ready for PositionManager)
+Resume file: .planning/phases/07-position-management/ (07-02 next)

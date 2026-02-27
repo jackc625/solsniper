@@ -41,11 +41,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Position Management
 
-- [ ] **POS-01**: Bot monitors active positions by polling Jupiter quotes at configurable intervals
-- [ ] **POS-02**: Bot automatically sells when position drops below configurable stop-loss threshold
-- [ ] **POS-03**: Bot automatically sells when position reaches configurable take-profit target
-- [ ] **POS-04**: Bot supports tiered take-profit (e.g., sell 33% at 2x, 33% at 5x, rest at 10x)
-- [ ] **POS-05**: Bot supports trailing stop-loss that follows price upward and sells on reversal
+- [x] **POS-01**: Bot monitors active positions by polling Jupiter quotes at configurable intervals
+- [x] **POS-02**: Bot automatically sells when position drops below configurable stop-loss threshold
+- [x] **POS-03**: Bot automatically sells when position reaches configurable take-profit target
+- [x] **POS-04**: Bot supports tiered take-profit (e.g., sell 33% at 2x, 33% at 5x, rest at 10x)
+- [x] **POS-05**: Bot supports trailing stop-loss that follows price upward and sells on reversal
 - [ ] **POS-06**: Bot enforces configurable maximum concurrent position limit
 
 ### Persistence
@@ -143,11 +143,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXE-07 | Phase 5 | Complete |
 | EXE-08 | Phase 5 | Complete |
 | EXE-09 | Phase 5 | Complete |
-| POS-01 | Phase 7 | Pending |
-| POS-02 | Phase 7 | Pending |
-| POS-03 | Phase 7 | Pending |
-| POS-04 | Phase 7 | Pending |
-| POS-05 | Phase 7 | Pending |
+| POS-01 | Phase 7 | Complete |
+| POS-02 | Phase 7 | Complete |
+| POS-03 | Phase 7 | Complete |
+| POS-04 | Phase 7 | Complete |
+| POS-05 | Phase 7 | Complete |
 | POS-06 | Phase 7 | Pending |
 | PER-01 | Phase 4 | Complete |
 | PER-02 | Phase 4 | Complete |
