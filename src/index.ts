@@ -11,6 +11,8 @@ import { getWallet, getWalletPublicKey } from './utils/wallet.js';
 import { ExecutionEngine } from './execution/execution-engine.js';
 import { SellLadder } from './execution/sell/sell-ladder.js';
 import { TradeStore } from './persistence/trade-store.js';
+import { PublicKey } from '@solana/web3.js';
+import { RecoveryManager } from './recovery/recovery-manager.js';
 
 const log = createModuleLogger('main');
 
@@ -56,8 +58,8 @@ async function main(): Promise<void> {
   log.info({ nodeEnv: env.NODE_ENV, logLevel: env.LOG_LEVEL }, 'SolSniper starting');
 
   // 1. Load wallet (validates private key)
-  const publicKey = getWalletPublicKey();
-  log.info({ publicKey }, 'Wallet loaded');
+  const walletPubKeyStr = getWalletPublicKey();
+  log.info({ publicKey: walletPubKeyStr }, 'Wallet loaded');
 
   // 2. Initialize RPC manager
   const rpcManager = new RpcManager(
@@ -73,12 +75,7 @@ async function main(): Promise<void> {
   // 4. Log trading config (safe — no secrets)
   log.info({ tradingConfig }, 'Trading configuration loaded');
 
-  // 5. Initialize detection manager
-  const detectionManager = new DetectionManager(env, tradingConfig, rpcManager.getConnection());
-  detectionManager.start();
-  log.info('Detection manager started');
-
-  // 5.5. Initialize safety pipeline
+  // 5. Initialize safety pipeline
   const safetyPipeline = new SafetyPipeline(rpcManager.getConnection(), tradingConfig, env);
   log.info('Safety pipeline initialized');
 
@@ -86,10 +83,10 @@ async function main(): Promise<void> {
   const tradeStore = new TradeStore('data/trades.db');
   log.info('TradeStore initialized');
 
-  // 6.5. Load wallet keypair for execution
+  // 7. Load wallet keypair for execution
   const wallet = getWallet();
 
-  // 7. Initialize execution engine (buy routing: PumpPortal vs Jupiter)
+  // 8. Initialize execution engine (buy routing: PumpPortal vs Jupiter)
   const executionEngine = new ExecutionEngine(
     wallet,
     rpcManager.getAllConnections(),
@@ -97,18 +94,39 @@ async function main(): Promise<void> {
     tradeStore
   );
 
-  // 8. Initialize sell ladder (Phase 7 position management will call sellLadder.sell())
+  // 9. Initialize sell ladder
   const sellLadder = new SellLadder(
     wallet,
     rpcManager.getAllConnections(),
     tradingConfig,
     tradeStore
   );
-  // sellLadder.sell(mint, tokenAmount) is called by Phase 7 position management
-  // when stop-loss or take-profit triggers. sellLadder is referenced in this scope.
   log.info({ sellLadderReady: true }, 'ExecutionEngine and SellLadder initialized');
 
-  // 9. Wire token events through safety pipeline and trade persistence
+  // 10. Run crash recovery — BLOCKS until complete (PER-03, PER-05)
+  // Detection must not start until recovery is fully done — no racing with live events.
+  const recoveryManager = new RecoveryManager(
+    tradeStore,
+    rpcManager.getConnection(),
+    new PublicKey(walletPubKeyStr),
+    sellLadder,
+  );
+  const recoverySummary = await recoveryManager.run();
+  log.info({
+    monitoring: recoverySummary.monitoring,
+    sellingResumed: recoverySummary.sellingResumed,
+    sellingCompleted: recoverySummary.sellingCompleted,
+    buyingRecovered: recoverySummary.buyingRecovered,
+    buyingUnrecovered: recoverySummary.buyingUnrecovered,
+    detectedDiscarded: recoverySummary.detectedDiscarded,
+  }, 'Recovery complete');
+
+  // 11. Start detection (safe: recovery is done, duplicate guard populated)
+  const detectionManager = new DetectionManager(env, tradingConfig, rpcManager.getConnection());
+  detectionManager.start();
+  log.info('Detection manager started');
+
+  // 12. Wire token events through safety pipeline and trade persistence
   detectionManager.on('token', async (event) => {
     try {
       const result = await safetyPipeline.evaluate(event);
@@ -129,7 +147,7 @@ async function main(): Promise<void> {
     }
   });
 
-  // 10. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  // 13. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
   const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
