@@ -1,0 +1,123 @@
+{
+  // SOL to spend on each buy. E.g. 0.01 = 0.01 SOL per token launch.
+  "buyAmountSol": 0.01,
+
+  // Maximum price slippage allowed in basis points (100 bps = 1%). Protects against sandwich attacks.
+  "maxSlippageBps": 1000,
+
+  // Maximum number of open token positions held simultaneously.
+  "maxConcurrentPositions": 3,
+
+  // Sell all tokens if position drops below this % from buy price. Negative number (e.g. -50 = -50%).
+  "stopLossPct": -50,
+
+  // Sell tokens when position gains this % above buy price (e.g. 300 = 3x).
+  "takeProfitPct": 300,
+
+  // Minimum composite safety score (0-100) a token must pass before buying. Higher = safer, fewer buys.
+  "minSafetyScore": 60,
+
+  "detection": {
+    // How often (ms) to send a ping to keep WebSocket connections alive. Default: 30 000 ms (30 s).
+    "wsHeartbeatIntervalMs": 30000,
+
+    // Starting reconnect delay (ms) after a WebSocket disconnects. Doubles on each retry.
+    "wsBaseBackoffMs": 3000,
+
+    // Maximum reconnect delay (ms) — caps the exponential backoff ceiling.
+    "wsMaxBackoffMs": 60000,
+
+    // Number of reconnects within wsExcessiveReconnectWindowMs that triggers an alert.
+    "wsExcessiveReconnectThreshold": 5,
+
+    // Rolling time window (ms) used to count excessive reconnects. Default: 600 000 ms (10 min).
+    "wsExcessiveReconnectWindowMs": 600000,
+
+    // How often (ms) detection stats are logged. Default: 900 000 ms (15 min).
+    "statsIntervalMs": 900000,
+
+    // How long (ms) a seen mint is remembered to prevent duplicate buy attempts. Default: 3 600 000 ms (1 hr).
+    "dedupWindowMs": 3600000
+  },
+
+  "safety": {
+    // Max wait (ms) for Tier-2 safety checks (holder concentration, rug check) before they time out and score 0.
+    "tier2TimeoutMs": 2000,
+
+    // Max wait (ms) for Tier-3 safety checks (creator history) before they time out and score 0.
+    "tier3TimeoutMs": 5000,
+
+    // How long (ms) safety check results are cached to avoid redundant RPC calls. Default: 300 000 ms (5 min).
+    "cacheTtlMs": 300000,
+
+    "weights": {
+      // Score weight (out of 100) given to the rug-check result in the composite safety score.
+      "rugCheck": 40,
+
+      // Score weight (out of 100) given to holder concentration analysis.
+      "holder": 30,
+
+      // Score weight (out of 100) given to creator history analysis.
+      "creator": 30
+    },
+
+    "holder": {
+      // Fraction of supply (0-1) held by the top wallet that triggers a soft safety penalty. E.g. 0.25 = 25%.
+      "top1SoftBlockThreshold": 0.25,
+
+      // Fraction of supply (0-1) held by the top 10 wallets combined that triggers a soft safety penalty.
+      "top10SoftBlockThreshold": 0.50
+    },
+
+    // Set true if the rug-check API returns risk scores (high = bad). The bot inverts them to safety scores (high = good).
+    "rugCheckScoreInverted": true,
+
+    // Path to the JSON file that persists banned creator wallet addresses across restarts.
+    "blocklistPath": "./data/creator-blocklist.json"
+  },
+
+  "execution": {
+    "buy": {
+      // Slippage tolerance for buy transactions in basis points (100 = 1%). Independent of top-level maxSlippageBps.
+      "slippageBps": 1000,
+
+      // Base Solana priority fee in lamports added to every buy transaction to improve landing speed.
+      "priorityFeeBaseLamports": 100000,
+
+      // Multiplier applied to the base priority fee. Set >1 to pay higher fees during congestion.
+      "priorityFeeMultiplier": 1
+    },
+
+    "sell": {
+      // Slippage for normal sell attempts (basis points). 500 = 5%.
+      "standardSlippageBps": 500,
+
+      // Slippage for emergency sell escalation (basis points). 4900 = 49% — used when all else fails.
+      "emergencySlippageBps": 4900,
+
+      // Timeout (ms) for a standard sell attempt before escalating to next tier.
+      "standardTimeoutMs": 30000,
+
+      // Timeout (ms) for a high-priority-fee sell attempt.
+      "highFeeTimeoutMs": 20000,
+
+      // Priority fee multiplier applied during high-fee sell escalation (e.g. 3 = 3x base fee).
+      "highFeeMultiplier": 3,
+
+      // Timeout (ms) to wait for Jito bundle confirmation during sell escalation.
+      "jitoTimeoutMs": 30000,
+
+      // Lamports paid as a Jito tip to validators for bundle inclusion.
+      "jitoTipLamports": 100000,
+
+      // Timeout (ms) for a chunked sell attempt (selling in tranches when normal sells fail).
+      "chunkedTimeoutMs": 60000,
+
+      // Timeout (ms) for the final emergency sell attempt at max slippage.
+      "emergencyTimeoutMs": 30000,
+
+      // Priority fee multiplier during emergency sells (e.g. 10 = 10x base fee).
+      "emergencyPriorityMultiplier": 10
+    }
+  }
+}

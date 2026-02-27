@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
+import stripJsonComments from 'strip-json-comments';
 
 const HolderConfigSchema = z.object({
   top1SoftBlockThreshold: z.number().min(0).max(1).default(0.25),
@@ -78,19 +79,19 @@ export type TradingConfig = z.infer<typeof TradingConfigSchema>;
 let rawConfig: unknown;
 
 try {
-  const configPath = path.resolve('config.json');
+  const configPath = path.resolve('config.jsonc');
   const raw = fs.readFileSync(configPath, 'utf-8');
-  rawConfig = JSON.parse(raw);
+  rawConfig = JSON.parse(stripJsonComments(raw));
 } catch (err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`Failed to load config.json: ${message}`);
+  console.error(`Failed to load config.jsonc: ${message}`);
   process.exit(1);
 }
 
 const configResult = TradingConfigSchema.safeParse(rawConfig);
 
 if (!configResult.success) {
-  console.error('config.json validation failed:');
+  console.error('config.jsonc validation failed:');
   configResult.error.issues.forEach((issue) => {
     console.error(`  [${issue.path.join('.')}] ${issue.message}`);
   });
