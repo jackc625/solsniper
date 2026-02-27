@@ -7,7 +7,9 @@ import { logger, createModuleLogger } from './core/logger.js';
 import { RpcManager } from './core/rpc-manager.js';
 import { DetectionManager } from './detection/detection-manager.js';
 import { SafetyPipeline } from './safety/safety-pipeline.js';
-import { getWalletPublicKey } from './utils/wallet.js';
+import { getWallet, getWalletPublicKey } from './utils/wallet.js';
+import { ExecutionEngine } from './execution/execution-engine.js';
+import { SellLadder } from './execution/sell/sell-ladder.js';
 import { TradeStore } from './persistence/trade-store.js';
 
 const log = createModuleLogger('main');
@@ -84,7 +86,29 @@ async function main(): Promise<void> {
   const tradeStore = new TradeStore('data/trades.db');
   log.info('TradeStore initialized');
 
-  // 7. Wire token events through safety pipeline and trade persistence
+  // 6.5. Load wallet keypair for execution
+  const wallet = getWallet();
+
+  // 7. Initialize execution engine (buy routing: PumpPortal vs Jupiter)
+  const executionEngine = new ExecutionEngine(
+    wallet,
+    rpcManager.getAllConnections(),
+    tradingConfig,
+    tradeStore
+  );
+
+  // 8. Initialize sell ladder (Phase 7 position management will call sellLadder.sell())
+  const sellLadder = new SellLadder(
+    wallet,
+    rpcManager.getAllConnections(),
+    tradingConfig,
+    tradeStore
+  );
+  // sellLadder.sell(mint, tokenAmount) is called by Phase 7 position management
+  // when stop-loss or take-profit triggers. sellLadder is referenced in this scope.
+  log.info({ sellLadderReady: true }, 'ExecutionEngine and SellLadder initialized');
+
+  // 9. Wire token events through safety pipeline and trade persistence
   detectionManager.on('token', async (event) => {
     try {
       const result = await safetyPipeline.evaluate(event);
@@ -96,8 +120,8 @@ async function main(): Promise<void> {
         }
         // Write-ahead: record BUYING state before any on-chain action (PER-02)
         tradeStore.createBuyingRecord(event.mint);
-        // Phase 5+: pass to execution engine
-        log.debug({ mint: event.mint, score: result.aggregateScore }, 'Trade record created — awaiting execution engine (Phase 5)');
+        // Execute buy — routes to PumpPortal (bonding curve) or Jupiter (migrated) based on event.source
+        void executionEngine.buy(event);
       }
       // Rejections already logged by SafetyPipeline with full detail
     } catch (err) {
@@ -105,7 +129,7 @@ async function main(): Promise<void> {
     }
   });
 
-  // 8. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  // 10. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
   const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
