@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Safety Pipeline** - Parallel tiered safety checks with aggregate scoring and threshold enforcement (completed 2026-02-27)
 - [x] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention (completed 2026-02-27)
 - [x] **Phase 5: Execution Engine** - Jupiter and PumpPortal buy, sell escalation ladder with Jito bundles, multi-RPC broadcast (completed 2026-02-27)
-- [ ] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart
+- [x] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart (completed 2026-02-27)
 - [ ] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits
 - [ ] **Phase 8: Web Dashboard** - Live trade feed via SSE, P&L tracking, filter configuration, in-process HTTP server
 
@@ -113,8 +113,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — TradeStore extensions (getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById) with tests
-- [ ] 06-02-PLAN.md — RecoveryManager class (dual-program balance check, per-trade timeout, SELLING step-back, structured summary log) + index.ts startup resequencing
+- [x] 06-01-PLAN.md — TradeStore extensions (getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById) with tests
+- [x] 06-02-PLAN.md — RecoveryManager class (dual-program balance check, per-trade timeout, SELLING step-back, structured summary log) + index.ts startup resequencing
 
 ### Phase 7: Position Management
 **Goal**: Bot automatically manages open positions with configurable exit strategies, protecting capital with stop-loss and capturing gains with take-profit
@@ -160,6 +160,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
 | 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
 | 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
-| 6. Crash Recovery | 1/2 | In Progress|  |
+| 6. Crash Recovery | 2/2 | Complete   | 2026-02-27 |
 | 7. Position Management | 0/2 | Not started | - |
 | 8. Web Dashboard | 0/2 | Not started | - |

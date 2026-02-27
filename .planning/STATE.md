@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-27T18:25:30.740Z"
+last_updated: "2026-02-27T18:40:37.257Z"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 6: Crash Recovery (in progress)
+**Current focus:** Phase 6: Crash Recovery (COMPLETE)
 
 ## Current Position
 
-Phase: 6 of 8 (Crash Recovery) - IN PROGRESS
-Plan: 1 of 2 in current phase - COMPLETE
-Status: Phase 6 Plan 01 complete — TradeStore extended with 5 new methods for RecoveryManager; 40 tests passing
-Last activity: 2026-02-27 -- Plan 06-01 complete (getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById added)
+Phase: 6 of 8 (Crash Recovery) - COMPLETE
+Plan: 2 of 2 in current phase - COMPLETE
+Status: Phase 6 complete — RecoveryManager implemented with full 6-step recovery sequence, 162 tests passing (16 new), index.ts startup restructured
+Last activity: 2026-02-27 -- Plan 06-02 complete (RecoveryManager, tests, index.ts startup reorder)
 
-Progress: [█████████░] 73%
+Progress: [█████████░] 80%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [█████████░] 73%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 06-crash-recovery | 1/2 | 3 min | 3 min |
+| Phase 06-crash-recovery P02 | 10 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,9 @@ Recent decisions affecting current work:
 - [Phase 06-01]: transitionById takes mint param (not queried from DB) to update activeMints Set without extra SELECT
 - [Phase 06-01]: mapRow maps only the columns present in each query SELECT list — absent columns remain undefined per Trade interface optional fields
 - [Phase 06-01]: stmtUpdateStateById uses COALESCE only for error_message — recovery transitions don't need full field update surface
+- [Phase 06-02]: getParsedTokenAccountsByOwner used for both legacy SPL and Token-2022 (GetTokenAccountsByOwnerConfig has no encoding param)
+- [Phase 06-02]: RPC failure on SELLING trade counted as sellingCompleted — no sellingUnrecovered counter; fail-safe-closed pattern treats both empty wallet and RPC fail as gone
+- [Phase 06-02]: Valid base58 Solana pubkeys required in all unit tests — PublicKey constructor throws on invalid base58; use mainnet addresses (WSOL, USDC) not fake strings
 
 ### Pending Todos
 
@@ -134,8 +138,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 06-01-PLAN.md (TradeStore extended with 5 new methods, 40 tests passing)
+Last activity: 2026-02-27 - Completed 06-02-PLAN.md (RecoveryManager implemented, 16 tests passing, index.ts restructured)
 
 Last session: 2026-02-27
-Stopped at: Completed 06-01-PLAN.md (TradeStore extended with getBuyingTrades, getSellingTrades, getMonitoringTrades, getDetectedTrades, transitionById)
-Resume file: .planning/phases/06-crash-recovery/06-02-PLAN.md
+Stopped at: Completed 06-02-PLAN.md (RecoveryManager with full 6-step recovery, dual token program balance query, index.ts startup reorder)
+Resume file: .planning/phases/07-position-management/ (next phase)
