@@ -1,0 +1,529 @@
+/**
+ * Unit tests for PositionManager.
+ *
+ * Mocks: TradeStore, SellLadder, Solana Connection, global fetch.
+ * No real SQLite, Solana connections, or Jupiter API calls used.
+ *
+ * tick() is called directly (not through the timer) for deterministic testing.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { PublicKey } from '@solana/web3.js';
+import { PositionManager } from './position-manager.js';
+import type { Trade } from '../types/index.js';
+import type { TradingConfig } from '../config/trading.js';
+
+// ---------------------------------------------------------------------------
+// Valid mainnet pubkey used as wallet address in tests.
+// PublicKey constructor validates base58 — invalid strings throw at runtime.
+// ---------------------------------------------------------------------------
+const WALLET_PUBKEY = new PublicKey('So11111111111111111111111111111111111111112');
+
+// Valid Solana mainnet mint addresses for test fixtures.
+const MINT_A = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC
+const MINT_B = '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs'; // ETH (Wormhole)
+
+// ---------------------------------------------------------------------------
+// Mock helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Stubs global fetch to return a successful Jupiter quote response.
+ * outAmountLamports is the raw lamport amount (divide by 1e9 for SOL).
+ */
+function mockJupiterQuote(outAmountLamports: number) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ outAmount: String(outAmountLamports) }),
+    }),
+  );
+}
+
+/**
+ * Stubs global fetch to simulate a Jupiter quote failure (ok: false).
+ */
+function mockJupiterFailure() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: false,
+    }),
+  );
+}
+
+const mockTradeStore = {
+  getMonitoringTrades: vi.fn(),
+  updateMonitoringAmount: vi.fn().mockReturnValue(1),
+};
+
+const mockSellLadder = {
+  sell: vi.fn().mockResolvedValue({ success: true, step: 'STANDARD' }),
+};
+
+const mockConnection = {
+  getParsedTokenAccountsByOwner: vi.fn().mockResolvedValue({ value: [] }),
+};
+
+/**
+ * Builds a full TradingConfig fixture.
+ * Override positionManagement to test specific exit strategies.
+ */
+function makeConfig(
+  overrides: Partial<TradingConfig['positionManagement']> = {},
+): TradingConfig {
+  return {
+    buyAmountSol: 0.1,
+    maxSlippageBps: 1000,
+    maxConcurrentPositions: 3,
+    stopLossPct: -50,
+    takeProfitPct: 300,
+    minSafetyScore: 60,
+    detection: {
+      wsHeartbeatIntervalMs: 30000,
+      wsBaseBackoffMs: 3000,
+      wsMaxBackoffMs: 60000,
+      wsExcessiveReconnectThreshold: 5,
+      wsExcessiveReconnectWindowMs: 600000,
+      statsIntervalMs: 900000,
+      dedupWindowMs: 3600000,
+    },
+    safety: {
+      tier2TimeoutMs: 2000,
+      tier3TimeoutMs: 5000,
+      cacheTtlMs: 300000,
+      weights: { rugCheck: 40, holder: 30, creator: 30 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50 },
+      rugCheckScoreInverted: true,
+      blocklistPath: './data/creator-blocklist.json',
+    },
+    execution: {
+      buy: {
+        slippageBps: 1000,
+        priorityFeeBaseLamports: 100000,
+        priorityFeeMultiplier: 1,
+      },
+      sell: {
+        standardSlippageBps: 500,
+        emergencySlippageBps: 4900,
+        standardTimeoutMs: 30000,
+        highFeeTimeoutMs: 20000,
+        highFeeMultiplier: 3,
+        jitoTimeoutMs: 30000,
+        jitoTipLamports: 100000,
+        chunkedTimeoutMs: 60000,
+        emergencyTimeoutMs: 30000,
+        emergencyPriorityMultiplier: 10,
+      },
+    },
+    positionManagement: {
+      pollIntervalMs: 5000,
+      stopLossPct: -50,
+      tieredTp: [
+        { at: 2, pct: 33 },
+        { at: 5, pct: 33 },
+        { at: 10, pct: 34 },
+      ],
+      trailingStopPct: 0,
+      ...overrides,
+    },
+  };
+}
+
+/**
+ * Builds a Trade fixture in MONITORING state.
+ */
+function makeTrade(overrides: Partial<Trade> = {}): Trade {
+  return {
+    id: 1,
+    mint: MINT_A,
+    state: 'MONITORING',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    amountSol: 1.0,          // 1 SOL entry price
+    amountTokens: 1_000_000, // 1M raw tokens
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a PositionManager and exposes tick() via type cast for direct testing.
+ */
+function makePositionManager(config: TradingConfig = makeConfig()) {
+  const pm = new PositionManager(
+    mockTradeStore as any,
+    mockSellLadder as any,
+    mockConnection as any,
+    WALLET_PUBKEY,
+    config,
+  );
+  return pm as PositionManager & { tick: () => Promise<void> };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('PositionManager', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+    mockSellLadder.sell.mockResolvedValue({ success: true, step: 'STANDARD' });
+    mockTradeStore.updateMonitoringAmount.mockReturnValue(1);
+    mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({ value: [] });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('stop-loss', () => {
+    it('fires sell when position value drops below stop-loss threshold', async () => {
+      // amountSol=1.0, Jupiter returns 0.4 SOL → ratio=0.4 < 0.5 (-50% SL)
+      mockJupiterQuote(0.4 * 1e9); // 0.4 SOL in lamports
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+
+    it('does NOT fire sell when position value is above stop-loss threshold', async () => {
+      // amountSol=1.0, Jupiter returns 0.6 SOL → ratio=0.6 > 0.5 (-50% SL)
+      mockJupiterQuote(0.6 * 1e9);
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('tiered take-profit', () => {
+    it('tier 0 fires — sells 33% of tokens when ratio >= 2x', async () => {
+      // amountSol=1.0, Jupiter returns 2.1 SOL → ratio=2.1 >= 2x
+      mockJupiterQuote(2.1 * 1e9);
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      // 33% of 1_000_000 = 330_000 (integer division: 1_000_000 * 33n / 100n = 330000n)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n);
+    });
+
+    it('tier 1 fires — sells tier 1 tokens when ratio >= 5x and tier index is 1', async () => {
+      // amountSol=1.0, Jupiter returns 5.1 SOL → ratio=5.1 >= 5x (tier 1)
+      mockJupiterQuote(5.1 * 1e9);
+
+      const pm = makePositionManager();
+      // Manually advance tier index to 1 (simulating tier 0 already fired)
+      // Access private Map via any cast
+      (pm as any).tierIndices.set(MINT_A, 1);
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      await pm.tick();
+
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      // tier 1: pct=33, so 1_000_000 * 33n / 100n = 330000n
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n);
+    });
+
+    it('tiered TP exhausted (past last tier) — no tiered TP fires, SL still evaluates', async () => {
+      // tierIndex=3 (beyond array length of 3), ratio=10x — no tiered TP
+      // Jupiter returns 10 SOL (10x entry), but all tiers exhausted
+      // SL at -50%: ratio=10 > 0.5, so no SL either → no sell
+      mockJupiterQuote(10 * 1e9);
+
+      const pm = makePositionManager();
+      // Set tier index beyond array bounds
+      (pm as any).tierIndices.set(MINT_A, 3);
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      await pm.tick();
+
+      // No tiered TP and no SL (ratio=10 >> threshold)
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+
+    it('tiered TP advances tier index after firing', async () => {
+      // Tier 0 fires (ratio=2.1 >= 2x)
+      mockJupiterQuote(2.1 * 1e9);
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // After tier 0 fires, index should advance to 1
+      expect((pm as any).tierIndices.get(MINT_A)).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('TP takes priority over SL', () => {
+    it('fires TP (not SL) when both would trigger in the same cycle', async () => {
+      // Configure tiered TP with at=0.9 (below 1x), so TP triggers even on loss
+      // SL at -50% also triggers (ratio=0.4 < 0.5)
+      // TP should fire, not SL
+      mockJupiterQuote(0.4 * 1e9); // 0.4 SOL → ratio=0.4
+
+      const config = makeConfig({
+        stopLossPct: -50,
+        tieredTp: [{ at: 0.9, pct: 50 }], // triggers at any ratio >= 0.9? No — 0.4 < 0.9
+        trailingStopPct: 0,
+      });
+
+      // To force BOTH to trigger simultaneously:
+      // ratio must be both >= tieredTp[0].at AND < SL threshold
+      // Use tieredTp[0].at = 0.3 (triggers when ratio >= 0.3) and SL at -50% (triggers when ratio < 0.5)
+      // Jupiter returns 0.4 SOL → ratio=0.4 → 0.4 >= 0.3 ✓ and 0.4 < 0.5 ✓
+      const config2 = makeConfig({
+        stopLossPct: -50,    // SL threshold: ratio < 0.5
+        tieredTp: [{ at: 0.3, pct: 50 }], // TP fires when ratio >= 0.3
+        trailingStopPct: 0,
+      });
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager(config2);
+      await pm.tick();
+
+      // sell should fire (TP wins over SL — TP returns early before SL check)
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      // TP sells 50% of 1_000_000 = 500_000
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 500_000n);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('trailing stop', () => {
+    it('fires sell when price drops below high watermark by configured pct', async () => {
+      // trailingStopPct=20, watermark=2.0 SOL → threshold=2.0*(1-0.2)=1.6 SOL
+      // Jupiter returns 1.5 SOL → 1.5 < 1.6 → trailing stop fires
+      mockJupiterQuote(1.5 * 1e9);
+
+      const config = makeConfig({ trailingStopPct: 20 });
+
+      const pm = makePositionManager(config);
+      // Pre-set the high watermark for MINT_A to 2.0 SOL
+      (pm as any).highWatermarks.set(MINT_A, 2.0);
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      await pm.tick();
+
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+
+    it('does NOT fire trailing stop when trailingStopPct=0 (disabled)', async () => {
+      // Even if current price is below a hypothetical watermark, trailing stop is disabled
+      mockJupiterQuote(0.5 * 1e9); // 0.5 SOL — below a 2.0 watermark, but disabled
+
+      const config = makeConfig({
+        stopLossPct: -50,    // SL threshold: ratio < 0.5 → 0.5 is NOT < 0.5, so no SL either
+        trailingStopPct: 0,
+      });
+
+      // Exactly at SL threshold: ratio=0.5, slThreshold=0.5 → NOT strictly less than → no SL
+      const pm = makePositionManager(config);
+      (pm as any).highWatermarks.set(MINT_A, 2.0); // watermark set but trailing stop disabled
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      await pm.tick();
+
+      // Trailing stop disabled → no trailing stop sell
+      // SL: ratio=0.5 is NOT < 0.5 (slThreshold) → no SL either
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('sellsInFlight guard', () => {
+    it('prevents double-sell when mint is already in sellsInFlight', async () => {
+      mockJupiterQuote(0.4 * 1e9); // would trigger SL
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      // Inject mint into sellsInFlight to simulate in-progress sell
+      (pm as any).sellsInFlight.add(MINT_A);
+
+      await pm.tick();
+
+      // Sell should NOT be called — mint is already in flight
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('Jupiter failure handling', () => {
+    it('skips tick when Jupiter quote fails (ok: false) — no sell triggered', async () => {
+      mockJupiterFailure();
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('PumpPortal backfill', () => {
+    it('backfills amountTokens via on-chain query when trade.amountTokens is undefined', async () => {
+      // After backfill, position value is retrieved — Jupiter returns above SL
+      // so no sell, but updateMonitoringAmount should be called
+      mockJupiterQuote(1.0 * 1e9); // 1.0 SOL = ratio 1.0 → no SL/TP
+
+      // Mock connection returning a token account with 1_000_000 tokens
+      mockConnection.getParsedTokenAccountsByOwner.mockImplementation(
+        (_owner: PublicKey, filter: { mint?: PublicKey; programId?: PublicKey }) => {
+          if (filter.mint) {
+            return Promise.resolve({
+              value: [{
+                pubkey: WALLET_PUBKEY,
+                account: {
+                  data: {
+                    parsed: {
+                      info: {
+                        mint: filter.mint.toBase58(),
+                        tokenAmount: { amount: '1000000' },
+                      },
+                    },
+                  },
+                },
+              }],
+            });
+          }
+          return Promise.resolve({ value: [] }); // Token-2022 empty
+        },
+      );
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // updateMonitoringAmount should be called with the on-chain balance
+      expect(mockTradeStore.updateMonitoringAmount).toHaveBeenCalledWith(MINT_A, 1000000);
+    });
+
+    it('skips position when on-chain balance is 0 during backfill', async () => {
+      // Connection returns empty (0 balance)
+      mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({ value: [] });
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // Cannot monitor with 0 tokens — no sell, no updateMonitoringAmount
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+      expect(mockTradeStore.updateMonitoringAmount).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('amountTokens float to bigint conversion', () => {
+    it('applies Math.round before BigInt conversion to handle float amountTokens', async () => {
+      // amountTokens=1000000.7 — direct BigInt() would throw "Cannot convert non-integer"
+      // Math.round should produce 1000001n
+      mockJupiterQuote(0.3 * 1e9); // ratio=0.3 < 0.5 → SL fires
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000.7 }),
+      ]);
+
+      const pm = makePositionManager();
+
+      // Should not throw — Math.round applied before BigInt()
+      await expect(pm.tick()).resolves.not.toThrow();
+
+      // Sell should be called with rounded amount
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_001n);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('multi-position handling', () => {
+    it('evaluates multiple positions independently in same tick', async () => {
+      // MINT_A: ratio=0.4 → SL fires
+      // MINT_B: ratio=0.8 → no exit
+      // Use a fetch mock that alternates responses
+      let callCount = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(() => {
+          callCount++;
+          const lamports = callCount === 1 ? 0.4 * 1e9 : 0.8 * 1e9;
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ outAmount: String(lamports) }),
+          });
+        }),
+      );
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+        makeTrade({ mint: MINT_B, amountSol: 1.0, amountTokens: 2_000_000 }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // Only MINT_A's SL fires
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('start/stop lifecycle', () => {
+    it('start() and stop() do not throw with no positions', () => {
+      mockTradeStore.getMonitoringTrades.mockReturnValue([]);
+
+      const pm = new PositionManager(
+        mockTradeStore as any,
+        mockSellLadder as any,
+        mockConnection as any,
+        WALLET_PUBKEY,
+        makeConfig(),
+      );
+
+      expect(() => pm.start()).not.toThrow();
+      expect(() => pm.stop()).not.toThrow();
+    });
+  });
+});
