@@ -69,6 +69,7 @@ Progress: [██████████] 100% (25/25 plans complete)
 ### Roadmap Evolution
 
 - Phase 9 added: Fix broken Jupiter API
+- Phase 10 added: fix mint issues
 
 ### Decisions
 
