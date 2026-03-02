@@ -16,6 +16,8 @@ const EnvSchema = z.object({
   // Dashboard HTTP server — deployment-time settings, not trading parameters
   DASHBOARD_PORT: z.coerce.number().int().min(1024).max(65535).default(3001),
   DASHBOARD_API_KEY: z.string().optional(),  // If absent, auth is disabled
+  // Jupiter Swap API — REQUIRED since Jan 31 2026 (unauthenticated access deprecated)
+  SOLSNIPER_JUPITER_API_KEY: z.string().min(1, 'Jupiter API key required — get one at https://portal.jup.ag'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

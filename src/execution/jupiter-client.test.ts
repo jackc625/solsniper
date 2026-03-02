@@ -3,10 +3,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // ---------------------------------------------------------------------------
 // Mock the env module BEFORE importing anything that touches it.
 // env.ts calls process.exit(1) on validation failure — mock prevents that.
+// logger.ts also imports env (for LOG_LEVEL/NODE_ENV), so include those too.
 // ---------------------------------------------------------------------------
 vi.mock('../config/env.js', () => ({
   env: {
     SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
   },
 }));
 
