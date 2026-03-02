@@ -179,3 +179,14 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 Plans:
 - [x] 09-01-PLAN.md — JupiterClient centralized API client with auth + 429 global cooldown + TDD test suite, env var registration
 - [ ] 09-02-PLAN.md — Migrate all 5 Jupiter callers to JupiterClient, PositionManager dynamic poll interval, index.ts wiring, test updates
+
+### Phase 10: fix mint issues
+
+**Goal:** Fix Token-2022 compatibility bugs blocking pump.fun create_v2 tokens from the safety pipeline, add Jupiter error code parsing, skip sell-route for new pump.fun tokens, add PumpPortal sell fallback in the sell ladder, and thread token source/programId through the trade lifecycle
+**Requirements**: None (bugfix phase — no new requirements)
+**Depends on:** Phase 9
+**Plans:** 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Core Token-2022 getMint fix (Pattern A), instanceof error detection, Jupiter 400 error parsing, sell-route skip for pump.fun, schema migration (source + token_program_id), safety pipeline source/programId threading
+- [ ] 10-02-PLAN.md — PumpPortal sell adapter, chunked-seller Token-2022 ATA fix, sell ladder PUMPPORTAL step, post-buy sell-route verification
