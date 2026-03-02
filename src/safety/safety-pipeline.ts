@@ -65,19 +65,21 @@ export class SafetyPipeline {
     try {
 
     // 2. Tier 1: Hard blocks in parallel via Promise.all (SAF-04)
+    // checkAuthorities returns [CheckResult, CheckResult, PublicKey] — third element is detected programId
+    // checkSellRoute receives event.source so pumpportal tokens skip the Jupiter indexing check
     const [authResults, sellRouteResult] = await Promise.all([
       checkAuthorities(event.mint, this.connection),
-      checkSellRoute(event.mint),
+      checkSellRoute(event.mint, undefined, event.source),
     ]);
 
-    const [mintAuthResult, freezeAuthResult] = authResults;
+    const [mintAuthResult, freezeAuthResult, detectedProgramId] = authResults;
     const tier1Results: CheckResult[] = [mintAuthResult, freezeAuthResult, sellRouteResult];
 
     // 3. Short-circuit: any Tier 1 failure = immediate hard reject
     const tier1Failures = tier1Results.filter(r => !r.pass);
     if (tier1Failures.length > 0) {
       const rejectionReasons = tier1Failures.map(r => `${r.source}: ${r.detail}`);
-      const result = this.buildSafetyResult(false, event.mint, 0, tier1Results, [], [], rejectionReasons, startTime);
+      const result = this.buildSafetyResult(false, event.mint, 0, tier1Results, [], [], rejectionReasons, startTime, detectedProgramId?.toBase58());
       this.log.info({
         mint: event.mint,
         source: event.source,
@@ -119,7 +121,7 @@ export class SafetyPipeline {
 
     if (softBlockFailures.length > 0) {
       const rejectionReasons = softBlockFailures.map(r => `${r.source}: ${r.detail}`);
-      const result = this.buildSafetyResult(false, event.mint, 0, tier1Results, tier2Results, tier3Results, rejectionReasons, startTime);
+      const result = this.buildSafetyResult(false, event.mint, 0, tier1Results, tier2Results, tier3Results, rejectionReasons, startTime, detectedProgramId?.toBase58());
       this.log.info({
         mint: event.mint,
         source: event.source,
@@ -153,7 +155,7 @@ export class SafetyPipeline {
       const rejectionReasons = [
         `aggregate_score=${aggregateScore} below threshold=${this.tradingConfig.minSafetyScore}`,
       ];
-      const result = this.buildSafetyResult(false, event.mint, aggregateScore, tier1Results, tier2Results, tier3Results, rejectionReasons, startTime);
+      const result = this.buildSafetyResult(false, event.mint, aggregateScore, tier1Results, tier2Results, tier3Results, rejectionReasons, startTime, detectedProgramId?.toBase58());
       this.log.info({
         mint: event.mint,
         source: event.source,
@@ -171,7 +173,7 @@ export class SafetyPipeline {
     }
 
     // 8. Passed: aggregate score meets threshold
-    const result = this.buildSafetyResult(true, event.mint, aggregateScore, tier1Results, tier2Results, tier3Results, [], startTime);
+    const result = this.buildSafetyResult(true, event.mint, aggregateScore, tier1Results, tier2Results, tier3Results, [], startTime, detectedProgramId?.toBase58());
     this.log.info({
       mint: event.mint,
       source: event.source,
@@ -222,6 +224,7 @@ export class SafetyPipeline {
 
   /**
    * Builds a SafetyResult from pipeline components.
+   * programId is the detected token program from checkAuthorities (base58 pubkey string).
    */
   private buildSafetyResult(
     pass: boolean,
@@ -232,6 +235,7 @@ export class SafetyPipeline {
     tier3: CheckResult[],
     rejectionReasons: string[],
     startTime: number,
+    programId?: string,
   ): SafetyResult {
     return {
       pass,
@@ -242,6 +246,7 @@ export class SafetyPipeline {
       tier3,
       rejectionReasons,
       durationMs: Date.now() - startTime,
+      ...(programId !== undefined ? { programId } : {}),
     };
   }
 }

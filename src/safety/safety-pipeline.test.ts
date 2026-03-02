@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Connection } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import type { TradingConfig } from '../config/trading.js';
 import type { Env } from '../config/env.js';
 import type { TokenEvent, CheckResult, SafetyResult } from '../types/index.js';
@@ -125,12 +126,17 @@ function makeTokenEvent(overrides: Partial<TokenEvent> = {}): TokenEvent {
   };
 }
 
-/** Tier 1 check results: both pass (mints revoked, sell route exists) */
-function makeTier1Pass(): [[CheckResult, CheckResult], CheckResult] {
+const TOKEN_PROGRAM_ID_PK = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const TOKEN_2022_PROGRAM_ID_PK = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+
+/** Tier 1 check results: both pass (mints revoked, sell route exists)
+ *  checkAuthorities now returns [CheckResult, CheckResult, PublicKey] (3-tuple)
+ */
+function makeTier1Pass(): [[CheckResult, CheckResult, PublicKey], CheckResult] {
   const mintAuthPass: CheckResult = { pass: true, source: 'mint_authority', detail: 'revoked' };
   const freezeAuthPass: CheckResult = { pass: true, source: 'freeze_authority', detail: 'revoked' };
   const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
-  return [[mintAuthPass, freezeAuthPass], sellRoutePass];
+  return [[mintAuthPass, freezeAuthPass, TOKEN_PROGRAM_ID_PK], sellRoutePass];
 }
 
 /** Tier 2/3 check results: all pass with high scores */
@@ -180,7 +186,7 @@ describe('SafetyPipeline', () => {
     const freezeAuthPass: CheckResult = { pass: true, source: 'freeze_authority', detail: 'revoked' };
     const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
 
-    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthFail, freezeAuthPass]);
+    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthFail, freezeAuthPass, TOKEN_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
@@ -203,7 +209,7 @@ describe('SafetyPipeline', () => {
     const freezeAuthFail: CheckResult = { pass: false, source: 'freeze_authority', detail: 'freeze authority: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' };
     const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
 
-    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthFail]);
+    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthFail, TOKEN_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
@@ -220,7 +226,7 @@ describe('SafetyPipeline', () => {
     const freezeAuthPass: CheckResult = { pass: true, source: 'freeze_authority', detail: 'revoked' };
     const sellRouteFail: CheckResult = { pass: false, source: 'jupiter_sell_route', detail: 'no route: {}' };
 
-    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass]);
+    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass, TOKEN_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRouteFail);
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
@@ -335,5 +341,47 @@ describe('SafetyPipeline', () => {
     expect(result.pass).toBe(false);
     expect(result.aggregateScore).toBe(0);
     expect(result.rejectionReasons.some(r => r.includes('aggregate_score'))).toBe(true);
+  });
+
+  it('evaluate() with source=pumpportal passes source to checkSellRoute', async () => {
+    const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
+    vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
+    vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+
+    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
+    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
+    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
+    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+
+    const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+    const event = makeTokenEvent({ source: 'pumpportal' });
+    await pipeline.evaluate(event);
+
+    // checkSellRoute must be called with source='pumpportal' as third argument
+    expect(checkSellRoute).toHaveBeenCalledWith(
+      MOCK_MINT,
+      undefined,
+      'pumpportal',
+    );
+  });
+
+  it('evaluate() returns programId from checkAuthorities in SafetyResult', async () => {
+    // checkAuthorities returns TOKEN_2022_PROGRAM_ID_PK
+    const mintAuthPass: CheckResult = { pass: true, source: 'mint_authority', detail: 'revoked' };
+    const freezeAuthPass: CheckResult = { pass: true, source: 'freeze_authority', detail: 'revoked' };
+    const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
+    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass, TOKEN_2022_PROGRAM_ID_PK]);
+    vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+
+    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
+    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
+    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
+    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+
+    const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+    const result = await pipeline.evaluate(makeTokenEvent());
+
+    expect(result.pass).toBe(true);
+    expect(result.programId).toBe('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
   });
 });

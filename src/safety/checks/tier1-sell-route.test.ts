@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CheckResult } from '../../types/index.js';
+import type { DetectionSource } from '../../types/index.js';
 
 // ---------------------------------------------------------------------------
 // Hoist mock functions before vi.mock() factories run.
@@ -101,5 +102,39 @@ describe('checkSellRoute', () => {
     const [params] = mockQuote.mock.calls[0] as [URLSearchParams, AbortSignal | undefined];
     expect(params.get('inputMint')).toBe(MOCK_MINT);
     expect(params.get('outputMint')).toBe('So11111111111111111111111111111111111111112');
+  });
+
+  // -------------------------------------------------------------------------
+  // Source-aware skip for pump.fun tokens
+  // -------------------------------------------------------------------------
+
+  it('returns pass=true immediately for source=pumpportal (skip check)', async () => {
+    const result: CheckResult = await checkSellRoute(MOCK_MINT, undefined, 'pumpportal' as DetectionSource);
+
+    expect(result.pass).toBe(true);
+    expect(result.source).toBe('jupiter_sell_route');
+    expect(result.detail).toContain('skipped');
+    expect(result.detail).toContain('pumpportal');
+    // Jupiter must NOT be called
+    expect(mockQuote).not.toHaveBeenCalled();
+  });
+
+  it('runs Jupiter check for source=raydium (not skipped)', async () => {
+    mockQuote.mockResolvedValueOnce({ outAmount: '1000000' });
+
+    const result: CheckResult = await checkSellRoute(MOCK_MINT, undefined, 'raydium' as DetectionSource);
+
+    expect(result.pass).toBe(true);
+    expect(result.detail).toBe('route exists');
+    expect(mockQuote).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs Jupiter check for source=undefined (backward compat)', async () => {
+    mockQuote.mockResolvedValueOnce({ outAmount: '1000000' });
+
+    const result: CheckResult = await checkSellRoute(MOCK_MINT, undefined, undefined);
+
+    expect(result.pass).toBe(true);
+    expect(mockQuote).toHaveBeenCalledTimes(1);
   });
 });

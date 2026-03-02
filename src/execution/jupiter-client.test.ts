@@ -230,6 +230,72 @@ describe('JupiterClient', () => {
     expect(client.cooldownRemainingMs()).toBeGreaterThan(0);
   });
 
+  // --- quote() 400 — JupiterRouteError --------------------------------------
+
+  it('quote() on 400 with { errorCode } throws JupiterRouteError with parsed code', async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeFetchResponse(400, { errorCode: 'TOKEN_NOT_TRADABLE' }),
+    );
+
+    const params = new URLSearchParams({ inputMint: 'ABC', outputMint: 'DEF', amount: '1000' });
+    const { JupiterRouteError } = await import('./jupiter-client.js');
+
+    await expect(client.quote(params)).rejects.toThrow(JupiterRouteError);
+
+    try {
+      mockFetch.mockResolvedValueOnce(makeFetchResponse(400, { errorCode: 'TOKEN_NOT_TRADABLE' }));
+      await client.quote(params);
+    } catch (err) {
+      const { JupiterRouteError: RouteErr } = await import('./jupiter-client.js');
+      expect(err).toBeInstanceOf(RouteErr);
+      expect((err as InstanceType<typeof RouteErr>).code).toBe('TOKEN_NOT_TRADABLE');
+    }
+  });
+
+  it('quote() on 400 with non-JSON body throws JupiterRouteError with code=undefined', async () => {
+    const response = {
+      status: 400,
+      ok: false,
+      headers: { get: () => null },
+      json: vi.fn().mockRejectedValue(new Error('not JSON')),
+    } as unknown as Response;
+    mockFetch.mockResolvedValueOnce(response);
+
+    const { JupiterRouteError } = await import('./jupiter-client.js');
+    const params = new URLSearchParams({ inputMint: 'ABC', outputMint: 'DEF', amount: '1000' });
+
+    try {
+      await client.quote(params);
+    } catch (err) {
+      expect(err).toBeInstanceOf(JupiterRouteError);
+      expect((err as InstanceType<typeof JupiterRouteError>).code).toBeUndefined();
+    }
+  });
+
+  it('quote() on 500 throws generic Error (not JupiterRouteError)', async () => {
+    mockFetch.mockResolvedValueOnce(makeFetchResponse(500));
+
+    const params = new URLSearchParams({ inputMint: 'ABC', outputMint: 'DEF', amount: '1000' });
+    const { JupiterRouteError } = await import('./jupiter-client.js');
+
+    try {
+      await client.quote(params);
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect(err).not.toBeInstanceOf(JupiterRouteError);
+      expect(err).toBeInstanceOf(Error);
+    }
+  });
+
+  it('JupiterRouteError has name JupiterRouteError and is instanceof works', async () => {
+    const { JupiterRouteError } = await import('./jupiter-client.js');
+    const err = new JupiterRouteError('test message', 'NO_ROUTES_FOUND');
+    expect(err.name).toBe('JupiterRouteError');
+    expect(err).toBeInstanceOf(JupiterRouteError);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.code).toBe('NO_ROUTES_FOUND');
+  });
+
   // --- Cross-method global state --------------------------------------------
 
   it('cooldown from quote() blocks swap() (global state)', async () => {

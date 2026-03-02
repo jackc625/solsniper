@@ -7,6 +7,19 @@ const JUPITER_BASE_URL = 'https://api.jup.ag/swap/v1';
 const DEFAULT_COOLDOWN_MS = 10_000;
 
 /**
+ * Thrown when Jupiter returns HTTP 400 (bad route, token not tradable, etc.)
+ *
+ * .code is the errorCode from the Jupiter response body (e.g. 'TOKEN_NOT_TRADABLE',
+ * 'NO_ROUTES_FOUND', 'ROUTE_NOT_FOUND'), or undefined if the body wasn't parseable JSON.
+ */
+export class JupiterRouteError extends Error {
+  constructor(message: string, public readonly code: string | undefined) {
+    super(message);
+    this.name = 'JupiterRouteError';
+  }
+}
+
+/**
  * Centralized Jupiter API client with authentication and global rate-limit handling.
  *
  * All Jupiter API calls (quote, swap) go through this client so that:
@@ -71,6 +84,19 @@ export class JupiterClient {
       throw new Error('Jupiter rate limited (429)');
     }
 
+    if (response.status === 400) {
+      let errorCode: string | undefined;
+      try {
+        const body = await response.json() as { errorCode?: string };
+        errorCode = body.errorCode;
+      } catch { /* body not JSON */ }
+      log.warn({ errorCode }, 'Jupiter quote 400');
+      throw new JupiterRouteError(
+        `Jupiter quote HTTP 400${errorCode ? `: ${errorCode}` : ''}`,
+        errorCode,
+      );
+    }
+
     if (!response.ok) {
       throw new Error(`Jupiter quote HTTP ${response.status}`);
     }
@@ -106,6 +132,19 @@ export class JupiterClient {
       const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
       this.triggerCooldown(retryAfterMs);
       throw new Error('Jupiter rate limited (429)');
+    }
+
+    if (response.status === 400) {
+      let errorCode: string | undefined;
+      try {
+        const body = await response.json() as { errorCode?: string };
+        errorCode = body.errorCode;
+      } catch { /* body not JSON */ }
+      log.warn({ errorCode }, 'Jupiter swap 400');
+      throw new JupiterRouteError(
+        `Jupiter swap HTTP 400${errorCode ? `: ${errorCode}` : ''}`,
+        errorCode,
+      );
     }
 
     if (!response.ok) {
