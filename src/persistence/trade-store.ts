@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createModuleLogger } from '../core/logger.js';
-import { SCHEMA_SQL } from './schema.js';
+import { SCHEMA_SQL, MIGRATION_SQL } from './schema.js';
 import type { Trade, TradeState } from '../types/index.js';
 import type BetterSqlite3 from 'better-sqlite3';
 
@@ -45,6 +45,7 @@ export class TradeStore {
   private readonly stmtGetDetected: BetterSqlite3.Statement;
   private readonly stmtUpdateStateById: BetterSqlite3.Statement;
   private readonly stmtSetMonitoringAmount: BetterSqlite3.Statement;
+  private readonly stmtGetByMint: BetterSqlite3.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -61,24 +62,35 @@ export class TradeStore {
 
     this.db.exec(SCHEMA_SQL);
 
+    // Run migrations for existing databases (no-op for fresh DBs with columns already present)
+    for (const sql of MIGRATION_SQL) {
+      try {
+        this.db.exec(sql);
+      } catch {
+        // Column already exists — safe to ignore
+      }
+    }
+
     // Compile prepared statements once at construction time for efficiency.
     this.stmtInsert = this.db.prepare(
-      `INSERT INTO trades (mint, state, created_at, updated_at)
-       VALUES (@mint, @state, @now, @now)`
+      `INSERT INTO trades (mint, state, created_at, updated_at, source, token_program_id)
+       VALUES (@mint, @state, @now, @now, @source, @token_program_id)`
     );
 
     // COALESCE pattern: only overwrite a column if the caller supplies a non-null value.
     this.stmtUpdateState = this.db.prepare(
       `UPDATE trades SET
-         state          = @state,
-         updated_at     = @now,
-         buy_signature  = COALESCE(@buy_signature,  buy_signature),
-         sell_signature = COALESCE(@sell_signature, sell_signature),
-         error_message  = COALESCE(@error_message,  error_message),
-         amount_sol     = COALESCE(@amount_sol,     amount_sol),
-         amount_tokens  = COALESCE(@amount_tokens,  amount_tokens),
-         buy_price_sol  = COALESCE(@buy_price_sol,  buy_price_sol),
-         sell_price_sol = COALESCE(@sell_price_sol, sell_price_sol)
+         state              = @state,
+         updated_at         = @now,
+         buy_signature      = COALESCE(@buy_signature,     buy_signature),
+         sell_signature     = COALESCE(@sell_signature,    sell_signature),
+         error_message      = COALESCE(@error_message,     error_message),
+         amount_sol         = COALESCE(@amount_sol,        amount_sol),
+         amount_tokens      = COALESCE(@amount_tokens,     amount_tokens),
+         buy_price_sol      = COALESCE(@buy_price_sol,     buy_price_sol),
+         sell_price_sol     = COALESCE(@sell_price_sol,    sell_price_sol),
+         source             = COALESCE(@source,            source),
+         token_program_id   = COALESCE(@token_program_id,  token_program_id)
        WHERE mint = @mint AND state = @expectedState`
     );
 
@@ -87,17 +99,17 @@ export class TradeStore {
     );
 
     this.stmtGetBuying = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message, source, token_program_id
        FROM trades WHERE state = 'BUYING' ORDER BY updated_at DESC`
     );
 
     this.stmtGetSelling = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message, source, token_program_id
        FROM trades WHERE state = 'SELLING' ORDER BY updated_at DESC`
     );
 
     this.stmtGetMonitoring = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, source, token_program_id
        FROM trades WHERE state = 'MONITORING' ORDER BY updated_at DESC`
     );
 
@@ -116,6 +128,13 @@ export class TradeStore {
     this.stmtSetMonitoringAmount = this.db.prepare(
       `UPDATE trades SET amount_tokens = @amount_tokens, updated_at = @now
        WHERE mint = @mint AND state = 'MONITORING'`
+    );
+
+    this.stmtGetByMint = this.db.prepare(
+      `SELECT id, mint, state, created_at, updated_at, buy_signature, sell_signature,
+              amount_sol, amount_tokens, buy_price_sol, sell_price_sol, error_message,
+              source, token_program_id
+       FROM trades WHERE mint = @mint ORDER BY updated_at DESC LIMIT 1`
     );
 
     // Rebuild the active Set from any non-terminal rows left in the DB.
@@ -137,14 +156,23 @@ export class TradeStore {
    *
    * The synchronous better-sqlite3 API ensures no async gap exists between
    * the Set check and the DB write — this is the duplicate-guard guarantee.
+   *
+   * @param source - Optional detection source ('pumpportal' | 'raydium' | 'pumpswap')
+   * @param tokenProgramId - Optional detected token program ID (base58 pubkey)
    */
-  createBuyingRecord(mint: string): void {
+  createBuyingRecord(mint: string, source?: string, tokenProgramId?: string): void {
     if (this.activeMints.has(mint)) {
       throw new Error(`Duplicate buy attempt blocked for mint: ${mint}`);
     }
 
     const now = Date.now();
-    this.stmtInsert.run({ mint, state: 'BUYING', now });
+    this.stmtInsert.run({
+      mint,
+      state: 'BUYING',
+      now,
+      source: source ?? null,
+      token_program_id: tokenProgramId ?? null,
+    });
     this.activeMints.add(mint);
 
     log.debug({ mint }, 'createBuyingRecord: inserted BUYING row');
@@ -163,7 +191,7 @@ export class TradeStore {
     mint: string,
     from: TradeState,
     to: TradeState,
-    extra: Partial<Pick<Trade, 'buySignature' | 'sellSignature' | 'errorMessage' | 'amountSol' | 'amountTokens' | 'buyPriceSol' | 'sellPriceSol'>> = {}
+    extra: Partial<Pick<Trade, 'buySignature' | 'sellSignature' | 'errorMessage' | 'amountSol' | 'amountTokens' | 'buyPriceSol' | 'sellPriceSol' | 'source' | 'tokenProgramId'>> = {}
   ): number {
     const now = Date.now();
 
@@ -172,13 +200,15 @@ export class TradeStore {
       state: to,
       now,
       expectedState: from,
-      buy_signature:  extra.buySignature  ?? null,
-      sell_signature: extra.sellSignature ?? null,
-      error_message:  extra.errorMessage  ?? null,
-      amount_sol:     extra.amountSol     ?? null,
-      amount_tokens:  extra.amountTokens  ?? null,
-      buy_price_sol:  extra.buyPriceSol   ?? null,
-      sell_price_sol: extra.sellPriceSol  ?? null,
+      buy_signature:    extra.buySignature    ?? null,
+      sell_signature:   extra.sellSignature   ?? null,
+      error_message:    extra.errorMessage    ?? null,
+      amount_sol:       extra.amountSol       ?? null,
+      amount_tokens:    extra.amountTokens    ?? null,
+      buy_price_sol:    extra.buyPriceSol     ?? null,
+      sell_price_sol:   extra.sellPriceSol    ?? null,
+      source:           extra.source          ?? null,
+      token_program_id: extra.tokenProgramId  ?? null,
     });
 
     const changes = result.changes;
@@ -281,6 +311,15 @@ export class TradeStore {
   }
 
   /**
+   * Returns the most recent trade for the given mint, or undefined if none exists.
+   * Includes source and tokenProgramId for sell ladder use (Token-2022 ATA lookup, etc.)
+   */
+  getTradeByMint(mint: string): Trade | undefined {
+    const row = this.stmtGetByMint.get({ mint }) as Record<string, unknown> | undefined;
+    return row ? this.mapRow(row) : undefined;
+  }
+
+  /**
    * Flushes and closes the underlying SQLite database.
    */
   close(): void {
@@ -293,13 +332,20 @@ export class TradeStore {
 
   private mapRow(row: Record<string, unknown>): Trade {
     return {
-      id: row['id'] as number,
-      mint: row['mint'] as string,
-      state: row['state'] as TradeState,
-      createdAt: row['created_at'] as number,
-      updatedAt: row['updated_at'] as number,
-      amountTokens: row['amount_tokens'] != null ? (row['amount_tokens'] as number) : undefined,
-      errorMessage: row['error_message'] != null ? (row['error_message'] as string) : undefined,
+      id:             row['id']          as number,
+      mint:           row['mint']         as string,
+      state:          row['state']        as TradeState,
+      createdAt:      row['created_at']   as number,
+      updatedAt:      row['updated_at']   as number,
+      buySignature:   row['buy_signature']   != null ? (row['buy_signature']   as string) : undefined,
+      sellSignature:  row['sell_signature']  != null ? (row['sell_signature']  as string) : undefined,
+      amountSol:      row['amount_sol']      != null ? (row['amount_sol']      as number) : undefined,
+      amountTokens:   row['amount_tokens']   != null ? (row['amount_tokens']   as number) : undefined,
+      buyPriceSol:    row['buy_price_sol']   != null ? (row['buy_price_sol']   as number) : undefined,
+      sellPriceSol:   row['sell_price_sol']  != null ? (row['sell_price_sol']  as number) : undefined,
+      errorMessage:   row['error_message']   != null ? (row['error_message']   as string) : undefined,
+      source:         row['source']          != null ? (row['source']          as string) : undefined,
+      tokenProgramId: row['token_program_id'] != null ? (row['token_program_id'] as string) : undefined,
     };
   }
 

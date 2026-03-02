@@ -58,6 +58,7 @@ export interface SafetyResult {
   tier3: CheckResult[];
   rejectionReasons: string[];
   durationMs: number;
+  programId?: string;       // Detected token program from checkAuthorities (base58 pubkey)
 }
 
 // Plan 04+: Position, Trade types
@@ -84,6 +85,8 @@ export interface Trade {
   buyPriceSol?: number;
   sellPriceSol?: number;
   errorMessage?: string;
+  source?: string;          // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
+  tokenProgramId?: string;  // Detected token program: TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID base58
 }
 
 // Phase 05: Execution engine types

@@ -199,6 +199,72 @@ describe('TradeStore', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // createBuyingRecord() with source + tokenProgramId
+  // ---------------------------------------------------------------------------
+  describe('createBuyingRecord() with source/tokenProgramId', () => {
+    it('stores source and tokenProgramId when provided', () => {
+      store.createBuyingRecord('mint_src', 'pumpportal', 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+      const trade = store.getTradeByMint('mint_src');
+      expect(trade).toBeDefined();
+      expect(trade!.source).toBe('pumpportal');
+      expect(trade!.tokenProgramId).toBe('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+    });
+
+    it('stores null source and tokenProgramId when not provided', () => {
+      store.createBuyingRecord('mint_nosrc');
+      const trade = store.getTradeByMint('mint_nosrc');
+      expect(trade).toBeDefined();
+      expect(trade!.source).toBeUndefined();
+      expect(trade!.tokenProgramId).toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // transition() with source + tokenProgramId
+  // ---------------------------------------------------------------------------
+  describe('transition() with source/tokenProgramId', () => {
+    it('stores source and tokenProgramId in transition extra params', () => {
+      store.createBuyingRecord('mint_trans_src');
+      store.transition('mint_trans_src', 'BUYING', 'MONITORING', {
+        source: 'raydium',
+        tokenProgramId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+      });
+      const trade = store.getTradeByMint('mint_trans_src');
+      expect(trade).toBeDefined();
+      expect(trade!.source).toBe('raydium');
+      expect(trade!.tokenProgramId).toBe('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getTradeByMint()
+  // ---------------------------------------------------------------------------
+  describe('getTradeByMint()', () => {
+    it('returns undefined when no trade exists for the mint', () => {
+      expect(store.getTradeByMint('nonexistent_mint')).toBeUndefined();
+    });
+
+    it('returns Trade with source and tokenProgramId for existing mint', () => {
+      store.createBuyingRecord('mint_gtbm', 'pumpswap', 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+      const trade = store.getTradeByMint('mint_gtbm');
+      expect(trade).toBeDefined();
+      expect(trade!.mint).toBe('mint_gtbm');
+      expect(trade!.source).toBe('pumpswap');
+      expect(trade!.tokenProgramId).toBe('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    });
+
+    it('returns Trade with all base fields', () => {
+      store.createBuyingRecord('mint_full');
+      const trade = store.getTradeByMint('mint_full');
+      expect(trade).toBeDefined();
+      expect(trade!.mint).toBe('mint_full');
+      expect(trade!.state).toBe('BUYING');
+      expect(typeof trade!.id).toBe('number');
+      expect(typeof trade!.createdAt).toBe('number');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // close()
   // ---------------------------------------------------------------------------
   describe('close()', () => {
