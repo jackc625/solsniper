@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-02T20:29:51.454Z"
+last_updated: "2026-03-02T22:09:32.592Z"
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 27
-  completed_plans: 27
+  total_phases: 11
+  completed_phases: 11
+  total_plans: 28
+  completed_plans: 28
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 10: Fix Mint Issues
+**Current focus:** Phase 11: Fix Bonding Curve Issue
 
 ## Current Position
 
-Phase: 10 of 10 (Fix Mint Issues) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
-Status: Phase 10 Plan 02 complete — PumpPortal sell adapter, chunked-seller Token-2022 ATA fix, 6-step sell ladder with PUMPPORTAL step, post-buy sell-route verification; 229 tests green
-Last activity: 2026-03-02 -- Plan 10-02 complete (all 27 plans complete — project milestone v1.0 reached)
+Phase: 11 of 11 (Fix Bonding Curve Issue) - COMPLETE
+Plan: 1 of 1 in current phase - COMPLETE
+Status: Phase 11 Plan 01 complete — bonding curve PDA exclusion from holder concentration (standard + Token-2022 paths), source-aware zero-holder logic for pumpportal; 235 tests green
+Last activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 
-Progress: [██████████] 100% (27/27 plans complete)
+Progress: [██████████] 100% (28/28 plans complete)
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100% (27/27 plans complete)
 | Phase 09-fix-broken-jupiter-api P02 | 10 | 2 tasks | 9 files |
 | Phase 10-fix-mint-issues P01 | 9 | 2 tasks | 13 files |
 | Phase 10-fix-mint-issues P02 | 9 | 2 tasks | 8 files |
+| Phase 11-fix-bonding-curve-issue P01 | 3 | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -169,6 +170,8 @@ Recent decisions affecting current work:
 - [Phase 10-02]: chunkedSell tradeStore param is optional (backward compat) — defaults to TOKEN_PROGRAM_ID if not provided or trade not found
 - [Phase 10-02]: Post-buy verification is fire-and-forget void — buy() returns without waiting; retries at 10s/15s/20s
 - [Phase 10-02]: pool=auto in pumpPortalSell — PumpPortal auto-picks bonding curve vs PumpSwap for the correct venue
+- [Phase 11-01]: Pump.fun program ID removed from SYSTEM_ACCOUNTS; repurposed as PUMP_FUN_PROGRAM_ID for per-mint bonding curve PDA derivation — the static address never matched any token account owner
+- [Phase 11-01]: Zero-holder pumpportal returns pass=true score=50 'insufficient data' — pump.fun tokens in bonding curve phase legitimately have no user holders yet; neutral score avoids blocking valid tokens
 
 ### Pending Todos
 
@@ -187,8 +190,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-02 - Completed 10-02-PLAN.md (PumpPortal sell adapter; chunked-seller Token-2022 ATA fix; 6-step sell ladder; post-buy verification; 229 tests green)
+Last activity: 2026-03-02 - Completed 11-01-PLAN.md (bonding curve PDA exclusion fix; source-aware zero-holder logic for pumpportal; 235 tests green)
 
 Last session: 2026-03-02
-Stopped at: Completed 10-02-PLAN.md (Phase 10 complete — all 27 plans complete — project milestone v1.0 reached)
+Stopped at: Completed 11-01-PLAN.md (Phase 11 complete — all 28 plans complete)
 Resume file: N/A — all phases complete

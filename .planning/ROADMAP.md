@@ -196,7 +196,7 @@ Plans:
 **Goal:** Fix the holder concentration check that incorrectly counts the Pump.fun bonding curve PDA as a whale holder, causing ~90% of new Pump.fun tokens to fail. Derive bonding curve PDA per-mint and exclude it dynamically, add source-aware zero-holder handling for pumpportal tokens.
 **Requirements**: None (bugfix phase — no new requirements)
 **Depends on:** Phase 10
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 11-01-PLAN.md — Bonding curve PDA exclusion in tier2-holder (both paths), source-aware zero-holder logic, SafetyPipeline source threading, test updates
