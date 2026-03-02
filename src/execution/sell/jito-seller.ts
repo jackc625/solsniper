@@ -15,13 +15,12 @@ import { VersionedTransaction, Transaction, SystemProgram, PublicKey } from '@so
 import type { Connection, Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { broadcastAndConfirm } from '../broadcaster.js';
+import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('jito-seller');
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const JUPITER_QUOTE = 'https://api.jup.ag/swap/v1/quote';
-const JUPITER_SWAP = 'https://api.jup.ag/swap/v1/swap';
 const JITO_BUNDLE_URL = 'https://mainnet.block-engine.jito.wtf/api/v1/bundles';
 
 // Known Jito tip accounts (stable as of 2026; getTipAccounts is the authoritative source)
@@ -56,29 +55,24 @@ export async function jitoSell(
   log.debug({ mint, tokenAmount: tokenAmount.toString() }, 'Jito bundle sell');
 
   // Step 1: Get Jupiter quote + swap transaction
-  const quoteUrl = `${JUPITER_QUOTE}?inputMint=${mint}&outputMint=${SOL_MINT}` +
-    `&amount=${tokenAmount.toString()}&slippageBps=${slippageBps}&maxAccounts=64`;
-  const quoteResponse = await fetch(quoteUrl).then((r) => {
-    if (!r.ok) throw new Error(`Jupiter quote HTTP ${r.status}`);
-    return r.json();
+  const params = new URLSearchParams({
+    inputMint: mint,
+    outputMint: SOL_MINT,
+    amount: tokenAmount.toString(),
+    slippageBps: String(slippageBps),
+    maxAccounts: '64',
   });
+  const quoteResponse = await jupiterClient.quote(params);
 
-  const swapResponse = await fetch(JUPITER_SWAP, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userPublicKey: wallet.publicKey.toBase58(),
-      quoteResponse,
-      dynamicComputeUnitLimit: true,
-      dynamicSlippage: false,
-      prioritizationFeeLamports: {
-        priorityLevelWithMaxLamports: { priorityLevel: 'veryHigh', maxLamports: maxPriorityFee },
-      },
-      wrapAndUnwrapSol: true,
-    }),
-  }).then((r) => {
-    if (!r.ok) throw new Error(`Jupiter swap HTTP ${r.status}`);
-    return r.json() as Promise<{ swapTransaction: string }>;
+  const swapResponse = await jupiterClient.swap({
+    userPublicKey: wallet.publicKey.toBase58(),
+    quoteResponse,
+    dynamicComputeUnitLimit: true,
+    dynamicSlippage: false,
+    prioritizationFeeLamports: {
+      priorityLevelWithMaxLamports: { priorityLevel: 'veryHigh', maxLamports: maxPriorityFee },
+    },
+    wrapAndUnwrapSol: true,
   });
 
   // Step 2: Sign the swap transaction

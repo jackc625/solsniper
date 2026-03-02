@@ -1,56 +1,30 @@
 import type { CheckResult } from '../../types/index.js';
-
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const JUPITER_QUOTE_URL = 'https://api.jup.ag/swap/v1/quote';
+import { jupiterClient } from '../../execution/jupiter-client.js';
 
 /**
  * Validates that a sell route exists for the given token mint on Jupiter.
  *
- * GET https://api.jup.ag/swap/v1/quote?inputMint={mint}&outputMint={SOL}&amount=1000000&slippageBps=500
+ * Uses the centralized JupiterClient for authenticated, rate-limit-aware requests.
  *
  * Behavior per user decision (pessimistic failure handling):
- * - 200 response   → pass=true (route exists, can exit position)
- * - 400 response   → pass=false (no route — Jupiter: NO_ROUTES_FOUND, COULD_NOT_FIND_ANY_ROUTE)
- * - Any other HTTP → pass=false (unexpected error = block)
- * - Network error  → pass=false (cannot verify = block)
+ * - Quote resolves  → pass=true (route exists, can exit position)
+ * - Quote throws    → pass=false (covers 429, 400, 5xx, network errors, and cooldown blocks)
  *
  * Satisfies: SAF-03
  */
 export async function checkSellRoute(mint: string, signal?: AbortSignal): Promise<CheckResult> {
-  const url = `${JUPITER_QUOTE_URL}?inputMint=${mint}&outputMint=${SOL_MINT}&amount=1000000&slippageBps=500`;
+  const params = new URLSearchParams({
+    inputMint: mint,
+    outputMint: 'So11111111111111111111111111111111111111112',
+    amount: '1000000',
+    slippageBps: '500',
+  });
 
   try {
-    const response = await fetch(url, signal !== undefined ? { signal } : undefined);
-
-    if (response.status === 400) {
-      const body = await response.json().catch(() => ({}));
-      return {
-        pass: false,
-        source: 'jupiter_sell_route',
-        detail: `no route: ${JSON.stringify(body)}`,
-      };
-    }
-
-    if (!response.ok) {
-      // Pessimistic: any unexpected HTTP error = block
-      return {
-        pass: false,
-        source: 'jupiter_sell_route',
-        detail: `HTTP ${response.status}`,
-      };
-    }
-
-    return {
-      pass: true,
-      source: 'jupiter_sell_route',
-      detail: 'route exists',
-    };
-  } catch {
-    // Pessimistic: network error, timeout, or abort = block
-    return {
-      pass: false,
-      source: 'jupiter_sell_route',
-      detail: 'fetch_error',
-    };
+    await jupiterClient.quote(params, signal);
+    return { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { pass: false, source: 'jupiter_sell_route', detail: msg };
   }
 }

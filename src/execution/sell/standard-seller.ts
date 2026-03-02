@@ -13,13 +13,12 @@
 import { VersionedTransaction } from '@solana/web3.js';
 import type { Connection, Keypair } from '@solana/web3.js';
 import { broadcastAndConfirm } from '../broadcaster.js';
+import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('standard-seller');
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const JUPITER_QUOTE = 'https://api.jup.ag/swap/v1/quote';
-const JUPITER_SWAP = 'https://api.jup.ag/swap/v1/swap';
 
 export interface StandardSellOptions {
   slippageBps: number;
@@ -47,32 +46,27 @@ export async function standardSell(
   log.debug({ mint, tokenAmount: tokenAmount.toString(), slippageBps, feeMultiplier }, 'Standard sell');
 
   // Fresh quote — token → SOL
-  const quoteUrl = `${JUPITER_QUOTE}?inputMint=${mint}&outputMint=${SOL_MINT}` +
-    `&amount=${tokenAmount.toString()}&slippageBps=${slippageBps}&maxAccounts=64`;
-  const quoteResponse = await fetch(quoteUrl).then((r) => {
-    if (!r.ok) throw new Error(`Jupiter quote HTTP ${r.status}`);
-    return r.json();
+  const params = new URLSearchParams({
+    inputMint: mint,
+    outputMint: SOL_MINT,
+    amount: tokenAmount.toString(),
+    slippageBps: String(slippageBps),
+    maxAccounts: '64',
   });
+  const quoteResponse = await jupiterClient.quote(params);
 
-  const swapResponse = await fetch(JUPITER_SWAP, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userPublicKey: wallet.publicKey.toBase58(),
-      quoteResponse,
-      dynamicComputeUnitLimit: true,
-      dynamicSlippage: false,
-      prioritizationFeeLamports: {
-        priorityLevelWithMaxLamports: {
-          priorityLevel: 'veryHigh',
-          maxLamports: maxPriorityFee,
-        },
+  const swapResponse = await jupiterClient.swap({
+    userPublicKey: wallet.publicKey.toBase58(),
+    quoteResponse,
+    dynamicComputeUnitLimit: true,
+    dynamicSlippage: false,
+    prioritizationFeeLamports: {
+      priorityLevelWithMaxLamports: {
+        priorityLevel: 'veryHigh',
+        maxLamports: maxPriorityFee,
       },
-      wrapAndUnwrapSol: true,
-    }),
-  }).then((r) => {
-    if (!r.ok) throw new Error(`Jupiter swap HTTP ${r.status}`);
-    return r.json() as Promise<{ swapTransaction: string }>;
+    },
+    wrapAndUnwrapSol: true,
   });
 
   const txBytes = Buffer.from(swapResponse.swapTransaction, 'base64');
