@@ -1,17 +1,23 @@
 /**
- * sell-ladder.ts — Orchestrates the 5-step sell escalation ladder (EXE-06).
+ * sell-ladder.ts — Orchestrates the 6-step sell escalation ladder (EXE-06).
  *
- * Step order: STANDARD → HIGH_FEE → JITO_BUNDLE → CHUNKED → EMERGENCY
+ * Step order: STANDARD → HIGH_FEE → JITO_BUNDLE → CHUNKED → PUMPPORTAL → EMERGENCY
  * Advancement: time-based only (timeout expiry per step, not failure count)
  * Each step: fresh quote + fresh blockhash (via broadcastAndConfirm or direct)
  *
  * EXE-07: Jito bundle at step 3
- * EXE-09: Emergency 49% slippage (4900 bps) at step 5
+ * EXE-09: Emergency 49% slippage (4900 bps) at step 6
+ *
+ * PUMPPORTAL step (step 5): only fires for pumpportal-sourced tokens when
+ * the last error was a JupiterRouteError with a route-failure code.
+ * This handles tokens that Jupiter cannot route (e.g., TOKEN_NOT_TRADABLE).
  */
 import type { Connection, Keypair } from '@solana/web3.js';
 import { standardSell } from './standard-seller.js';
 import { jitoSell } from './jito-seller.js';
 import { chunkedSell } from './chunked-seller.js';
+import { pumpPortalSell } from './pump-portal-seller.js';
+import { JupiterRouteError } from '../jupiter-client.js';
 import type { SellResult, SellStep } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
 import type { TradeStore } from '../../persistence/trade-store.js';
@@ -19,6 +25,9 @@ import { createModuleLogger } from '../../core/logger.js';
 import { botEventBus } from '../../dashboard/bot-event-bus.js';
 
 const log = createModuleLogger('sell-ladder');
+
+/** Jupiter route-failure codes that trigger the PumpPortal fallback step. */
+const PUMPPORTAL_TRIGGER_CODES = new Set(['TOKEN_NOT_TRADABLE', 'NO_ROUTES_FOUND', 'ROUTE_NOT_FOUND']);
 
 export class SellLadder {
   private readonly wallet: Keypair;
@@ -53,6 +62,9 @@ export class SellLadder {
     // Transition to SELLING before starting the ladder
     this.tradeStore.transition(mint, 'MONITORING', 'SELLING');
 
+    // Track the last error to determine PUMPPORTAL step eligibility
+    let lastError: unknown;
+
     const steps: Array<{
       name: SellStep;
       timeoutMs: number;
@@ -84,7 +96,26 @@ export class SellLadder {
       {
         name: 'CHUNKED',
         timeoutMs: sell.chunkedTimeoutMs,
-        fn: () => chunkedSell(mint, this.config, this.wallet, this.connections),
+        fn: () => chunkedSell(mint, this.config, this.wallet, this.connections, this.tradeStore),
+      },
+      {
+        name: 'PUMPPORTAL',
+        timeoutMs: 30_000,
+        fn: () => {
+          // Only fire for pumpportal-sourced tokens with Jupiter route errors
+          const trade = this.tradeStore.getTradeByMint(mint);
+          if (trade?.source !== 'pumpportal') {
+            throw new Error('PumpPortal sell: not a pumpportal token — skipping');
+          }
+          if (
+            !(lastError instanceof JupiterRouteError) ||
+            !lastError.code ||
+            !PUMPPORTAL_TRIGGER_CODES.has(lastError.code)
+          ) {
+            throw new Error('PumpPortal sell: last error not a route failure — skipping');
+          }
+          return pumpPortalSell(mint, tokenAmount, this.config, this.wallet, this.connections);
+        },
       },
       {
         name: 'EMERGENCY',
@@ -122,6 +153,7 @@ export class SellLadder {
           stepSucceeded = true;
         }
       } catch (err) {
+        lastError = err;  // Track for PUMPPORTAL trigger logic
         const message = err instanceof Error ? err.message : String(err);
         log.warn({ mint, step: step.name, message }, 'Sell step failed or timed out — advancing');
       }

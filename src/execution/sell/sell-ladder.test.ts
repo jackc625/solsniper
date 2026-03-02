@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Connection, Keypair } from '@solana/web3.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { Trade } from '../../types/index.js';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockStandardSell, mockJitoSell, mockChunkedSell } = vi.hoisted(() => {
+const { mockStandardSell, mockJitoSell, mockChunkedSell, mockPumpPortalSell } = vi.hoisted(() => {
   const mockStandardSell = vi.fn();
   const mockJitoSell = vi.fn();
   const mockChunkedSell = vi.fn();
-  return { mockStandardSell, mockJitoSell, mockChunkedSell };
+  const mockPumpPortalSell = vi.fn();
+  return { mockStandardSell, mockJitoSell, mockChunkedSell, mockPumpPortalSell };
 });
 
 vi.mock('./standard-seller.js', () => ({
@@ -22,6 +24,10 @@ vi.mock('./jito-seller.js', () => ({
 
 vi.mock('./chunked-seller.js', () => ({
   chunkedSell: mockChunkedSell,
+}));
+
+vi.mock('./pump-portal-seller.js', () => ({
+  pumpPortalSell: mockPumpPortalSell,
 }));
 
 // ---------------------------------------------------------------------------
@@ -93,8 +99,11 @@ function makeTradingConfig(): TradingConfig {
   };
 }
 
-function makeTradeStore() {
-  return { transition: vi.fn().mockReturnValue(1) };
+function makeTradeStore(overrides?: { getTradeByMintResult?: Partial<Trade> | undefined }) {
+  return {
+    transition: vi.fn().mockReturnValue(1),
+    getTradeByMint: vi.fn().mockReturnValue(overrides?.getTradeByMintResult),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -160,13 +169,14 @@ describe('SellLadder', () => {
     mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));
     mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));
     mockChunkedSell.mockImplementation(() => new Promise<number>(() => {}));
+    mockPumpPortalSell.mockImplementation(() => new Promise<string>(() => {}));
 
-    const tradeStore = makeTradeStore();
+    const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
-    // Advance past all timeouts: standard(30s) + highFee(20s) + jito(30s) + chunked(60s) + emergency(30s)
-    await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001 + 60001 + 30001);
+    // Advance past all timeouts: standard(30s) + highFee(20s) + jito(30s) + chunked(60s) + pumpportal(30s) + emergency(30s)
+    await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001 + 60001 + 30001 + 30001);
     await vi.runAllTimersAsync();
     const result = await resultPromise;
 
@@ -203,13 +213,10 @@ describe('SellLadder', () => {
     expect(mockStandardSell).toHaveBeenCalledTimes(2);  // STANDARD + HIGH_FEE
   });
 
-  it('CHUNKED returns 0 tranches — advances to EMERGENCY step', async () => {
-    mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));  // STANDARD: timeout
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));      // HIGH_FEE: timeout (uses standardSell), JITO: timeout
-    mockChunkedSell.mockResolvedValue(0);  // CHUNKED: returns 0 tranches = not success
-
-    // For STANDARD and HIGH_FEE (both use standardSell) — hang
-    // For EMERGENCY (uses standardSell) — succeed
+  it('CHUNKED returns 0 tranches — advances to PUMPPORTAL step', async () => {
+    // STANDARD, HIGH_FEE, JITO hang, CHUNKED returns 0
+    // PUMPPORTAL skips (no JupiterRouteError in lastError — timed out instead)
+    // EMERGENCY succeeds
     mockStandardSell
       .mockImplementationOnce(() => new Promise<string>(() => {}))  // STANDARD: hang
       .mockImplementationOnce(() => new Promise<string>(() => {}))  // HIGH_FEE: hang
@@ -218,7 +225,7 @@ describe('SellLadder', () => {
     mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));  // JITO: hang
     mockChunkedSell.mockResolvedValue(0);  // CHUNKED: 0 tranches
 
-    const tradeStore = makeTradeStore();
+    const tradeStore = makeTradeStore();  // no source set — PUMPPORTAL will skip
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
@@ -232,10 +239,6 @@ describe('SellLadder', () => {
   });
 
   it('CHUNKED returns 2 tranches — succeeds and transitions SELLING→COMPLETED without signature', async () => {
-    mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));  // STANDARD: hang
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));      // HIGH_FEE: hang — but HIGH_FEE uses standardSell
-
-    // STANDARD hangs, HIGH_FEE hangs, JITO hangs, CHUNKED returns 2
     mockStandardSell
       .mockImplementationOnce(() => new Promise<string>(() => {}))  // STANDARD: hang
       .mockImplementationOnce(() => new Promise<string>(() => {})); // HIGH_FEE: hang
@@ -268,7 +271,7 @@ describe('SellLadder', () => {
     mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));   // JITO: hang
     mockChunkedSell.mockResolvedValue(0);  // CHUNKED: 0 tranches
 
-    const tradeStore = makeTradeStore();
+    const tradeStore = makeTradeStore();  // no pumpportal source — PUMPPORTAL skips
     const config = makeTradingConfig();
     const ladder = new SellLadder(mockWallet, mockConnections, config, tradeStore as never);
 
@@ -283,5 +286,101 @@ describe('SellLadder', () => {
       slippageBps: 4900,
       feeMultiplier: 10,
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // New PUMPPORTAL step tests
+  // ---------------------------------------------------------------------------
+
+  it('PUMPPORTAL step fires for pumpportal token after JupiterRouteError (TOKEN_NOT_TRADABLE)', async () => {
+    // Import JupiterRouteError for the test
+    const { JupiterRouteError } = await import('../jupiter-client.js');
+
+    // STANDARD throws a JupiterRouteError with TOKEN_NOT_TRADABLE code
+    mockStandardSell.mockRejectedValue(new JupiterRouteError('Jupiter quote HTTP 400: TOKEN_NOT_TRADABLE', 'TOKEN_NOT_TRADABLE'));
+    // HIGH_FEE also throws JupiterRouteError
+    mockStandardSell
+      .mockRejectedValueOnce(new JupiterRouteError('Jupiter quote HTTP 400: TOKEN_NOT_TRADABLE', 'TOKEN_NOT_TRADABLE'))  // STANDARD
+      .mockRejectedValueOnce(new JupiterRouteError('Jupiter quote HTTP 400: TOKEN_NOT_TRADABLE', 'TOKEN_NOT_TRADABLE'));  // HIGH_FEE
+    // JITO throws JupiterRouteError
+    mockJitoSell.mockRejectedValue(new JupiterRouteError('Jupiter quote HTTP 400: TOKEN_NOT_TRADABLE', 'TOKEN_NOT_TRADABLE'));
+    // CHUNKED returns 0 (no route)
+    mockChunkedSell.mockResolvedValue(0);
+    // PUMPPORTAL succeeds
+    mockPumpPortalSell.mockResolvedValue('pump-sell-sig');
+
+    const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'PUMPPORTAL', signature: 'pump-sell-sig' });
+    expect(mockPumpPortalSell).toHaveBeenCalledOnce();
+  });
+
+  it('PUMPPORTAL step skipped for raydium token — falls through to EMERGENCY', async () => {
+    const { JupiterRouteError } = await import('../jupiter-client.js');
+
+    // All Jupiter steps fail with route error
+    mockStandardSell
+      .mockRejectedValueOnce(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'))  // STANDARD
+      .mockRejectedValueOnce(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'))  // HIGH_FEE
+      .mockResolvedValueOnce('sig-emergency');                                          // EMERGENCY
+    mockJitoSell.mockRejectedValue(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'));
+    mockChunkedSell.mockResolvedValue(0);
+
+    // source is raydium, not pumpportal — PUMPPORTAL step should skip
+    const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'raydium' } });
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'EMERGENCY', signature: 'sig-emergency' });
+    expect(mockPumpPortalSell).not.toHaveBeenCalled();
+  });
+
+  it('PUMPPORTAL step skipped when last error is not a JupiterRouteError', async () => {
+    // STANDARD fails with a generic error
+    mockStandardSell
+      .mockRejectedValueOnce(new Error('Network timeout'))   // STANDARD
+      .mockRejectedValueOnce(new Error('Network timeout'))   // HIGH_FEE
+      .mockResolvedValueOnce('sig-emergency');               // EMERGENCY
+    mockJitoSell.mockRejectedValue(new Error('Jito error'));
+    mockChunkedSell.mockResolvedValue(0);
+
+    // pumpportal token, but last error is generic (not JupiterRouteError)
+    const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'EMERGENCY', signature: 'sig-emergency' });
+    expect(mockPumpPortalSell).not.toHaveBeenCalled();
+  });
+
+  it('CHUNKED step passes tradeStore to chunkedSell', async () => {
+    // All steps before CHUNKED hang, CHUNKED resolves with 1
+    mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));
+    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));
+    mockChunkedSell.mockResolvedValue(1);
+
+    const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal', tokenProgramId: 'SomeToken22ProgramId' } });
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001);
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    // chunkedSell should be called with tradeStore as 5th argument
+    expect(mockChunkedSell).toHaveBeenCalledOnce();
+    const chunkedArgs = mockChunkedSell.mock.calls[0];
+    expect(chunkedArgs[4]).toBe(tradeStore);  // 5th arg = tradeStore
   });
 });

@@ -9,10 +9,16 @@
  * - No retry — single attempt, speed over resilience
  * - On failure: transition BUYING → FAILED (terminal), activeMints.delete() auto-called
  * - BUY_FAILED in errorMessage distinguishes from sell failures in DB
+ *
+ * Post-buy sell-route verification:
+ * - For pumpportal tokens, Jupiter may not have indexed the new mint yet.
+ * - We schedule a deferred check (fire-and-forget) to verify a sell route exists.
+ * - 3 retries at 10s, 15s, 20s delays. Logs warning if all fail — does NOT force-sell.
  */
 import type { Keypair, Connection } from '@solana/web3.js';
 import { pumpPortalBuy } from './buy/pump-portal-buyer.js';
 import { jupiterBuy } from './buy/jupiter-buyer.js';
+import { jupiterClient } from './jupiter-client.js';
 import type { TokenEvent } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
 import type { TradeStore } from '../persistence/trade-store.js';
@@ -43,6 +49,8 @@ export class ExecutionEngine {
    * Executes a buy for the given token event.
    * Assumes createBuyingRecord() has already been called by index.ts (write-ahead).
    * Transitions trade to MONITORING on success, FAILED on failure.
+   *
+   * For pumpportal tokens: schedules a deferred sell-route verification (fire-and-forget).
    */
   async buy(event: TokenEvent): Promise<void> {
     const { mint, source } = event;
@@ -67,6 +75,12 @@ export class ExecutionEngine {
         });
         botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8) });
         log.info({ mint, signature: result.signature }, 'Buy confirmed — trade in MONITORING');
+
+        // For pumpportal tokens: schedule deferred sell-route verification (fire-and-forget).
+        // Jupiter may not have indexed the new mint yet — we verify without blocking buy().
+        if (source === 'pumpportal') {
+          void this.schedulePostBuySellRouteVerification(mint);
+        }
       } else {
         this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
           errorMessage: `BUY_FAILED: ${result.errorMessage ?? 'unknown error'}`,
@@ -82,5 +96,36 @@ export class ExecutionEngine {
       botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message });
       log.error({ mint, err }, 'Buy threw unexpectedly — trade marked FAILED');
     }
+  }
+
+  /**
+   * Deferred sell-route verification for newly-bought pumpportal tokens.
+   *
+   * Jupiter may not index the token immediately after launch. We retry at
+   * increasing intervals to verify a sell route exists before needing it.
+   * This is informational only — we do NOT force-sell if all retries fail.
+   *
+   * Retry schedule: 10s, 15s, 20s (3 attempts)
+   */
+  private async schedulePostBuySellRouteVerification(mint: string): Promise<void> {
+    const delays = [10_000, 15_000, 20_000];  // retry at 10s, 15s, 20s
+    for (let i = 0; i < delays.length; i++) {
+      await new Promise<void>(resolve => setTimeout(resolve, delays[i]));
+      try {
+        const params = new URLSearchParams({
+          inputMint: mint,
+          outputMint: 'So11111111111111111111111111111111111111112',  // WSOL
+          amount: '1000000',
+          slippageBps: '500',
+        });
+        await jupiterClient.quote(params);
+        log.info({ mint, attempt: i + 1 }, 'Post-buy sell-route verified');
+        return;  // Route found — done
+      } catch (err) {
+        log.debug({ mint, attempt: i + 1, err }, 'Post-buy sell-route check failed');
+      }
+    }
+    // All retries failed — log warning, keep monitoring (do NOT force-sell)
+    log.warn({ mint }, 'Post-buy sell-route verification failed after all retries — monitoring continues');
   }
 }

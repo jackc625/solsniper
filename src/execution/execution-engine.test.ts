@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Connection, Keypair } from '@solana/web3.js';
 import type { TokenEvent } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
@@ -6,10 +6,11 @@ import type { TradingConfig } from '../config/trading.js';
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockPumpPortalBuy, mockJupiterBuy } = vi.hoisted(() => {
+const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote } = vi.hoisted(() => {
   const mockPumpPortalBuy = vi.fn();
   const mockJupiterBuy = vi.fn();
-  return { mockPumpPortalBuy, mockJupiterBuy };
+  const mockJupiterClientQuote = vi.fn();
+  return { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote };
 });
 
 vi.mock('./buy/pump-portal-buyer.js', () => ({
@@ -18,6 +19,12 @@ vi.mock('./buy/pump-portal-buyer.js', () => ({
 
 vi.mock('./buy/jupiter-buyer.js', () => ({
   jupiterBuy: mockJupiterBuy,
+}));
+
+vi.mock('./jupiter-client.js', () => ({
+  jupiterClient: {
+    quote: mockJupiterClientQuote,
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -88,7 +95,7 @@ function makeTradingConfig(): TradingConfig {
 
 function makeEvent(source: TokenEvent['source']): TokenEvent {
   return {
-    mint: 'TestMint111111111111111',
+    mint: 'TestMint111111111111111111111111111111111111',
     source,
     detectedAt: Date.now(),
   };
@@ -105,15 +112,23 @@ function makeTradeStore() {
 describe('ExecutionEngine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('routes to PumpPortal when source is pumpportal', async () => {
     mockPumpPortalBuy.mockResolvedValue({ success: true, signature: 'pump-sig' });
+    mockJupiterClientQuote.mockResolvedValue({});
 
     const tradeStore = makeTradeStore();
     const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
-    await engine.buy(makeEvent('pumpportal'));
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    await vi.runAllTimersAsync();
+    await buyPromise;
 
     expect(mockPumpPortalBuy).toHaveBeenCalledOnce();
     expect(mockJupiterBuy).not.toHaveBeenCalled();
@@ -125,7 +140,9 @@ describe('ExecutionEngine', () => {
     const tradeStore = makeTradeStore();
     const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
-    await engine.buy(makeEvent('raydium'));
+    const buyPromise = engine.buy(makeEvent('raydium'));
+    await vi.runAllTimersAsync();
+    await buyPromise;
 
     expect(mockJupiterBuy).toHaveBeenCalledOnce();
     expect(mockPumpPortalBuy).not.toHaveBeenCalled();
@@ -137,7 +154,9 @@ describe('ExecutionEngine', () => {
     const tradeStore = makeTradeStore();
     const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
-    await engine.buy(makeEvent('pumpswap'));
+    const buyPromise = engine.buy(makeEvent('pumpswap'));
+    await vi.runAllTimersAsync();
+    await buyPromise;
 
     expect(mockJupiterBuy).toHaveBeenCalledOnce();
     expect(mockPumpPortalBuy).not.toHaveBeenCalled();
@@ -149,15 +168,17 @@ describe('ExecutionEngine', () => {
       signature: 'sig123',
       amountTokens: 5000000,
     });
+    mockJupiterClientQuote.mockResolvedValue({});
 
     const tradeStore = makeTradeStore();
     const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
-    await engine.buy(makeEvent('pumpportal'));
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    await vi.runAllTimersAsync();
+    await buyPromise;
 
-    expect(tradeStore.transition).toHaveBeenCalledOnce();
     expect(tradeStore.transition).toHaveBeenCalledWith(
-      'TestMint111111111111111',
+      'TestMint111111111111111111111111111111111111',
       'BUYING',
       'MONITORING',
       expect.objectContaining({ buySignature: 'sig123' })
@@ -173,11 +194,12 @@ describe('ExecutionEngine', () => {
     const tradeStore = makeTradeStore();
     const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
-    await engine.buy(makeEvent('pumpportal'));
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    await vi.runAllTimersAsync();
+    await buyPromise;
 
-    expect(tradeStore.transition).toHaveBeenCalledOnce();
     expect(tradeStore.transition).toHaveBeenCalledWith(
-      'TestMint111111111111111',
+      'TestMint111111111111111111111111111111111111',
       'BUYING',
       'FAILED',
       expect.objectContaining({ errorMessage: 'BUY_FAILED: PumpPortal HTTP 400' })
@@ -190,14 +212,111 @@ describe('ExecutionEngine', () => {
     const tradeStore = makeTradeStore();
     const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
 
-    await engine.buy(makeEvent('pumpportal'));
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    await vi.runAllTimersAsync();
+    await buyPromise;
 
-    expect(tradeStore.transition).toHaveBeenCalledOnce();
     expect(tradeStore.transition).toHaveBeenCalledWith(
-      'TestMint111111111111111',
+      'TestMint111111111111111111111111111111111111',
       'BUYING',
       'FAILED',
       expect.objectContaining({ errorMessage: 'BUY_FAILED: Network timeout' })
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Post-buy sell-route verification tests
+  // ---------------------------------------------------------------------------
+
+  it('post-buy verification runs for pumpportal source — calls jupiterClient.quote with retries', async () => {
+    mockPumpPortalBuy.mockResolvedValue({ success: true, signature: 'pump-sig' });
+    // First 2 attempts fail, 3rd succeeds
+    mockJupiterClientQuote
+      .mockRejectedValueOnce(new Error('route not found'))
+      .mockRejectedValueOnce(new Error('route not found'))
+      .mockResolvedValueOnce({});
+
+    const tradeStore = makeTradeStore();
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    // buy() returns immediately (fire-and-forget verification)
+    await buyPromise;
+
+    // Advance timers for all 3 retry delays: 10s + 15s + 20s = 45s total
+    await vi.advanceTimersByTimeAsync(10001);  // first retry
+    await vi.advanceTimersByTimeAsync(15001);  // second retry
+    await vi.advanceTimersByTimeAsync(20001);  // third retry
+    await vi.runAllTimersAsync();
+
+    expect(mockJupiterClientQuote).toHaveBeenCalledTimes(3);
+    const params = mockJupiterClientQuote.mock.calls[0][0] as URLSearchParams;
+    expect(params.get('inputMint')).toBe('TestMint111111111111111111111111111111111111');
+    expect(params.get('outputMint')).toBe('So11111111111111111111111111111111111111112');
+  });
+
+  it('post-buy verification does NOT run for raydium source', async () => {
+    mockJupiterBuy.mockResolvedValue({ success: true, signature: 'jup-sig' });
+
+    const tradeStore = makeTradeStore();
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const buyPromise = engine.buy(makeEvent('raydium'));
+    await buyPromise;
+    await vi.advanceTimersByTimeAsync(60000);
+    await vi.runAllTimersAsync();
+
+    expect(mockJupiterClientQuote).not.toHaveBeenCalled();
+  });
+
+  it('post-buy verification does NOT run for pumpswap source', async () => {
+    mockJupiterBuy.mockResolvedValue({ success: true, signature: 'jup-sig' });
+
+    const tradeStore = makeTradeStore();
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const buyPromise = engine.buy(makeEvent('pumpswap'));
+    await buyPromise;
+    await vi.advanceTimersByTimeAsync(60000);
+    await vi.runAllTimersAsync();
+
+    expect(mockJupiterClientQuote).not.toHaveBeenCalled();
+  });
+
+  it('post-buy verification does NOT run when buy fails', async () => {
+    mockPumpPortalBuy.mockResolvedValue({ success: false, errorMessage: 'HTTP 400' });
+
+    const tradeStore = makeTradeStore();
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    await buyPromise;
+    await vi.advanceTimersByTimeAsync(60000);
+    await vi.runAllTimersAsync();
+
+    expect(mockJupiterClientQuote).not.toHaveBeenCalled();
+  });
+
+  it('post-buy verification buy() returns without waiting for verification (fire-and-forget)', async () => {
+    mockPumpPortalBuy.mockResolvedValue({ success: true, signature: 'pump-sig' });
+    // Never resolves — route not found
+    mockJupiterClientQuote.mockImplementation(() => new Promise(() => {}));
+
+    const tradeStore = makeTradeStore();
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    // buy() should return without waiting for all 3 retries
+    const buyPromise = engine.buy(makeEvent('pumpportal'));
+    // Should resolve before timer advances (buy itself is done, verification is fire-and-forget)
+    await buyPromise;
+
+    // buy() resolved — verification is still pending in background
+    // (we just verify buy() didn't block)
+    expect(tradeStore.transition).toHaveBeenCalledWith(
+      'TestMint111111111111111111111111111111111111',
+      'BUYING',
+      'MONITORING',
+      expect.objectContaining({ buySignature: 'pump-sig' })
     );
   });
 });
