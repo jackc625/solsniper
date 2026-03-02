@@ -365,6 +365,31 @@ describe('SafetyPipeline', () => {
     );
   });
 
+  it('passes detectedProgramId to checkHolderConcentration', async () => {
+    const mintAuthPass: CheckResult = { pass: true, source: 'mint_authority', detail: 'revoked' };
+    const freezeAuthPass: CheckResult = { pass: true, source: 'freeze_authority', detail: 'revoked' };
+    const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
+    vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass, TOKEN_2022_PROGRAM_ID_PK]);
+    vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+
+    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
+    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
+    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
+    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+
+    const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+    await pipeline.evaluate(makeTokenEvent());
+
+    // checkHolderConcentration must receive the detected programId as 4th argument and source as 5th
+    expect(checkHolderConcentration).toHaveBeenCalledWith(
+      MOCK_MINT,
+      mockConnection,
+      mockTradingConfig.safety.holder,
+      TOKEN_2022_PROGRAM_ID_PK,
+      'pumpportal',  // makeTokenEvent() defaults source to 'pumpportal'
+    );
+  });
+
   it('evaluate() returns programId from checkAuthorities in SafetyResult', async () => {
     // checkAuthorities returns TOKEN_2022_PROGRAM_ID_PK
     const mintAuthPass: CheckResult = { pass: true, source: 'mint_authority', detail: 'revoked' };

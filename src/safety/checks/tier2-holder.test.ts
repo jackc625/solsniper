@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Connection } from '@solana/web3.js';
 import { PublicKey } from '@solana/web3.js';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 
 import { checkHolderConcentration } from './tier2-holder.js';
 
 const MOCK_MINT = 'So11111111111111111111111111111111111111112';
+
+// Pre-compute bonding curve PDA for MOCK_MINT for test assertions
+const PUMP_FUN_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
+const [BONDING_CURVE_PDA] = PublicKey.findProgramAddressSync(
+  [Buffer.from('bonding-curve'), new PublicKey(MOCK_MINT).toBuffer()],
+  PUMP_FUN_PROGRAM_ID,
+);
+const BONDING_CURVE_ADDR = BONDING_CURVE_PDA.toBase58();
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const INCINERATOR = '1nc1nerator11111111111111111111111111111111';
@@ -231,5 +240,192 @@ describe('checkHolderConcentration', () => {
 
     // Only USER_WALLET_1 with 20% of total supply should be counted
     expect(result.pass).toBe(true);
+  });
+
+  it('excludes bonding curve PDA from concentration (standard path)', async () => {
+    // Bonding curve PDA holds 90%, one user wallet holds 10%
+    // After excluding bonding curve, only user wallet remains at 10% of total supply — passes
+    const totalSupply = '1000000000';
+    const connection = makeMockConnection({
+      largestAccounts: [
+        { address: BONDING_CURVE_ADDR, amount: '900000000' }, // 90% — bonding curve, excluded
+        { address: USER_WALLET_1, amount: '100000000' },       // 10% — user, not excluded
+      ],
+      totalSupply,
+      accountOwners: {
+        [BONDING_CURVE_ADDR]: BONDING_CURVE_ADDR, // bonding curve PDA "owns" itself
+        [USER_WALLET_1]: USER_WALLET_1,
+      },
+    });
+
+    const result = await checkHolderConcentration(MOCK_MINT, connection, DEFAULT_CONFIG);
+
+    // After PDA exclusion: user1 holds 10% of total supply — under 25% threshold
+    expect(result.pass).toBe(true);
+    expect(result.source).toBe('holder_concentration');
+  });
+
+  it('excludes bonding curve PDA from concentration (Token-2022 path)', async () => {
+    // Bonding curve PDA holds 90%, one user wallet holds 10%
+    const mintAccountData = Buffer.alloc(82);
+    mintAccountData.writeBigUInt64LE(BigInt('1000000000'), 36);
+    mintAccountData.writeUInt8(9, 44);
+    mintAccountData.writeUInt8(1, 45);
+
+    const mockGetParsedProgramAccounts = vi.fn().mockResolvedValue([
+      {
+        pubkey: new PublicKey(BONDING_CURVE_ADDR),
+        account: {
+          data: {
+            parsed: {
+              info: {
+                owner: BONDING_CURVE_ADDR,
+                tokenAmount: { amount: '900000000' }, // 90% — bonding curve, excluded
+              },
+            },
+          },
+        },
+      },
+      {
+        pubkey: new PublicKey(USER_WALLET_1),
+        account: {
+          data: {
+            parsed: {
+              info: {
+                owner: USER_WALLET_1,
+                tokenAmount: { amount: '100000000' }, // 10% — user
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    const mockGetAccountInfo = vi.fn().mockResolvedValue({
+      owner: TOKEN_2022_PROGRAM_ID,
+      data: mintAccountData,
+    });
+
+    const connection = {
+      getParsedProgramAccounts: mockGetParsedProgramAccounts,
+      getAccountInfo: mockGetAccountInfo,
+    } as unknown as Connection;
+
+    const result = await checkHolderConcentration(
+      MOCK_MINT, connection, DEFAULT_CONFIG, TOKEN_2022_PROGRAM_ID,
+    );
+
+    // After PDA exclusion: user1 holds 10% of total supply — under 25% threshold
+    expect(result.pass).toBe(true);
+    expect(result.source).toBe('holder_concentration');
+  });
+
+  it('zero user holders with source=pumpportal returns pass=true, score=50', async () => {
+    // All holders are bonding curve PDA (excluded) — no user holders remain
+    const totalSupply = '1000000000';
+    const connection = makeMockConnection({
+      largestAccounts: [
+        { address: BONDING_CURVE_ADDR, amount: '1000000000' }, // 100% — bonding curve, excluded
+      ],
+      totalSupply,
+      accountOwners: {
+        [BONDING_CURVE_ADDR]: BONDING_CURVE_ADDR,
+      },
+    });
+
+    const result = await checkHolderConcentration(MOCK_MINT, connection, DEFAULT_CONFIG, undefined, 'pumpportal');
+
+    expect(result.pass).toBe(true);
+    expect(result.score).toBe(50);
+    expect(result.source).toBe('holder_concentration');
+    expect(result.detail).toContain('insufficient data');
+  });
+
+  it('zero user holders with source=raydium still returns pass=false', async () => {
+    // Same setup — only bonding curve holder — but source is raydium, not pumpportal
+    const totalSupply = '1000000000';
+    const connection = makeMockConnection({
+      largestAccounts: [
+        { address: BONDING_CURVE_ADDR, amount: '1000000000' }, // 100% — bonding curve, excluded
+      ],
+      totalSupply,
+      accountOwners: {
+        [BONDING_CURVE_ADDR]: BONDING_CURVE_ADDR,
+      },
+    });
+
+    const result = await checkHolderConcentration(MOCK_MINT, connection, DEFAULT_CONFIG, undefined, 'raydium');
+
+    expect(result.pass).toBe(false);
+    expect(result.score).toBe(0);
+    expect(result.source).toBe('holder_concentration');
+  });
+
+  it('uses getParsedProgramAccounts fallback for Token-2022 mints', async () => {
+    // Simulate Token-2022 mint: supply = 1B, one user holds 10%
+    const mintPubkey = new PublicKey(MOCK_MINT);
+
+    // Mock mint account data for unpackMint — 82-byte SPL mint layout
+    // supply at offset 36 (8 bytes LE), decimals at offset 44
+    const mintAccountData = Buffer.alloc(82);
+    // supply = 1_000_000_000 as u64 LE at offset 36
+    mintAccountData.writeBigUInt64LE(BigInt('1000000000'), 36);
+    // decimals = 9 at offset 44
+    mintAccountData.writeUInt8(9, 44);
+    // isInitialized = 1 at offset 45
+    mintAccountData.writeUInt8(1, 45);
+
+    const mockGetParsedProgramAccounts = vi.fn().mockResolvedValue([
+      {
+        pubkey: new PublicKey(USER_WALLET_1),
+        account: {
+          data: {
+            parsed: {
+              info: {
+                owner: USER_WALLET_1,
+                tokenAmount: { amount: '100000000' }, // 10%
+              },
+            },
+          },
+        },
+      },
+      {
+        pubkey: new PublicKey(USER_WALLET_2),
+        account: {
+          data: {
+            parsed: {
+              info: {
+                owner: USER_WALLET_2,
+                tokenAmount: { amount: '50000000' }, // 5%
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    const mockGetAccountInfo = vi.fn().mockResolvedValue({
+      owner: TOKEN_2022_PROGRAM_ID,
+      data: mintAccountData,
+    });
+
+    const connection = {
+      getParsedProgramAccounts: mockGetParsedProgramAccounts,
+      getAccountInfo: mockGetAccountInfo,
+    } as unknown as Connection;
+
+    const result = await checkHolderConcentration(
+      MOCK_MINT, connection, DEFAULT_CONFIG, TOKEN_2022_PROGRAM_ID,
+    );
+
+    // top1=10% < 25%, top10=15% < 50% — should pass
+    expect(result.pass).toBe(true);
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.source).toBe('holder_concentration');
+    // Verify it used getParsedProgramAccounts, not getTokenLargestAccounts
+    expect(mockGetParsedProgramAccounts).toHaveBeenCalledWith(
+      TOKEN_2022_PROGRAM_ID,
+      { filters: [{ memcmp: { offset: 0, bytes: MOCK_MINT } }] },
+    );
   });
 });

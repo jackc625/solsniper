@@ -102,7 +102,7 @@ export class SafetyPipeline {
 
     const [rugCheckSettled, holderSettled, creatorSettled] = await Promise.allSettled([
       checkRugCheck(event.mint, this.env.RUGCHECK_API_KEY, tier2Signal),
-      checkHolderConcentration(event.mint, this.connection, this.tradingConfig.safety.holder),
+      checkHolderConcentration(event.mint, this.connection, this.tradingConfig.safety.holder, detectedProgramId, event.source),
       checkCreatorHistory(event.creator, this.env.HELIUS_API_KEY, this.blocklist, tier3Signal),
     ]);
 
