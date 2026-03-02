@@ -72,6 +72,7 @@ Progress: [██████████] 100% (27/27 plans complete)
 
 - Phase 9 added: Fix broken Jupiter API
 - Phase 10 added: fix mint issues
+- Phase 11 added: fix bonding curve issue
 
 ### Decisions
 
