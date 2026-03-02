@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: active
-last_updated: "2026-03-02T17:35:00Z"
+status: unknown
+last_updated: "2026-03-02T17:51:44.827Z"
 progress:
   total_phases: 9
-  completed_phases: 8
-  total_plans: 24
-  completed_plans: 24
+  completed_phases: 9
+  total_plans: 25
+  completed_plans: 25
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: 9 of 9 (Fix Broken Jupiter API) - Plan 1 COMPLETE
-Plan: 1 of 1 in current phase - COMPLETE
-Status: Phase 9 Plan 01 complete — JupiterClient with x-api-key auth, global 429 cooldown, Retry-After parsing, AbortSignal propagation; 18 tests green
-Last activity: 2026-03-02 -- Plan 09-01 complete (JupiterClient class created; user must add SOLSNIPER_JUPITER_API_KEY to .env)
+Phase: 9 of 9 (Fix Broken Jupiter API) - COMPLETE
+Plan: 2 of 2 in current phase - COMPLETE
+Status: Phase 9 Plan 02 complete — all 5 Jupiter-calling files migrated to jupiterClient; PositionManager dynamic poll interval; 48 tests green
+Last activity: 2026-03-02 -- Plan 09-02 complete (all files migrated; user must add SOLSNIPER_JUPITER_API_KEY to .env before running)
 
-Progress: [██████████] 100% (24/24 plans complete)
+Progress: [██████████] 100% (25/25 plans complete)
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [██████████] 100% (24/24 plans complete)
 | Phase 08-web-dashboard P02 | 6 | 2 tasks | 7 files |
 | Phase 08-web-dashboard P03 | 12 | 2 tasks | 12 files |
 | Phase 08-web-dashboard P04 | 5 | 2 tasks | 4 files |
+| Phase 09-fix-broken-jupiter-api P02 | 10 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,8 @@ Recent decisions affecting current work:
 - [Phase 08-web-dashboard]: BUY_SENT emitted before buy call so dashboard sees token at earliest possible moment; SELL_TRIGGERED before state transition; SafetyPipeline catch re-throws; TOKEN_DETECTED as first line in result.pass block
 - [Phase 09-01]: JupiterClient uses class (not helper) for mutable cooldown state; global cooldown blocks all callers on 429; Retry-After header converted seconds to ms, falls back to 10s
 - [Phase 09-01]: Test mock for env must include LOG_LEVEL and NODE_ENV alongside feature keys — logger.ts imports env for those, pino throws if level is undefined
+- [Phase 09-fix-broken-jupiter-api]: env mock required in test files that transitively import logger.ts → env.ts; use vi.mock('../config/env.js') alongside vi.mock('jupiter-client.js')
+- [Phase 09-fix-broken-jupiter-api]: scheduleTick stretches interval = cooldownRemainingMs + pollIntervalMs when cooldown > 0 — yields rate budget to trade-critical buy/sell calls
 
 ### Pending Todos
 
@@ -169,8 +172,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-02 - Completed 09-01-PLAN.md (JupiterClient with auth + rate-limit handling; 18 tests green)
+Last activity: 2026-03-02 - Completed 09-02-PLAN.md (all 5 Jupiter files migrated; PositionManager dynamic poll; 48 tests green)
 
 Last session: 2026-03-02
-Stopped at: Completed 09-01-PLAN.md (JupiterClient created; user must add SOLSNIPER_JUPITER_API_KEY to .env before running)
-Resume file: N/A — phase 9 plan 01 complete
+Stopped at: Completed 09-02-PLAN.md (Phase 9 complete; user must add SOLSNIPER_JUPITER_API_KEY to .env before running)
+Resume file: N/A — Phase 9 complete
