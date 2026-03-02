@@ -3,9 +3,22 @@ import type { Connection, Keypair } from '@solana/web3.js';
 import type { TradingConfig } from '../../config/trading.js';
 
 // ---------------------------------------------------------------------------
+// Mock env.js first — logger.ts imports env for LOG_LEVEL/NODE_ENV, and
+// env.ts calls process.exit(1) on validation failure if SOLSNIPER_JUPITER_API_KEY
+// is not set. Mock prevents that during tests.
+// ---------------------------------------------------------------------------
+vi.mock('../../config/env.js', () => ({
+  env: {
+    SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
+  },
+}));
+
+// ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockBroadcastAndConfirm, mockDeserialize } = vi.hoisted(() => {
+const { mockBroadcastAndConfirm, mockDeserialize, mockJupiterQuote, mockJupiterSwap } = vi.hoisted(() => {
   const mockBroadcastAndConfirm = vi.fn().mockResolvedValue({
     signature: 'test-sig-jupiter',
     blockhash: 'test-blockhash',
@@ -18,7 +31,10 @@ const { mockBroadcastAndConfirm, mockDeserialize } = vi.hoisted(() => {
     serialize: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
   });
 
-  return { mockBroadcastAndConfirm, mockDeserialize };
+  const mockJupiterQuote = vi.fn();
+  const mockJupiterSwap = vi.fn();
+
+  return { mockBroadcastAndConfirm, mockDeserialize, mockJupiterQuote, mockJupiterSwap };
 });
 
 vi.mock('../broadcaster.js', () => ({
@@ -35,6 +51,11 @@ vi.mock('@solana/web3.js', async (importOriginal) => {
     },
   };
 });
+
+// Mock jupiter-client so env.ts validation doesn't trigger process.exit(1)
+vi.mock('../jupiter-client.js', () => ({
+  jupiterClient: { quote: mockJupiterQuote, swap: mockJupiterSwap },
+}));
 
 // ---------------------------------------------------------------------------
 // Imports (after mocks are registered)
@@ -109,20 +130,6 @@ function makeTradingConfig(overrides: Partial<TradingConfig['execution']['buy']>
 // Fake base64 transaction bytes (just needs to be decodeable as Buffer)
 const FAKE_BASE64_TX = Buffer.from(new Uint8Array([10, 20, 30])).toString('base64');
 
-function makeSuccessFetch(quoteResponse: Record<string, unknown> = { outAmount: '1000000' }) {
-  return vi.fn()
-    .mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: vi.fn().mockResolvedValue(quoteResponse),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: vi.fn().mockResolvedValue({ swapTransaction: FAKE_BASE64_TX }),
-    });
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -144,7 +151,8 @@ describe('jupiterBuy', () => {
   });
 
   it('happy path — quote + swap succeed — returns success with amountTokens', async () => {
-    vi.stubGlobal('fetch', makeSuccessFetch({ outAmount: '1000000' }));
+    mockJupiterQuote.mockResolvedValueOnce({ outAmount: '1000000' });
+    mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
 
     const config = makeTradingConfig();
     const result = await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections);
@@ -154,69 +162,47 @@ describe('jupiterBuy', () => {
     expect(result.amountTokens).toBe(1000000);
     expect(mockDeserialize).toHaveBeenCalledOnce();
     expect(mockBroadcastAndConfirm).toHaveBeenCalledOnce();
-
-    vi.unstubAllGlobals();
   });
 
-  it('quote HTTP error — fetch returns 400 — throws error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-    }));
+  it('quote HTTP error — jupiterClient.quote throws — propagates error', async () => {
+    mockJupiterQuote.mockRejectedValueOnce(new Error('Jupiter quote HTTP 400'));
 
     const config = makeTradingConfig();
     await expect(
       jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections)
     ).rejects.toThrow('Jupiter quote HTTP 400');
-
-    vi.unstubAllGlobals();
   });
 
-  it('swap HTTP error — quote succeeds, swap returns 500 — throws error', async () => {
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({ outAmount: '1000000' }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      })
-    );
+  it('swap HTTP error — quote succeeds, swap throws — propagates error', async () => {
+    mockJupiterQuote.mockResolvedValueOnce({ outAmount: '1000000' });
+    mockJupiterSwap.mockRejectedValueOnce(new Error('Jupiter swap HTTP 500'));
 
     const config = makeTradingConfig();
     await expect(
       jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections)
     ).rejects.toThrow('Jupiter swap HTTP 500');
-
-    vi.unstubAllGlobals();
   });
 
   it('dynamicSlippage false — swap body contains dynamicSlippage: false', async () => {
-    const mockFetch = makeSuccessFetch();
-    vi.stubGlobal('fetch', mockFetch);
+    mockJupiterQuote.mockResolvedValueOnce({ outAmount: '1000000' });
+    mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
 
     const config = makeTradingConfig();
     await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections);
 
-    // The second fetch call is the swap POST
-    const swapCallArgs = mockFetch.mock.calls[1];
-    const body = JSON.parse(swapCallArgs[1].body as string);
+    const swapCallArgs = mockJupiterSwap.mock.calls[0];
+    const body = swapCallArgs[0] as Record<string, unknown>;
     expect(body.dynamicSlippage).toBe(false);
-
-    vi.unstubAllGlobals();
   });
 
   it('no outAmount — quoteResponse missing outAmount — amountTokens is undefined', async () => {
-    vi.stubGlobal('fetch', makeSuccessFetch({}));
+    mockJupiterQuote.mockResolvedValueOnce({});
+    mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
 
     const config = makeTradingConfig();
     const result = await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections);
 
     expect(result.success).toBe(true);
     expect(result.amountTokens).toBeUndefined();
-
-    vi.unstubAllGlobals();
   });
 });

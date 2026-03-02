@@ -14,6 +14,7 @@ import { TradeStore } from './persistence/trade-store.js';
 import { PublicKey } from '@solana/web3.js';
 import { RecoveryManager } from './recovery/recovery-manager.js';
 import { PositionManager } from './position/position-manager.js';
+import { jupiterClient } from './execution/jupiter-client.js';
 import { createDashboardServer } from './dashboard/dashboard-server.js';
 import { botEventBus } from './dashboard/bot-event-bus.js';
 import type { FastifyInstance } from 'fastify';
@@ -123,6 +124,7 @@ async function main(): Promise<void> {
     rpcManager.getConnection(),
     new PublicKey(walletPubKeyStr),
     tradingConfig,
+    jupiterClient,
   );
 
   // 11. Run crash recovery — BLOCKS until complete (PER-03, PER-05)

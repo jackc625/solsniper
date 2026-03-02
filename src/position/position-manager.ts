@@ -15,11 +15,16 @@
  *
  * Uses recursive setTimeout (not setInterval) so each poll waits for the
  * previous evaluation to complete before scheduling the next.
+ *
+ * Dynamic interval: when JupiterClient is in a rate-limit cooldown, the poll
+ * interval is stretched by cooldownRemainingMs so monitoring yields rate budget
+ * to trade-critical buy/sell calls.
  */
 import { PublicKey, Connection } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import type { TradeStore } from '../persistence/trade-store.js';
 import type { SellLadder } from '../execution/sell/sell-ladder.js';
+import type { JupiterClient } from '../execution/jupiter-client.js';
 import type { TradingConfig } from '../config/trading.js';
 import type { Trade } from '../types/index.js';
 import { createModuleLogger } from '../core/logger.js';
@@ -47,6 +52,7 @@ export class PositionManager {
     private readonly connection: Connection,
     private readonly walletPubKey: PublicKey,
     private readonly config: TradingConfig,
+    private readonly jupiterClient: JupiterClient,
   ) {}
 
   /**
@@ -100,9 +106,16 @@ export class PositionManager {
 
   /**
    * Schedules the next poll tick using recursive setTimeout.
+   * When JupiterClient is in cooldown, stretches the interval by cooldownRemainingMs
+   * so monitoring yields rate budget to trade-critical buy/sell calls.
    * Critical: NOT setInterval — each tick waits for the previous to complete.
    */
   private scheduleTick(): void {
+    const cooldownMs = this.jupiterClient.cooldownRemainingMs();
+    const intervalMs = cooldownMs > 0
+      ? cooldownMs + this.config.positionManagement.pollIntervalMs
+      : this.config.positionManagement.pollIntervalMs;
+
     this.timer = setTimeout(async () => {
       try {
         await this.tick();
@@ -111,7 +124,7 @@ export class PositionManager {
       } finally {
         if (this.running) this.scheduleTick();
       }
-    }, this.config.positionManagement.pollIntervalMs);
+    }, intervalMs);
   }
 
   /**
@@ -287,22 +300,23 @@ export class PositionManager {
   }
 
   /**
-   * Fetches the current SOL value of a position via Jupiter quote API.
+   * Fetches the current SOL value of a position via Jupiter quote.
    * Returns null on any failure (caller skips the tick).
    *
-   * URL pattern (verified against Jupiter v1 API):
-   * GET https://api.jup.ag/swap/v1/quote?inputMint={token}&outputMint={SOL}&amount={rawTokens}&slippageBps=50&maxAccounts=64
+   * Uses the centralized JupiterClient for authenticated, rate-limit-aware requests.
    * Response: { outAmount: string } — raw lamports, divide by 1e9 for SOL
    */
   private async getPositionValueSol(mint: string, tokenAmountRaw: bigint): Promise<number | null> {
-    const url =
-      `https://api.jup.ag/swap/v1/quote?inputMint=${mint}&outputMint=${SOL_MINT}` +
-      `&amount=${tokenAmountRaw.toString()}&slippageBps=50&maxAccounts=64`;
+    const params = new URLSearchParams({
+      inputMint: mint,
+      outputMint: SOL_MINT,
+      amount: tokenAmountRaw.toString(),
+      slippageBps: '50',
+      maxAccounts: '64',
+    });
 
     try {
-      const resp = await fetch(url);
-      if (!resp.ok) return null;
-      const data = (await resp.json()) as { outAmount: string };
+      const data = (await this.jupiterClient.quote(params)) as { outAmount: string };
       return Number(data.outAmount) / 1e9;
     } catch {
       return null;

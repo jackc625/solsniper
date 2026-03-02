@@ -1,13 +1,27 @@
 /**
  * Unit tests for PositionManager.
  *
- * Mocks: TradeStore, SellLadder, Solana Connection, global fetch.
+ * Mocks: TradeStore, SellLadder, Solana Connection, JupiterClient.
  * No real SQLite, Solana connections, or Jupiter API calls used.
  *
  * tick() is called directly (not through the timer) for deterministic testing.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PublicKey } from '@solana/web3.js';
+
+// ---------------------------------------------------------------------------
+// Mock env.js first — logger.ts imports env for LOG_LEVEL/NODE_ENV, and
+// env.ts calls process.exit(1) on validation failure if SOLSNIPER_JUPITER_API_KEY
+// is not set. Mock prevents that during tests.
+// ---------------------------------------------------------------------------
+vi.mock('../config/env.js', () => ({
+  env: {
+    SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
+  },
+}));
+
 import { PositionManager } from './position-manager.js';
 import type { Trade } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
@@ -26,30 +40,28 @@ const MINT_B = '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs'; // ETH (Wormhole)
 // Mock helpers
 // ---------------------------------------------------------------------------
 
+const mockJupiterClient = {
+  quote: vi.fn(),
+  swap: vi.fn(),
+  isRateLimited: vi.fn().mockReturnValue(false),
+  cooldownRemainingMs: vi.fn().mockReturnValue(0),
+};
+
 /**
- * Stubs global fetch to return a successful Jupiter quote response.
+ * Configures mockJupiterClient.quote to return a successful Jupiter quote.
  * outAmountLamports is the raw lamport amount (divide by 1e9 for SOL).
  */
 function mockJupiterQuote(outAmountLamports: number) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ outAmount: String(outAmountLamports) }),
-    }),
-  );
+  mockJupiterClient.quote.mockResolvedValue({
+    outAmount: String(outAmountLamports),
+  });
 }
 
 /**
- * Stubs global fetch to simulate a Jupiter quote failure (ok: false).
+ * Configures mockJupiterClient.quote to simulate a failure.
  */
 function mockJupiterFailure() {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({
-      ok: false,
-    }),
-  );
+  mockJupiterClient.quote.mockRejectedValue(new Error('Jupiter quote HTTP 500'));
 }
 
 const mockTradeStore = {
@@ -147,7 +159,8 @@ function makeTrade(overrides: Partial<Trade> = {}): Trade {
 }
 
 /**
- * Creates a PositionManager and exposes tick() via type cast for direct testing.
+ * Creates a PositionManager with mockJupiterClient as 6th param.
+ * Exposes tick() via type cast for direct testing.
  */
 function makePositionManager(config: TradingConfig = makeConfig()) {
   const pm = new PositionManager(
@@ -156,6 +169,7 @@ function makePositionManager(config: TradingConfig = makeConfig()) {
     mockConnection as any,
     WALLET_PUBKEY,
     config,
+    mockJupiterClient as any,
   );
   return pm as PositionManager & { tick: () => Promise<void> };
 }
@@ -167,7 +181,9 @@ function makePositionManager(config: TradingConfig = makeConfig()) {
 describe('PositionManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllGlobals();
+    mockJupiterClient.quote.mockReset();
+    mockJupiterClient.isRateLimited.mockReturnValue(false);
+    mockJupiterClient.cooldownRemainingMs.mockReturnValue(0);
     mockSellLadder.sell.mockResolvedValue({ success: true, step: 'STANDARD' });
     mockTradeStore.updateMonitoringAmount.mockReturnValue(1);
     mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({ value: [] });
@@ -382,7 +398,7 @@ describe('PositionManager', () => {
 
   // -------------------------------------------------------------------------
   describe('Jupiter failure handling', () => {
-    it('skips tick when Jupiter quote fails (ok: false) — no sell triggered', async () => {
+    it('skips tick when Jupiter quote fails — no sell triggered', async () => {
       mockJupiterFailure();
       mockTradeStore.getMonitoringTrades.mockReturnValue([
         makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
@@ -481,19 +497,12 @@ describe('PositionManager', () => {
     it('evaluates multiple positions independently in same tick', async () => {
       // MINT_A: ratio=0.4 → SL fires
       // MINT_B: ratio=0.8 → no exit
-      // Use a fetch mock that alternates responses
       let callCount = 0;
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockImplementation(() => {
-          callCount++;
-          const lamports = callCount === 1 ? 0.4 * 1e9 : 0.8 * 1e9;
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ outAmount: String(lamports) }),
-          });
-        }),
-      );
+      mockJupiterClient.quote.mockImplementation(() => {
+        callCount++;
+        const lamports = callCount === 1 ? 0.4 * 1e9 : 0.8 * 1e9;
+        return Promise.resolve({ outAmount: String(lamports) });
+      });
 
       mockTradeStore.getMonitoringTrades.mockReturnValue([
         makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
@@ -520,10 +529,70 @@ describe('PositionManager', () => {
         mockConnection as any,
         WALLET_PUBKEY,
         makeConfig(),
+        mockJupiterClient as any,
       );
 
       expect(() => pm.start()).not.toThrow();
       expect(() => pm.stop()).not.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('dynamic poll interval (cooldown stretching)', () => {
+    it('scheduleTick stretches interval when cooldownRemainingMs > 0', () => {
+      vi.useFakeTimers();
+      mockJupiterClient.cooldownRemainingMs.mockReturnValue(5000); // 5s cooldown remaining
+      mockTradeStore.getMonitoringTrades.mockReturnValue([]);
+
+      const config = makeConfig({ pollIntervalMs: 3000 }); // normal interval = 3s
+      const pm = new PositionManager(
+        mockTradeStore as any,
+        mockSellLadder as any,
+        mockConnection as any,
+        WALLET_PUBKEY,
+        config,
+        mockJupiterClient as any,
+      );
+
+      pm.start();
+
+      // Normal poll interval is 3000ms; cooldown is 5000ms
+      // stretched interval = 5000 + 3000 = 8000ms
+      // After 3000ms, tick should NOT have fired yet
+      vi.advanceTimersByTime(3000);
+      expect(mockTradeStore.getMonitoringTrades).not.toHaveBeenCalled();
+
+      // After 8000ms total, tick should fire
+      vi.advanceTimersByTime(5001);
+      expect(mockTradeStore.getMonitoringTrades).toHaveBeenCalled();
+
+      pm.stop();
+      vi.useRealTimers();
+    });
+
+    it('scheduleTick uses normal interval when cooldownRemainingMs returns 0', () => {
+      vi.useFakeTimers();
+      mockJupiterClient.cooldownRemainingMs.mockReturnValue(0); // no cooldown
+      mockTradeStore.getMonitoringTrades.mockReturnValue([]);
+
+      const config = makeConfig({ pollIntervalMs: 3000 });
+      const pm = new PositionManager(
+        mockTradeStore as any,
+        mockSellLadder as any,
+        mockConnection as any,
+        WALLET_PUBKEY,
+        config,
+        mockJupiterClient as any,
+      );
+
+      pm.start();
+
+      // After 3000ms, tick should fire
+      vi.advanceTimersByTime(3001);
+      expect(mockTradeStore.getMonitoringTrades).toHaveBeenCalled();
+
+      pm.stop();
+      vi.useRealTimers();
     });
   });
 });
