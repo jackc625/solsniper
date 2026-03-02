@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-03-02T17:57:59.831Z"
+status: in_progress
+last_updated: "2026-03-02T19:56:36Z"
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 9
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 27
+  completed_plans: 26
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 9: Fix Broken Jupiter API
+**Current focus:** Phase 10: Fix Mint Issues
 
 ## Current Position
 
-Phase: 9 of 9 (Fix Broken Jupiter API) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
-Status: Phase 9 Plan 02 complete — all 5 Jupiter-calling files migrated to jupiterClient; PositionManager dynamic poll interval; 48 tests green
-Last activity: 2026-03-02 -- Plan 09-02 complete (all files migrated; user must add SOLSNIPER_JUPITER_API_KEY to .env before running)
+Phase: 10 of 10 (Fix Mint Issues) - IN PROGRESS
+Plan: 1 of 2 in current phase - COMPLETE
+Status: Phase 10 Plan 01 complete — Token-2022 Pattern A fix, JupiterRouteError, sell-route skip for pumpportal, source/programId threading; 216 tests green
+Last activity: 2026-03-02 -- Plan 10-01 complete (core mint fixes landed; Plan 10-02 remaining for chunked-seller Token-2022 ATA lookup and PumpPortal sell fallback)
 
-Progress: [██████████] 100% (25/25 plans complete)
+Progress: [█████████░] 96% (26/27 plans complete)
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100% (25/25 plans complete)
 | Phase 08-web-dashboard P03 | 12 | 2 tasks | 12 files |
 | Phase 08-web-dashboard P04 | 5 | 2 tasks | 4 files |
 | Phase 09-fix-broken-jupiter-api P02 | 10 | 2 tasks | 9 files |
+| Phase 10-fix-mint-issues P01 | 9 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,11 @@ Progress: [██████████] 100% (25/25 plans complete)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 10-01]: Pattern A (getAccountInfo + unpackMint) replaces getMint() — owner detection enables Token-2022 support in tier1-authority
+- [Phase 10-01]: instanceof TokenAccountNotFoundError for retry detection — .message is empty string, string matching was broken by design
+- [Phase 10-01]: JupiterRouteError class with .code for 400s — callers distinguish route errors from rate limits without string matching
+- [Phase 10-01]: source=pumpportal skips sell-route check — pump.fun tokens not indexed by Jupiter at detection time
+- [Phase 10-01]: programId threaded from checkAuthorities through SafetyResult.programId to createBuyingRecord — single propagation path
 - [Roadmap]: Buy and sell execution built in same phase (Phase 5) per research mandate -- sell reliability is primary profit driver
 - [Roadmap]: Persistence (Phase 4) placed before execution (Phase 5) because write-ahead pattern requires SQLite schema to exist before any transaction is sent
 - [Roadmap]: Dashboard (Phase 8) is last -- bot must work headlessly first; UI is a read-only observer
@@ -173,8 +179,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-02 - Completed 09-02-PLAN.md (all 5 Jupiter files migrated; PositionManager dynamic poll; 48 tests green)
+Last activity: 2026-03-02 - Completed 10-01-PLAN.md (Token-2022 Pattern A fix; Jupiter 400 parsing; pumpportal sell-route skip; 216 tests green)
 
 Last session: 2026-03-02
-Stopped at: Completed 09-02-PLAN.md (Phase 9 complete; user must add SOLSNIPER_JUPITER_API_KEY to .env before running)
-Resume file: N/A — Phase 9 complete
+Stopped at: Completed 10-01-PLAN.md (Phase 10 Plan 01 done; Plan 10-02 remaining: chunked-seller Token-2022 ATA + PumpPortal sell fallback)
+Resume file: .planning/phases/10-fix-mint-issues/10-02-PLAN.md

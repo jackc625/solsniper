@@ -185,7 +185,7 @@ Plans:
 **Goal:** Fix Token-2022 compatibility bugs blocking pump.fun create_v2 tokens from the safety pipeline, add Jupiter error code parsing, skip sell-route for new pump.fun tokens, add PumpPortal sell fallback in the sell ladder, and thread token source/programId through the trade lifecycle
 **Requirements**: None (bugfix phase — no new requirements)
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 10-01-PLAN.md — Core Token-2022 getMint fix (Pattern A), instanceof error detection, Jupiter 400 error parsing, sell-route skip for pump.fun, schema migration (source + token_program_id), safety pipeline source/programId threading
