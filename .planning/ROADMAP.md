@@ -190,3 +190,13 @@ Plans:
 Plans:
 - [ ] 10-01-PLAN.md — Core Token-2022 getMint fix (Pattern A), instanceof error detection, Jupiter 400 error parsing, sell-route skip for pump.fun, schema migration (source + token_program_id), safety pipeline source/programId threading
 - [ ] 10-02-PLAN.md — PumpPortal sell adapter, chunked-seller Token-2022 ATA fix, sell ladder PUMPPORTAL step, post-buy sell-route verification
+
+### Phase 11: fix bonding curve issue
+
+**Goal:** Fix the holder concentration check that incorrectly counts the Pump.fun bonding curve PDA as a whale holder, causing ~90% of new Pump.fun tokens to fail. Derive bonding curve PDA per-mint and exclude it dynamically, add source-aware zero-holder handling for pumpportal tokens.
+**Requirements**: None (bugfix phase — no new requirements)
+**Depends on:** Phase 10
+**Plans:** 1 plan
+
+Plans:
+- [ ] 11-01-PLAN.md — Bonding curve PDA exclusion in tier2-holder (both paths), source-aware zero-holder logic, SafetyPipeline source threading, test updates
