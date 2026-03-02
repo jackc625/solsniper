@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-03-02T19:56:36Z"
+last_updated: "2026-03-02T20:19:41Z"
 progress:
   total_phases: 10
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: 10 of 10 (Fix Mint Issues) - IN PROGRESS
-Plan: 1 of 2 in current phase - COMPLETE
-Status: Phase 10 Plan 01 complete — Token-2022 Pattern A fix, JupiterRouteError, sell-route skip for pumpportal, source/programId threading; 216 tests green
-Last activity: 2026-03-02 -- Plan 10-01 complete (core mint fixes landed; Plan 10-02 remaining for chunked-seller Token-2022 ATA lookup and PumpPortal sell fallback)
+Phase: 10 of 10 (Fix Mint Issues) - COMPLETE
+Plan: 2 of 2 in current phase - COMPLETE
+Status: Phase 10 Plan 02 complete — PumpPortal sell adapter, chunked-seller Token-2022 ATA fix, 6-step sell ladder with PUMPPORTAL step, post-buy sell-route verification; 229 tests green
+Last activity: 2026-03-02 -- Plan 10-02 complete (all 27 plans complete — project milestone v1.0 reached)
 
-Progress: [█████████░] 96% (26/27 plans complete)
+Progress: [██████████] 100% (27/27 plans complete)
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 96% (26/27 plans complete)
 | Phase 08-web-dashboard P04 | 5 | 2 tasks | 4 files |
 | Phase 09-fix-broken-jupiter-api P02 | 10 | 2 tasks | 9 files |
 | Phase 10-fix-mint-issues P01 | 9 | 2 tasks | 13 files |
+| Phase 10-fix-mint-issues P02 | 9 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -161,6 +162,12 @@ Recent decisions affecting current work:
 - [Phase 09-01]: Test mock for env must include LOG_LEVEL and NODE_ENV alongside feature keys — logger.ts imports env for those, pino throws if level is undefined
 - [Phase 09-fix-broken-jupiter-api]: env mock required in test files that transitively import logger.ts → env.ts; use vi.mock('../config/env.js') alongside vi.mock('jupiter-client.js')
 - [Phase 09-fix-broken-jupiter-api]: scheduleTick stretches interval = cooldownRemainingMs + pollIntervalMs when cooldown > 0 — yields rate budget to trade-critical buy/sell calls
+- [Phase 10-02]: lastError tracked across all sell ladder steps — PUMPPORTAL reads it to check for JupiterRouteError trigger codes
+- [Phase 10-02]: PUMPPORTAL step skips via throw (not special flag) — uniform step loop handles both skip and failure identically
+- [Phase 10-02]: PUMPPORTAL only triggers on TOKEN_NOT_TRADABLE, NO_ROUTES_FOUND, ROUTE_NOT_FOUND — narrows to route-absent tokens (not rate limits)
+- [Phase 10-02]: chunkedSell tradeStore param is optional (backward compat) — defaults to TOKEN_PROGRAM_ID if not provided or trade not found
+- [Phase 10-02]: Post-buy verification is fire-and-forget void — buy() returns without waiting; retries at 10s/15s/20s
+- [Phase 10-02]: pool=auto in pumpPortalSell — PumpPortal auto-picks bonding curve vs PumpSwap for the correct venue
 
 ### Pending Todos
 
@@ -179,8 +186,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-02 - Completed 10-01-PLAN.md (Token-2022 Pattern A fix; Jupiter 400 parsing; pumpportal sell-route skip; 216 tests green)
+Last activity: 2026-03-02 - Completed 10-02-PLAN.md (PumpPortal sell adapter; chunked-seller Token-2022 ATA fix; 6-step sell ladder; post-buy verification; 229 tests green)
 
 Last session: 2026-03-02
-Stopped at: Completed 10-01-PLAN.md (Phase 10 Plan 01 done; Plan 10-02 remaining: chunked-seller Token-2022 ATA + PumpPortal sell fallback)
-Resume file: .planning/phases/10-fix-mint-issues/10-02-PLAN.md
+Stopped at: Completed 10-02-PLAN.md (Phase 10 complete — all 27 plans complete — project milestone v1.0 reached)
+Resume file: N/A — all phases complete
