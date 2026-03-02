@@ -155,7 +155,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -167,6 +167,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 6. Crash Recovery | 2/2 | Complete   | 2026-02-27 |
 | 7. Position Management | 3/3 | Complete   | 2026-02-27 |
 | 8. Web Dashboard | 5/5 | Complete   | 2026-02-27 |
+| 9. Fix Broken Jupiter API | 1/2 | In Progress | |
 
 ### Phase 9: Fix broken Jupiter API
 
@@ -176,5 +177,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — JupiterClient centralized API client with auth + 429 global cooldown + TDD test suite, env var registration
+- [x] 09-01-PLAN.md — JupiterClient centralized API client with auth + 429 global cooldown + TDD test suite, env var registration
 - [ ] 09-02-PLAN.md — Migrate all 5 Jupiter callers to JupiterClient, PositionManager dynamic poll interval, index.ts wiring, test updates

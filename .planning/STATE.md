@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-02-27T22:36:38.928Z"
+status: active
+last_updated: "2026-03-02T17:35:00Z"
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 24
+  completed_plans: 24
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 8: Dashboard (next)
+**Current focus:** Phase 9: Fix Broken Jupiter API
 
 ## Current Position
 
-Phase: 8 of 8 (Web Dashboard) - COMPLETE
-Plan: 5 of 5 in current phase - COMPLETE
-Status: ALL PHASES COMPLETE — Phase 8 Plan 05 verified end-to-end: dashboard loads, all three tabs render, SSE live feed works, Settings save round-trips, header stats display
-Last activity: 2026-02-27 -- Plan 08-05 complete (human-verified dashboard: dark theme, live feed, performance tab, settings save, header P&L stats all confirmed)
+Phase: 9 of 9 (Fix Broken Jupiter API) - Plan 1 COMPLETE
+Plan: 1 of 1 in current phase - COMPLETE
+Status: Phase 9 Plan 01 complete — JupiterClient with x-api-key auth, global 429 cooldown, Retry-After parsing, AbortSignal propagation; 18 tests green
+Last activity: 2026-03-02 -- Plan 09-01 complete (JupiterClient class created; user must add SOLSNIPER_JUPITER_API_KEY to .env)
 
-Progress: [██████████] 100% (23/23 plans complete)
+Progress: [██████████] 100% (24/24 plans complete)
 
 ## Performance Metrics
 
@@ -149,6 +149,8 @@ Recent decisions affecting current work:
 - [Phase 08-03]: EventSource registers listeners for both generic 'message' and each BotEventType — handles both SSE data= and event= field formats
 - [Phase 08-03]: Settings patch limited to known patchable fields only — avoids overwriting unknown config keys on POST /api/config
 - [Phase 08-web-dashboard]: BUY_SENT emitted before buy call so dashboard sees token at earliest possible moment; SELL_TRIGGERED before state transition; SafetyPipeline catch re-throws; TOKEN_DETECTED as first line in result.pass block
+- [Phase 09-01]: JupiterClient uses class (not helper) for mutable cooldown state; global cooldown blocks all callers on 429; Retry-After header converted seconds to ms, falls back to 10s
+- [Phase 09-01]: Test mock for env must include LOG_LEVEL and NODE_ENV alongside feature keys — logger.ts imports env for those, pino throws if level is undefined
 
 ### Pending Todos
 
@@ -167,8 +169,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed 08-05-PLAN.md (end-to-end human verification of dashboard complete; ALL 8 PHASES DONE)
+Last activity: 2026-03-02 - Completed 09-01-PLAN.md (JupiterClient with auth + rate-limit handling; 18 tests green)
 
-Last session: 2026-02-27
-Stopped at: Completed 08-05-PLAN.md (dashboard verified by operator; all 23 plans across all 8 phases complete)
-Resume file: N/A — project complete
+Last session: 2026-03-02
+Stopped at: Completed 09-01-PLAN.md (JupiterClient created; user must add SOLSNIPER_JUPITER_API_KEY to .env before running)
+Resume file: N/A — phase 9 plan 01 complete
