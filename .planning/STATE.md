@@ -65,6 +65,10 @@ Progress: [██████████] 100% (23/23 plans complete)
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 9 added: Fix broken Jupiter API
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
