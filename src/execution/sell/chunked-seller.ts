@@ -9,11 +9,12 @@
  * - bigint throughout — token amounts can exceed Number.MAX_SAFE_INTEGER
  * - No "all or nothing": partial confirms are still capital recovered
  */
-import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
+import { getAssociatedTokenAddress, getAccount, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import type { Connection, Keypair } from '@solana/web3.js';
 import { PublicKey } from '@solana/web3.js';
 import { standardSell } from './standard-seller.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { TradeStore } from '../../persistence/trade-store.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('chunked-seller');
@@ -25,19 +26,33 @@ const TRANCHES = 3;
  * Last tranche gets the remainder to ensure total is exact (avoids dust from integer division).
  * Partial recovery is acceptable: if tranche N fails, continue to tranche N+1.
  * Returns the count of successfully confirmed tranches.
+ *
+ * @param tradeStore - Optional TradeStore for Token-2022 ATA derivation (reads tokenProgramId).
+ *                     If not provided or trade not found, defaults to TOKEN_PROGRAM_ID.
  */
 export async function chunkedSell(
   mint: string,
   config: TradingConfig,
   wallet: Keypair,
-  connections: Connection[]
+  connections: Connection[],
+  tradeStore?: TradeStore
 ): Promise<number> {  // returns count of confirmed tranches (0-3)
   const { sell } = config.execution;
 
+  // Determine token program ID for ATA derivation (Token-2022 vs legacy SPL)
+  let tokenProgramId = TOKEN_PROGRAM_ID;
+  if (tradeStore) {
+    const trade = tradeStore.getTradeByMint(mint);
+    if (trade?.tokenProgramId) {
+      tokenProgramId = new PublicKey(trade.tokenProgramId);
+    }
+  }
+
   // Fetch exact token balance
   const mintPubkey = new PublicKey(mint);
-  const ata = await getAssociatedTokenAddress(mintPubkey, wallet.publicKey);
-  const accountInfo = await getAccount(connections[0], ata);
+  // Pass tokenProgramId to correctly derive ATA for Token-2022 tokens
+  const ata = await getAssociatedTokenAddress(mintPubkey, wallet.publicKey, false, tokenProgramId);
+  const accountInfo = await getAccount(connections[0], ata, undefined, tokenProgramId);
   const balance = accountInfo.amount;   // bigint — exact raw token units
 
   if (balance === 0n) {

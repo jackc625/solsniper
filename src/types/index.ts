@@ -91,7 +91,7 @@ export interface Trade {
 
 // Phase 05: Execution engine types
 
-export type SellStep = 'STANDARD' | 'HIGH_FEE' | 'JITO_BUNDLE' | 'CHUNKED' | 'EMERGENCY';
+export type SellStep = 'STANDARD' | 'HIGH_FEE' | 'JITO_BUNDLE' | 'CHUNKED' | 'PUMPPORTAL' | 'EMERGENCY';
 
 export interface BroadcastResult {
   signature: string;
