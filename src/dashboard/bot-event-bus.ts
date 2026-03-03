@@ -13,9 +13,13 @@ export type BotEventType =
 export interface BotEvent {
   type: BotEventType;
   mint: string;
-  ts: number;       // Unix ms — Date.now()
-  detail?: string;  // Brief human-readable description for feed row
-  isDryRun?: boolean;  // Phase 12: true for dry-run trades
+  ts: number;             // Unix ms — Date.now()
+  detail?: string;        // Brief human-readable description for feed row
+  isDryRun?: boolean;     // Phase 12: true for dry-run trades
+  safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED)
+  source?: string;        // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
+  buyAmountSol?: number;  // Configured or actual buy amount in SOL
+  pnlSol?: number;        // Realized P&L in SOL (present on SELL_CONFIRMED/SELL_FAILED when known)
 }
 
 // Typed EventEmitter3 — only one event name ('event') with BotEvent payload.

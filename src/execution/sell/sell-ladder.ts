@@ -163,7 +163,11 @@ export class SellLadder {
         this.tradeStore.transition(mint, 'SELLING', 'COMPLETED', {
           sellSignature: signature,
         });
-        botEventBus.emit('event', { type: 'SELL_CONFIRMED', mint, ts: Date.now(), detail: step.name, isDryRun: getRuntimeConfig().dryRun });
+        const completedTrade = this.tradeStore.getTradeByMint(mint);
+        const pnlSol = (completedTrade?.sellPriceSol != null && completedTrade?.buyPriceSol != null)
+          ? completedTrade.sellPriceSol - completedTrade.buyPriceSol
+          : undefined;
+        botEventBus.emit('event', { type: 'SELL_CONFIRMED', mint, ts: Date.now(), detail: step.name, isDryRun: getRuntimeConfig().dryRun, pnlSol });
         log.info({ mint, step: step.name, signature }, 'Sell confirmed — trade COMPLETED');
         return { success: true, step: step.name, signature };
       }
@@ -173,7 +177,11 @@ export class SellLadder {
     this.tradeStore.transition(mint, 'SELLING', 'FAILED', {
       errorMessage: 'SELL_FAILED: all ladder steps exhausted',
     });
-    botEventBus.emit('event', { type: 'SELL_FAILED', mint, ts: Date.now(), detail: 'all ladder steps exhausted', isDryRun: getRuntimeConfig().dryRun });
+    const failedTrade = this.tradeStore.getTradeByMint(mint);
+    const pnlSol = (failedTrade?.sellPriceSol != null && failedTrade?.buyPriceSol != null)
+      ? failedTrade.sellPriceSol - failedTrade.buyPriceSol
+      : undefined;
+    botEventBus.emit('event', { type: 'SELL_FAILED', mint, ts: Date.now(), detail: 'all ladder steps exhausted', isDryRun: getRuntimeConfig().dryRun, pnlSol });
     log.error({ mint }, 'SELL_FAILED: all escalation steps exhausted');
     return { success: false, errorMessage: 'SELL_FAILED: all ladder steps exhausted' };
   }

@@ -59,13 +59,28 @@ export class ExecutionEngine {
 
     try {
       // Emit BUY_SENT before dispatching — write-ahead record already created by index.ts
-      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: getRuntimeConfig().dryRun });
+      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: getRuntimeConfig().dryRun, source, buyAmountSol: this.config.buyAmountSol });
 
       const result = source === 'pumpportal'
         ? await pumpPortalBuy(mint, this.config, this.wallet, this.connections)
         : await jupiterBuy(mint, this.config, this.wallet, this.connections);
 
       if (result.success && result.signature) {
+        // Dry-run PumpPortal: estimate amountTokens from bonding curve state
+        if (result.amountTokens == null && getRuntimeConfig().dryRun
+            && event.vSolInBondingCurve != null && event.vTokensInBondingCurve != null) {
+          // Constant-product AMM: tokensOut = vTokens * solIn / (vSol + solIn)
+          // 1.25% pump.fun fee deducted from SOL input before curve calculation
+          const solAfterFees = this.config.buyAmountSol * 0.9875;
+          const tokensHuman = event.vTokensInBondingCurve * solAfterFees
+            / (event.vSolInBondingCurve + solAfterFees);
+          result.amountTokens = Math.round(tokensHuman * 1e6); // pump.fun tokens = 6 decimals
+          log.info(
+            { mint, estimatedTokens: result.amountTokens },
+            'Dry-run PumpPortal: estimated amountTokens from bonding curve',
+          );
+        }
+
         // Estimate buy price from config (actual price from Phase 7 price polling)
         const buyPriceSol = this.config.buyAmountSol / (result.amountTokens ?? 1);
         this.tradeStore.transition(mint, 'BUYING', 'MONITORING', {
@@ -74,7 +89,7 @@ export class ExecutionEngine {
           amountTokens: result.amountTokens,
           buyPriceSol: result.amountTokens ? buyPriceSol : undefined,
         });
-        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8), isDryRun: getRuntimeConfig().dryRun });
+        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8), isDryRun: getRuntimeConfig().dryRun, source, buyAmountSol: this.config.buyAmountSol });
         log.info({ mint, signature: result.signature }, 'Buy confirmed — trade in MONITORING');
 
         // For pumpportal tokens: schedule deferred sell-route verification (fire-and-forget).

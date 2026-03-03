@@ -173,7 +173,7 @@ async function main(): Promise<void> {
 
       const result = await safetyPipeline.evaluate(event);
       if (result.pass) {
-        botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}`, isDryRun: getRuntimeConfig().dryRun });
+        botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}`, isDryRun: getRuntimeConfig().dryRun, safetyScore: result.aggregateScore, source: event.source, buyAmountSol: getRuntimeConfig().buyAmountSol });
         // Duplicate guard: reject if a non-terminal trade already exists for this mint
         if (tradeStore.isActive(event.mint)) {
           log.debug({ mint: event.mint }, 'Duplicate buy blocked by active-mints guard');
