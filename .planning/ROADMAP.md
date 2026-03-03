@@ -211,3 +211,17 @@ Plans:
 Plans:
 - [ ] 12-01-PLAN.md — Backend core: Trade interface + config flag + schema migration + trade-store threading + broadcaster Gate 1 + jito-seller Gate 2 + recovery skip + position manager log-only triggers + index.ts wiring
 - [ ] 12-02-PLAN.md — Dashboard: BotEvent isDryRun field + config patch route + stats exclusion + LiveFeed badge + Header banner + Settings toggle + end-to-end human verification
+
+### Phase 13: UI rework
+
+**Goal:** Complete visual and functional rework of the Preact web dashboard: sidebar + content layout replacing horizontal tabs, rich expandable feed cards with external links, P&L charts and sortable completed trade history, and a bold visual overhaul driven by the frontend-design skill
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06
+**Depends on:** Phase 12
+**Plans:** 5 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — Backend data surface: enrich BotEvent with safetyScore/source/buyAmountSol, add /api/trades/history endpoint, install lightweight-charts
+- [ ] 13-02-PLAN.md — Layout shell: Sidebar component, App grid restructure, design system foundation, Settings redesign
+- [ ] 13-03-PLAN.md — LiveFeed rework: rich expandable FeedCards with Solscan/pump.fun links, safety scores, source badges
+- [ ] 13-04-PLAN.md — Performance rework: P&L chart (lightweight-charts), win rate visualization, sortable completed trade history table
+- [ ] 13-05-PLAN.md — End-to-end human verification of complete UI rework across all views
