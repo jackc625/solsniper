@@ -1,35 +1,69 @@
 import { useState } from 'preact/hooks';
-import { Header } from './components/Header.js';
+import { Sidebar } from './components/Sidebar.js';
+import type { View } from './components/Sidebar.js';
 import { LiveFeed } from './components/LiveFeed.js';
 import { Performance } from './components/Performance.js';
 import { Settings } from './components/Settings.js';
-
-type Tab = 'feed' | 'performance' | 'settings';
-
-const TAB_STYLE = (active: boolean): Record<string, string> => ({
-  padding: '0.5rem 1.25rem', cursor: 'pointer',
-  background: active ? 'var(--bg)' : 'var(--bg2)',
-  color: active ? 'var(--green)' : 'var(--gray)',
-  border: 'none', borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
-  fontFamily: 'var(--mono)', fontSize: '0.9rem',
-});
+import { configSignal } from './store/config.js';
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('feed');
+  const [view, setView] = useState<View>('feed');
+
+  const isDryRun = Boolean(configSignal.value?.dryRun);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Header />
-      <nav style={{ display: 'flex', background: 'var(--bg2)', borderBottom: '1px solid var(--border)' }}>
-        <button style={TAB_STYLE(tab === 'feed')}        onClick={() => setTab('feed')}>Live Feed</button>
-        <button style={TAB_STYLE(tab === 'performance')} onClick={() => setTab('performance')}>Performance</button>
-        <button style={TAB_STYLE(tab === 'settings')}    onClick={() => setTab('settings')}>Settings</button>
-      </nav>
-      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {tab === 'feed'        && <LiveFeed />}
-        {tab === 'performance' && <Performance />}
-        {tab === 'settings'    && <Settings />}
-      </main>
+    <div style={LAYOUT}>
+      <Sidebar activeView={view} onNavigate={setView} />
+      <div style={CONTENT_COL}>
+        {/* DRY RUN banner — full-width, prominent in content area */}
+        {isDryRun && (
+          <div style={DRY_RUN_BANNER}>
+            <span style={{ opacity: 0.6 }}>&#9670;</span>
+            &nbsp;DRY RUN MODE — No real SOL at risk&nbsp;
+            <span style={{ opacity: 0.6 }}>&#9670;</span>
+          </div>
+        )}
+        <main style={MAIN}>
+          {view === 'feed'        && <LiveFeed />}
+          {view === 'performance' && <Performance />}
+          {view === 'settings'    && <Settings />}
+        </main>
+      </div>
     </div>
   );
 }
+
+const LAYOUT: Record<string, string> = {
+  display:             'grid',
+  gridTemplateColumns: 'var(--sidebar-w) 1fr',
+  height:              '100vh',
+  overflow:            'hidden',
+};
+
+const CONTENT_COL: Record<string, string> = {
+  display:       'flex',
+  flexDirection: 'column',
+  overflow:      'hidden',
+  background:    'var(--bg)',
+};
+
+const DRY_RUN_BANNER: Record<string, string> = {
+  background:    'rgba(255, 204, 0, 0.08)',
+  borderBottom:  '1px solid rgba(255, 204, 0, 0.3)',
+  color:         'var(--yellow)',
+  textAlign:     'center',
+  padding:       '6px var(--sp-4)',
+  fontFamily:    'var(--font-display)',
+  fontWeight:    '600',
+  fontSize:      '12px',
+  letterSpacing: '0.15em',
+  flexShrink:    '0',
+};
+
+const MAIN: Record<string, string> = {
+  flex:           '1',
+  overflow:       'hidden',
+  display:        'flex',
+  flexDirection:  'column',
+  animation:      'fade-in 180ms ease',
+};
