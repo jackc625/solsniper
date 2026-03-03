@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13-ui-rework-04-PLAN.md
-last_updated: "2026-03-03T21:51:30.840Z"
+stopped_at: Completed 13-ui-rework-02-PLAN.md
+last_updated: "2026-03-03T21:57:40.821Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 35
-  completed_plans: 33
+  completed_plans: 34
   percent: 100
 ---
 
@@ -74,6 +74,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 13-ui-rework P01 | 4 | 2 tasks | 8 files |
 | Phase 13-ui-rework P03 | 3 | 2 tasks | 2 files |
 | Phase 13-ui-rework P04 | 8 | 2 tasks | 2 files |
+| Phase 13-ui-rework P02 | 9 | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,10 @@ Recent decisions affecting current work:
 - [Phase 13-ui-rework]: BADGE_COLORS and EVENT_LABELS moved entirely to FeedCard.tsx — single source of truth for event-type visual mapping
 - [Phase 13-ui-rework]: Auto-scroll useEffect depends on [feedEvents.value, isLive] only — card expand/collapse does not trigger scroll
 - [Phase 13-ui-rework]: lightweight-charts v5 addSeries(LineSeries) API — parent computes cumulative PnL data; chart color set by final value
+- [Phase 13-ui-rework]: Aesthetic direction: industrial/utilitarian trading terminal (amber primary, Share Tech Mono + Rajdhani)
+- [Phase 13-ui-rework]: Header.tsx deleted -- stats and DRY RUN moved to Sidebar and App banner
+- [Phase 13-ui-rework]: DRY RUN shown in both sidebar badge AND content-area full-width banner for maximum visibility
+- [Phase 13-ui-rework]: Responsive sidebar collapses to 52px at 1024px via CSS custom property override -- no JS needed
 
 ### Pending Todos
 
@@ -214,6 +219,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 2 complete (maxConcurrentPositions guard before safety pipeline)
 
-Last session: 2026-03-03T21:51:30.835Z
-Stopped at: Completed 13-ui-rework-04-PLAN.md
+Last session: 2026-03-03T21:57:40.816Z
+Stopped at: Completed 13-ui-rework-02-PLAN.md
 Resume file: None
