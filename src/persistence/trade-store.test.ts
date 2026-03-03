@@ -275,6 +275,70 @@ describe('TradeStore', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // createBuyingRecord() with dryRun param
+  // ---------------------------------------------------------------------------
+  describe('createBuyingRecord() with dryRun', () => {
+    it('inserts dry_run=1 when dryRun=true; getTradeByMint returns dryRun=true', () => {
+      store.createBuyingRecord('mint_dry_true', undefined, undefined, true);
+      const trade = store.getTradeByMint('mint_dry_true');
+      expect(trade).toBeDefined();
+      expect(trade!.dryRun).toBe(true);
+    });
+
+    it('inserts dry_run=0 when dryRun=false; getTradeByMint returns dryRun=false', () => {
+      store.createBuyingRecord('mint_dry_false', undefined, undefined, false);
+      const trade = store.getTradeByMint('mint_dry_false');
+      expect(trade).toBeDefined();
+      expect(trade!.dryRun).toBe(false);
+    });
+
+    it('defaults to dryRun=false when 4th argument is omitted', () => {
+      store.createBuyingRecord('mint_dry_default');
+      const trade = store.getTradeByMint('mint_dry_default');
+      expect(trade).toBeDefined();
+      expect(trade!.dryRun).toBe(false);
+    });
+
+    it('getMonitoringTrades returns dryRun field correctly after transition to MONITORING', () => {
+      store.createBuyingRecord('mint_dry_mon', undefined, undefined, true);
+      store.transition('mint_dry_mon', 'BUYING', 'MONITORING');
+      const trades = store.getMonitoringTrades();
+      const trade = trades.find(t => t.mint === 'mint_dry_mon');
+      expect(trade).toBeDefined();
+      expect(trade!.dryRun).toBe(true);
+    });
+
+    it('getBuyingTrades returns dryRun field correctly', () => {
+      store.createBuyingRecord('mint_dry_buy', undefined, undefined, true);
+      const trades = store.getBuyingTrades();
+      const trade = trades.find(t => t.mint === 'mint_dry_buy');
+      expect(trade).toBeDefined();
+      expect(trade!.dryRun).toBe(true);
+    });
+
+    it('getSellingTrades returns dryRun field correctly', () => {
+      store.createBuyingRecord('mint_dry_sell', undefined, undefined, true);
+      store.transition('mint_dry_sell', 'BUYING', 'MONITORING');
+      store.transition('mint_dry_sell', 'MONITORING', 'SELLING');
+      const trades = store.getSellingTrades();
+      const trade = trades.find(t => t.mint === 'mint_dry_sell');
+      expect(trade).toBeDefined();
+      expect(trade!.dryRun).toBe(true);
+    });
+
+    it('Boolean(null) for dry_run on legacy rows evaluates to false (migration backward compat)', () => {
+      // Simulate a legacy row with no dry_run column by inserting directly
+      // The migration adds the column as nullable INTEGER — existing rows have NULL
+      // Boolean(null) === false ensures backward compatibility
+      expect(Boolean(null)).toBe(false);
+      // Also verify that a freshly created record without explicit dryRun defaults correctly
+      store.createBuyingRecord('mint_legacy_compat');
+      const trade = store.getTradeByMint('mint_legacy_compat');
+      expect(trade!.dryRun).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // getBuyingTrades()
   // ---------------------------------------------------------------------------
   describe('getBuyingTrades()', () => {

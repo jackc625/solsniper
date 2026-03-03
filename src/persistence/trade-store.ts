@@ -73,8 +73,8 @@ export class TradeStore {
 
     // Compile prepared statements once at construction time for efficiency.
     this.stmtInsert = this.db.prepare(
-      `INSERT INTO trades (mint, state, created_at, updated_at, source, token_program_id)
-       VALUES (@mint, @state, @now, @now, @source, @token_program_id)`
+      `INSERT INTO trades (mint, state, created_at, updated_at, source, token_program_id, dry_run)
+       VALUES (@mint, @state, @now, @now, @source, @token_program_id, @dry_run)`
     );
 
     // COALESCE pattern: only overwrite a column if the caller supplies a non-null value.
@@ -99,17 +99,17 @@ export class TradeStore {
     );
 
     this.stmtGetBuying = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message, source, token_program_id
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message, source, token_program_id, dry_run
        FROM trades WHERE state = 'BUYING' ORDER BY updated_at DESC`
     );
 
     this.stmtGetSelling = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message, source, token_program_id
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, error_message, source, token_program_id, dry_run
        FROM trades WHERE state = 'SELLING' ORDER BY updated_at DESC`
     );
 
     this.stmtGetMonitoring = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens, source, token_program_id
+      `SELECT id, mint, state, created_at, updated_at, amount_tokens, source, token_program_id, dry_run
        FROM trades WHERE state = 'MONITORING' ORDER BY updated_at DESC`
     );
 
@@ -133,7 +133,7 @@ export class TradeStore {
     this.stmtGetByMint = this.db.prepare(
       `SELECT id, mint, state, created_at, updated_at, buy_signature, sell_signature,
               amount_sol, amount_tokens, buy_price_sol, sell_price_sol, error_message,
-              source, token_program_id
+              source, token_program_id, dry_run
        FROM trades WHERE mint = @mint ORDER BY updated_at DESC LIMIT 1`
     );
 
@@ -159,8 +159,9 @@ export class TradeStore {
    *
    * @param source - Optional detection source ('pumpportal' | 'raydium' | 'pumpswap')
    * @param tokenProgramId - Optional detected token program ID (base58 pubkey)
+   * @param dryRun - Whether this trade is a dry-run (no real SOL spent). Defaults to false.
    */
-  createBuyingRecord(mint: string, source?: string, tokenProgramId?: string): void {
+  createBuyingRecord(mint: string, source?: string, tokenProgramId?: string, dryRun = false): void {
     if (this.activeMints.has(mint)) {
       throw new Error(`Duplicate buy attempt blocked for mint: ${mint}`);
     }
@@ -172,10 +173,11 @@ export class TradeStore {
       now,
       source: source ?? null,
       token_program_id: tokenProgramId ?? null,
+      dry_run: dryRun ? 1 : 0,
     });
     this.activeMints.add(mint);
 
-    log.debug({ mint }, 'createBuyingRecord: inserted BUYING row');
+    log.debug({ mint, dryRun }, 'createBuyingRecord: inserted BUYING row');
   }
 
   /**
@@ -346,6 +348,7 @@ export class TradeStore {
       errorMessage:   row['error_message']   != null ? (row['error_message']   as string) : undefined,
       source:         row['source']          != null ? (row['source']          as string) : undefined,
       tokenProgramId: row['token_program_id'] != null ? (row['token_program_id'] as string) : undefined,
+      dryRun:         Boolean(row['dry_run']),
     };
   }
 

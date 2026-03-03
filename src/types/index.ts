@@ -87,6 +87,7 @@ export interface Trade {
   errorMessage?: string;
   source?: string;          // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
   tokenProgramId?: string;  // Detected token program: TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID base58
+  dryRun?: boolean;         // True if trade was created in dry-run mode (no real SOL spent)
 }
 
 // Phase 05: Execution engine types

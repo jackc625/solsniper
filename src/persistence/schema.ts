@@ -27,4 +27,5 @@ CREATE INDEX IF NOT EXISTS idx_trades_mint_state ON trades (mint, state);
 export const MIGRATION_SQL = [
   `ALTER TABLE trades ADD COLUMN source TEXT`,
   `ALTER TABLE trades ADD COLUMN token_program_id TEXT`,
+  `ALTER TABLE trades ADD COLUMN dry_run INTEGER`,
 ];

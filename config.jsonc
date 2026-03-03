@@ -17,6 +17,10 @@
   // Minimum composite safety score (0-100) a token must pass before buying. Higher = safer, fewer buys.
   "minSafetyScore": 60,
 
+  // Enable dry-run mode: runs full pipeline against mainnet but intercepts before signing/broadcasting.
+  // Dry-run trades are tracked with shadow P&L but no real SOL is spent.
+  "dryRun": false,
+
   "detection": {
     // How often (ms) to send a ping to keep WebSocket connections alive. Default: 30 000 ms (30 s).
     "wsHeartbeatIntervalMs": 30000,
@@ -45,7 +49,7 @@
     "tier2TimeoutMs": 2000,
 
     // Max wait (ms) for Tier-3 safety checks (creator history) before they time out and score 0.
-    "tier3TimeoutMs": 5000,
+    "tier3TimeoutMs": 8000,
 
     // How long (ms) safety check results are cached to avoid redundant RPC calls. Default: 300 000 ms (5 min).
     "cacheTtlMs": 300000,
@@ -85,7 +89,7 @@
       "priorityFeeBaseLamports": 100000,
 
       // Multiplier applied to the base priority fee. Set >1 to pay higher fees during congestion.
-      "priorityFeeMultiplier": 1
+      "priorityFeeMultiplier": 2
     },
 
     "sell": {

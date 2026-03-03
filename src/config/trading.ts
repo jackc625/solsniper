@@ -87,6 +87,7 @@ const TradingConfigSchema = z.object({
   stopLossPct: z.number().negative(),
   takeProfitPct: z.number().positive(),
   minSafetyScore: z.number().int().min(0).max(100),
+  dryRun: z.boolean().default(false),
   detection: DetectionConfigSchema,
   safety: SafetyConfigSchema,
   execution: ExecutionConfigSchema,
