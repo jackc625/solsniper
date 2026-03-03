@@ -21,6 +21,7 @@ import { jupiterBuy } from './buy/jupiter-buyer.js';
 import { jupiterClient } from './jupiter-client.js';
 import type { TokenEvent } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
+import { getRuntimeConfig } from '../config/trading.js';
 import type { TradeStore } from '../persistence/trade-store.js';
 import { createModuleLogger } from '../core/logger.js';
 import { botEventBus } from '../dashboard/bot-event-bus.js';
@@ -58,7 +59,7 @@ export class ExecutionEngine {
 
     try {
       // Emit BUY_SENT before dispatching — write-ahead record already created by index.ts
-      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}` });
+      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: getRuntimeConfig().dryRun });
 
       const result = source === 'pumpportal'
         ? await pumpPortalBuy(mint, this.config, this.wallet, this.connections)
@@ -73,7 +74,7 @@ export class ExecutionEngine {
           amountTokens: result.amountTokens,
           buyPriceSol: result.amountTokens ? buyPriceSol : undefined,
         });
-        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8) });
+        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8), isDryRun: getRuntimeConfig().dryRun });
         log.info({ mint, signature: result.signature }, 'Buy confirmed — trade in MONITORING');
 
         // For pumpportal tokens: schedule deferred sell-route verification (fire-and-forget).
@@ -85,7 +86,7 @@ export class ExecutionEngine {
         this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
           errorMessage: `BUY_FAILED: ${result.errorMessage ?? 'unknown error'}`,
         });
-        botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: result.errorMessage });
+        botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: result.errorMessage, isDryRun: getRuntimeConfig().dryRun });
         log.warn({ mint, errorMessage: result.errorMessage }, 'Buy failed — trade marked FAILED');
       }
     } catch (err) {
@@ -93,7 +94,7 @@ export class ExecutionEngine {
       this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
         errorMessage: `BUY_FAILED: ${message}`,
       });
-      botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message });
+      botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message, isDryRun: getRuntimeConfig().dryRun });
       log.error({ mint, err }, 'Buy threw unexpectedly — trade marked FAILED');
     }
   }

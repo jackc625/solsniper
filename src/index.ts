@@ -165,7 +165,7 @@ async function main(): Promise<void> {
     try {
       const result = await safetyPipeline.evaluate(event);
       if (result.pass) {
-        botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}` });
+        botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}`, isDryRun: getRuntimeConfig().dryRun });
         // POS-06: Enforce max concurrent position limit
         const activePositions = tradeStore.getMonitoringTrades().length;
         if (activePositions >= tradingConfig.maxConcurrentPositions) {

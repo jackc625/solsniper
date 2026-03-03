@@ -20,6 +20,7 @@ import { pumpPortalSell } from './pump-portal-seller.js';
 import { JupiterRouteError } from '../jupiter-client.js';
 import type { SellResult, SellStep } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
+import { getRuntimeConfig } from '../../config/trading.js';
 import type { TradeStore } from '../../persistence/trade-store.js';
 import { createModuleLogger } from '../../core/logger.js';
 import { botEventBus } from '../../dashboard/bot-event-bus.js';
@@ -57,7 +58,7 @@ export class SellLadder {
     const { sell } = this.config.execution;
 
     // Emit SELL_TRIGGERED at entry — dashboard sees all sell attempts regardless of outcome
-    botEventBus.emit('event', { type: 'SELL_TRIGGERED', mint, ts: Date.now(), detail: `${tokenAmount} tokens` });
+    botEventBus.emit('event', { type: 'SELL_TRIGGERED', mint, ts: Date.now(), detail: `${tokenAmount} tokens`, isDryRun: getRuntimeConfig().dryRun });
 
     // Transition to SELLING before starting the ladder
     this.tradeStore.transition(mint, 'MONITORING', 'SELLING');
@@ -162,7 +163,7 @@ export class SellLadder {
         this.tradeStore.transition(mint, 'SELLING', 'COMPLETED', {
           sellSignature: signature,
         });
-        botEventBus.emit('event', { type: 'SELL_CONFIRMED', mint, ts: Date.now(), detail: step.name });
+        botEventBus.emit('event', { type: 'SELL_CONFIRMED', mint, ts: Date.now(), detail: step.name, isDryRun: getRuntimeConfig().dryRun });
         log.info({ mint, step: step.name, signature }, 'Sell confirmed — trade COMPLETED');
         return { success: true, step: step.name, signature };
       }
@@ -172,7 +173,7 @@ export class SellLadder {
     this.tradeStore.transition(mint, 'SELLING', 'FAILED', {
       errorMessage: 'SELL_FAILED: all ladder steps exhausted',
     });
-    botEventBus.emit('event', { type: 'SELL_FAILED', mint, ts: Date.now(), detail: 'all ladder steps exhausted' });
+    botEventBus.emit('event', { type: 'SELL_FAILED', mint, ts: Date.now(), detail: 'all ladder steps exhausted', isDryRun: getRuntimeConfig().dryRun });
     log.error({ mint }, 'SELL_FAILED: all escalation steps exhausted');
     return { success: false, errorMessage: 'SELL_FAILED: all ladder steps exhausted' };
   }

@@ -15,6 +15,7 @@ export interface BotEvent {
   mint: string;
   ts: number;       // Unix ms — Date.now()
   detail?: string;  // Brief human-readable description for feed row
+  isDryRun?: boolean;  // Phase 12: true for dry-run trades
 }
 
 // Typed EventEmitter3 — only one event name ('event') with BotEvent payload.

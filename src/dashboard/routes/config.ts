@@ -5,6 +5,7 @@ import { getRuntimeConfig, patchRuntimeConfig } from '../../config/trading.js';
 // Partial update schema — only fields the dashboard Settings tab can change.
 // Uses .optional() so the POST body may include any subset.
 const ConfigPatchSchema = z.object({
+  dryRun:                  z.boolean().optional(),  // Phase 12: dry-run toggle
   minSafetyScore:          z.number().int().min(0).max(100).optional(),
   buyAmountSol:            z.number().positive().max(10).optional(),
   maxConcurrentPositions:  z.number().int().min(1).max(50).optional(),

@@ -52,7 +52,8 @@ export async function tradesRoute(fastify: FastifyInstance, opts: TradesPluginOp
          SUM(CASE WHEN state = 'FAILED' OR state = 'ABANDONED' THEN 1 ELSE 0 END) as failed,
          SUM(CASE WHEN sell_price_sol IS NOT NULL AND buy_price_sol IS NOT NULL
                   THEN sell_price_sol - buy_price_sol ELSE 0 END) as total_pnl_sol
-       FROM trades WHERE state IN ('COMPLETED','FAILED','ABANDONED')`
+       FROM trades WHERE state IN ('COMPLETED','FAILED','ABANDONED')
+         AND (dry_run IS NULL OR dry_run = 0)`
     ).get() as { total: number; completed: number; failed: number; total_pnl_sol: number };
 
     const winRate = completedRow.total > 0
