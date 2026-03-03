@@ -5,7 +5,11 @@ export interface FeedEvent {
   mint: string;
   ts: number;
   detail?: string;
-  isDryRun?: boolean;  // Phase 12: true for dry-run trades
+  isDryRun?: boolean;     // Phase 12: true for dry-run trades
+  safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED)
+  source?: string;        // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
+  buyAmountSol?: number;  // Configured or actual buy amount in SOL
+  pnlSol?: number;        // Realized P&L in SOL (present on SELL_CONFIRMED/SELL_FAILED when known)
 }
 
 export const feedEvents = signal<FeedEvent[]>([]);

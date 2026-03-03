@@ -35,6 +35,24 @@ export async function tradesRoute(fastify: FastifyInstance, opts: TradesPluginOp
     return reply.send(enriched);
   });
 
+  // GET /api/trades/history — completed/failed trades with P&L data (for Performance view)
+  fastify.get('/trades/history', async (_request, reply) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = (tradeStore as any).db as BetterSqlite3.Database;
+    const rows = db.prepare(`
+      SELECT id, mint, state, source, amount_sol, buy_price_sol, sell_price_sol,
+             created_at, updated_at, dry_run,
+             CASE WHEN sell_price_sol IS NOT NULL AND buy_price_sol IS NOT NULL
+                  THEN sell_price_sol - buy_price_sol ELSE NULL END as pnl_sol
+      FROM trades
+      WHERE state IN ('COMPLETED', 'FAILED', 'ABANDONED')
+        AND (dry_run IS NULL OR dry_run = 0)
+      ORDER BY updated_at DESC
+      LIMIT 500
+    `).all();
+    return reply.send(rows);
+  });
+
   // GET /api/stats — portfolio summary
   fastify.get('/stats', async (_request, reply) => {
     const monitoring = tradeStore.getMonitoringTrades();

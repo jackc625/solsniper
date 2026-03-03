@@ -26,6 +26,7 @@
     "dotenv": "^17.3.1",
     "eventemitter3": "^5.0.4",
     "fastify": "^5.7.4",
+    "lightweight-charts": "^5.1.0",
     "pino": "^10.3.1",
     "strip-json-comments": "^5.0.3",
     "ws": "^8.19.0",
