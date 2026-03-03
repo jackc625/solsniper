@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13-ui-rework-03-PLAN.md
-last_updated: "2026-03-03T21:51:07.137Z"
+stopped_at: Completed 13-ui-rework-04-PLAN.md
+last_updated: "2026-03-03T21:51:30.840Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
   total_phases: 13
@@ -73,6 +73,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 12 P02 | 20 | 3 tasks | 10 files |
 | Phase 13-ui-rework P01 | 4 | 2 tasks | 8 files |
 | Phase 13-ui-rework P03 | 3 | 2 tasks | 2 files |
+| Phase 13-ui-rework P04 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -191,6 +192,7 @@ Recent decisions affecting current work:
 - [Phase 13-ui-rework]: /trades/history returns snake_case column names directly — frontend handles mapping; avoids transformation boilerplate in route
 - [Phase 13-ui-rework]: BADGE_COLORS and EVENT_LABELS moved entirely to FeedCard.tsx — single source of truth for event-type visual mapping
 - [Phase 13-ui-rework]: Auto-scroll useEffect depends on [feedEvents.value, isLive] only — card expand/collapse does not trigger scroll
+- [Phase 13-ui-rework]: lightweight-charts v5 addSeries(LineSeries) API — parent computes cumulative PnL data; chart color set by final value
 
 ### Pending Todos
 
@@ -212,6 +214,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 2 complete (maxConcurrentPositions guard before safety pipeline)
 
-Last session: 2026-03-03T21:50:47.945Z
-Stopped at: Completed 13-ui-rework-03-PLAN.md
+Last session: 2026-03-03T21:51:30.835Z
+Stopped at: Completed 13-ui-rework-04-PLAN.md
 Resume file: None
