@@ -4,16 +4,188 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SolSniper Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
+      /*
+       * AESTHETIC DIRECTION: Industrial / Utilitarian Trading Terminal
+       *
+       * Concept: Infrastructure you'd trust your capital to. Dense data,
+       * deliberate hierarchy, zero decoration. Like a Bloomberg terminal
+       * crossed with military avionics HUD. Every element is a readout.
+       *
+       * Typography:
+       *   - Display/headings: Rajdhani — condensed, technical, authoritative
+       *   - Data/mono: Share Tech Mono — tactical monospace with character
+       *
+       * Color language:
+       *   - Amber (#f0a500) is the primary active signal — decisions, gains
+       *   - Teal (#00d4aa) is secondary data signal — neutral readings
+       *   - Existing --green / --red / --blue preserved for component compat
+       *
+       * Layout philosophy:
+       *   - Sidebar is a vertical instrument panel, not a nav menu
+       *   - Data lives edge-to-edge; generous line-height for readability
+       *   - Border system uses 1px lines at reduced opacity, not dividers
+       */
+
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
       :root {
-        --bg: #0d0d0d; --bg2: #1a1a1a; --border: #2a2a2a;
-        --green: #00ff88; --red: #ff4444; --blue: #4488ff;
-        --yellow: #ffcc00; --gray: #666; --text: #e0e0e0;
-        --mono: 'Courier New', Courier, monospace;
+        /* ---- Existing variables (preserved for LiveFeed / Performance compat) ---- */
+        --bg: #0a0a0a;
+        --bg2: #111111;
+        --border: #1e1e1e;
+        --green: #00ff88;
+        --red: #ff4444;
+        --blue: #4488ff;
+        --yellow: #ffcc00;
+        --gray: #555;
+        --text: #d8d8d8;
+        --mono: 'Share Tech Mono', 'Courier New', Courier, monospace;
+
+        /* ---- Design system extensions ---- */
+
+        /* Background scale */
+        --bg0: #070707;    /* deepest — used for sidebar track */
+        --bg3: #161616;    /* card surfaces */
+        --bg4: #1c1c1c;    /* input fills, hover states */
+
+        /* Border scale */
+        --border-subtle: #131313;
+        --border-strong: #2c2c2c;
+        --border-accent: #f0a500;
+
+        /* Accent palette */
+        --amber: #f0a500;
+        --amber-dim: #a87200;
+        --amber-glow: rgba(240, 165, 0, 0.15);
+        --teal: #00d4aa;
+        --teal-dim: #008870;
+        --teal-glow: rgba(0, 212, 170, 0.12);
+
+        /* Text scale */
+        --text-bright: #f0f0f0;
+        --text-dim: #666;
+        --text-muted: #3a3a3a;
+
+        /* Typography */
+        --font-display: 'Rajdhani', sans-serif;
+        --font-mono: 'Share Tech Mono', 'Courier New', Courier, monospace;
+
+        /* Spacing scale (4px base) */
+        --sp-1: 4px;
+        --sp-2: 8px;
+        --sp-3: 12px;
+        --sp-4: 16px;
+        --sp-5: 20px;
+        --sp-6: 24px;
+        --sp-8: 32px;
+
+        /* Sidebar width */
+        --sidebar-w: 220px;
+
+        /* Transitions */
+        --tx-fast: 120ms ease;
+        --tx-med: 220ms ease;
+
+        /* Shadows */
+        --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.03);
+        --shadow-panel: 0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,0.6);
+        --shadow-amber: 0 0 12px rgba(240, 165, 0, 0.25);
+
+        /* Border radius — minimal, intentional */
+        --r-sm: 2px;
+        --r-md: 4px;
       }
-      body { background: var(--bg); color: var(--text); font-family: var(--mono); }
-      a { color: var(--blue); }
+
+      html, body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        background: var(--bg0);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      #app {
+        height: 100%;
+      }
+
+      a {
+        color: var(--blue);
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--amber);
+      }
+
+      /* ---- Scrollbar styling ---- */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: var(--bg0);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-strong);
+        border-radius: 2px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--amber-dim);
+      }
+
+      /* ---- Selection color ---- */
+      ::selection {
+        background: var(--amber-glow);
+        color: var(--amber);
+      }
+
+      /* ---- Focus style ---- */
+      :focus-visible {
+        outline: 1px solid var(--amber);
+        outline-offset: 2px;
+      }
+
+      /* ---- Utility: screen-reader only ---- */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0,0,0,0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* ---- Keyframes ---- */
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.3; }
+      }
+
+      @keyframes fade-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes slide-in-right {
+        from { opacity: 0; transform: translateX(8px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
     </style>
   </head>
   <body>
