@@ -1,55 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { feedEvents, connectFeed, type FeedEvent } from '../store/feed.js';
-
-const BADGE_COLORS: Record<string, string> = {
-  TOKEN_DETECTED: 'var(--gray)',
-  BUY_SENT:       'var(--blue)',
-  BUY_CONFIRMED:  'var(--green)',
-  BUY_FAILED:     'var(--red)',
-  SELL_TRIGGERED: 'var(--yellow)',
-  SELL_CONFIRMED: 'var(--green)',
-  SELL_FAILED:    'var(--red)',
-  ERROR:          'var(--red)',
-};
-
-function formatTs(ts: number): string {
-  return new Date(ts).toTimeString().slice(0, 8); // HH:MM:SS
-}
-
-function shortenMint(mint: string): string {
-  return mint.length > 12 ? `${mint.slice(0, 6)}...${mint.slice(-4)}` : mint;
-}
-
-function FeedRow({ event }: { event: FeedEvent }) {
-  const color = BADGE_COLORS[event.type] ?? 'var(--gray)';
-  const isDryRun = event.isDryRun;
-  return (
-    <div style={{
-      padding: '0.25rem 1rem',
-      borderBottom: '1px solid var(--border)',
-      fontSize: '0.85rem',
-      opacity: isDryRun ? 0.7 : 1,
-    }}>
-      <span style={{ color: 'var(--gray)' }}>[{formatTs(event.ts)}]</span>{' '}
-      {isDryRun && (
-        <span style={{
-          color: 'var(--yellow)',
-          border: '1px solid var(--yellow)',
-          padding: '0 0.25rem',
-          marginRight: '0.4rem',
-          fontSize: '0.75rem',
-        }}>
-          DRY RUN
-        </span>
-      )}
-      <span style={{ color, fontWeight: 'bold', padding: '0 0.25rem', border: `1px solid ${color}` }}>
-        {event.type}
-      </span>{' '}
-      <span style={{ color: 'var(--text)' }}>{shortenMint(event.mint)}</span>
-      {event.detail && <span style={{ color: 'var(--gray)', marginLeft: '0.5rem' }}>{event.detail}</span>}
-    </div>
-  );
-}
+import { feedEvents, connectFeed } from '../store/feed.js';
+import { FeedCard } from './FeedCard.js';
 
 export function LiveFeed() {
   const listRef = useRef<HTMLDivElement>(null);
@@ -61,7 +12,8 @@ export function LiveFeed() {
     return disconnect;
   }, []);
 
-  // Auto-scroll to bottom when new events arrive and user hasn't manually scrolled
+  // Auto-scroll to bottom when new events arrive and user hasn't manually scrolled.
+  // Depends only on feedEvents.value — card expansion must NOT trigger this effect.
   useEffect(() => {
     if (isLive && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -75,34 +27,113 @@ export function LiveFeed() {
     setIsLive(atBottom);
   };
 
+  const eventCount = feedEvents.value.length;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.5rem 1rem', background: 'var(--bg2)' }}>
-        {!isLive && (
-          <button
-            onClick={() => {
-              setIsLive(true);
-              if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-            }}
-            style={{ background: 'var(--blue)', color: '#fff', border: 'none', padding: '0.25rem 0.75rem', cursor: 'pointer' }}
-          >
-            Resume Live
-          </button>
-        )}
-        {isLive && <span style={{ color: 'var(--green)', fontSize: '0.8rem' }}>LIVE</span>}
+      {/* ---- Toolbar ---- */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '0.4rem 0.75rem',
+        background: 'var(--bg2)',
+        borderBottom: '1px solid var(--border)',
+        fontSize: '0.72rem',
+        flexShrink: 0,
+      }}>
+        {/* Event count */}
+        <span style={{ color: 'var(--gray)', fontFamily: 'var(--mono)' }}>
+          {eventCount > 0
+            ? <span><span style={{ color: 'var(--text)' }}>{eventCount}</span> events</span>
+            : <span style={{ color: 'var(--gray)' }}>feed</span>
+          }
+        </span>
+
+        {/* Live status / Resume button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {!isLive && (
+            <button
+              onClick={() => {
+                setIsLive(true);
+                if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+              }}
+              style={{
+                background: 'var(--blue)',
+                color: '#000',
+                border: 'none',
+                padding: '0.2rem 0.6rem',
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                fontFamily: 'var(--mono)',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+              }}
+            >
+              RESUME LIVE
+            </button>
+          )}
+          {isLive && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--green)', fontSize: '0.7rem', letterSpacing: '0.06em' }}>
+              <span style={{
+                display: 'inline-block',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'var(--green)',
+                animation: 'livePulse 1.4s ease-in-out infinite',
+              }} />
+              LIVE
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* ---- Feed list ---- */}
       <div
         ref={listRef}
         onScroll={handleScroll}
         style={{ flex: 1, overflowY: 'auto', fontFamily: 'var(--mono)' }}
       >
-        {feedEvents.value.length === 0 && (
-          <div style={{ padding: '2rem', color: 'var(--gray)', textAlign: 'center' }}>
-            Waiting for events...
+        {eventCount === 0 && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            gap: '0.5rem',
+            color: 'var(--gray)',
+            fontSize: '0.8rem',
+            userSelect: 'none',
+          }}>
+            <span>waiting for events</span>
+            <span style={{
+              display: 'inline-block',
+              width: '8px',
+              height: '1em',
+              background: 'var(--gray)',
+              animation: 'cursorBlink 1s step-end infinite',
+              verticalAlign: 'text-bottom',
+            }} />
           </div>
         )}
-        {feedEvents.value.map((e, i) => <FeedRow key={`${e.ts}-${i}`} event={e} />)}
+        {feedEvents.value.map((e, i) => (
+          <FeedCard key={`${e.ts}-${i}`} event={e} />
+        ))}
       </div>
+
+      {/* Keyframe animations injected once via a style tag */}
+      <style>{`
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
