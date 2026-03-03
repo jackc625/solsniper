@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { configSignal } from '../store/config.js';
 
 interface Stats {
   openPositions: number;
@@ -31,29 +32,46 @@ export function Header() {
   const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
   const pnlSign = pnl >= 0 ? '+' : '';
 
+  const isDryRun = Boolean(configSignal.value?.dryRun);
+
   return (
-    <header style={HEADER_STYLE}>
-      <span style={{ fontWeight: 'bold', fontSize: '1.1rem', letterSpacing: '0.1em' }}>
-        SOLSNIPER
-      </span>
-      <span>
-        P&amp;L:{' '}
-        <span style={{ color: pnlColor, fontWeight: 'bold' }}>
-          {pnlSign}{pnl.toFixed(4)} SOL
+    <div>
+      <header style={HEADER_STYLE}>
+        <span style={{ fontWeight: 'bold', fontSize: '1.1rem', letterSpacing: '0.1em' }}>
+          SOLSNIPER
         </span>
-      </span>
-      <span>
-        Win Rate:{' '}
-        <span style={{ color: 'var(--green)' }}>
-          {stats?.winRate ?? '—'}%
+        <span>
+          P&amp;L:{' '}
+          <span style={{ color: pnlColor, fontWeight: 'bold' }}>
+            {pnlSign}{pnl.toFixed(4)} SOL
+          </span>
         </span>
-      </span>
-      <span>
-        Open:{' '}
-        <span style={{ color: 'var(--blue)' }}>
-          {stats?.openPositions ?? '—'}
+        <span>
+          Win Rate:{' '}
+          <span style={{ color: 'var(--green)' }}>
+            {stats?.winRate ?? '—'}%
+          </span>
         </span>
-      </span>
-    </header>
+        <span>
+          Open:{' '}
+          <span style={{ color: 'var(--blue)' }}>
+            {stats?.openPositions ?? '—'}
+          </span>
+        </span>
+      </header>
+      {isDryRun && (
+        <div style={{
+          background: 'var(--yellow)',
+          color: '#000',
+          textAlign: 'center',
+          padding: '0.4rem',
+          fontFamily: 'var(--mono)',
+          fontWeight: 'bold',
+          letterSpacing: '0.1em',
+        }}>
+          DRY RUN MODE — No real SOL at risk
+        </div>
+      )}
+    </div>
   );
 }

@@ -5,6 +5,7 @@ export interface FeedEvent {
   mint: string;
   ts: number;
   detail?: string;
+  isDryRun?: boolean;  // Phase 12: true for dry-run trades
 }
 
 export const feedEvents = signal<FeedEvent[]>([]);

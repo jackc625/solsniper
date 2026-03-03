@@ -43,6 +43,7 @@ export function Settings() {
     setStatus('saving');
     // Build patch: only include fields the dashboard can change
     const patch = {
+      dryRun:                 Boolean(draft['dryRun']),
       minSafetyScore:         Number(draft['minSafetyScore'] ?? 0),
       buyAmountSol:           Number(draft['buyAmountSol'] ?? 0),
       maxConcurrentPositions: Number(draft['maxConcurrentPositions'] ?? 1),
@@ -70,6 +71,24 @@ export function Settings() {
       <p style={{ color: 'var(--gray)', fontSize: '0.8rem', marginBottom: '1rem' }}>
         Changes are in-memory only — restart reverts to config file values.
       </p>
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ color: 'var(--yellow)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Mode</h3>
+        <label style={{
+          ...LABEL_STYLE,
+          cursor: 'pointer',
+        }}>
+          Dry Run Mode
+          <input type="checkbox"
+            checked={Boolean(draft['dryRun'])}
+            onChange={(e) => set(['dryRun'], (e.target as HTMLInputElement).checked)}
+            style={{ width: 'auto', cursor: 'pointer' }}
+          />
+        </label>
+        <p style={{ color: 'var(--gray)', fontSize: '0.75rem', margin: '0.25rem 0 0 0' }}>
+          When enabled, bot runs full pipeline but does not sign or broadcast transactions.
+        </p>
+      </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ color: 'var(--blue)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Safety</h3>

@@ -22,9 +22,26 @@ function shortenMint(mint: string): string {
 
 function FeedRow({ event }: { event: FeedEvent }) {
   const color = BADGE_COLORS[event.type] ?? 'var(--gray)';
+  const isDryRun = event.isDryRun;
   return (
-    <div style={{ padding: '0.25rem 1rem', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
+    <div style={{
+      padding: '0.25rem 1rem',
+      borderBottom: '1px solid var(--border)',
+      fontSize: '0.85rem',
+      opacity: isDryRun ? 0.7 : 1,
+    }}>
       <span style={{ color: 'var(--gray)' }}>[{formatTs(event.ts)}]</span>{' '}
+      {isDryRun && (
+        <span style={{
+          color: 'var(--yellow)',
+          border: '1px solid var(--yellow)',
+          padding: '0 0.25rem',
+          marginRight: '0.4rem',
+          fontSize: '0.75rem',
+        }}>
+          DRY RUN
+        </span>
+      )}
       <span style={{ color, fontWeight: 'bold', padding: '0 0.25rem', border: `1px solid ${color}` }}>
         {event.type}
       </span>{' '}
