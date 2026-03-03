@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13-ui-rework-01-PLAN.md
-last_updated: "2026-03-03T21:44:43.899Z"
+stopped_at: Completed 13-ui-rework-03-PLAN.md
+last_updated: "2026-03-03T21:51:07.137Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 35
-  completed_plans: 31
+  completed_plans: 33
   percent: 100
 ---
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 12-dry-run-functionality P01 | 12 | 2 tasks | 21 files |
 | Phase 12 P02 | 20 | 3 tasks | 10 files |
 | Phase 13-ui-rework P01 | 4 | 2 tasks | 8 files |
+| Phase 13-ui-rework P03 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,8 @@ Recent decisions affecting current work:
 - [Phase 13-ui-rework]: result.aggregateScore (not result.score) used for safetyScore on TOKEN_DETECTED — SafetyResult has aggregateScore field, not score
 - [Phase 13-ui-rework]: pnlSol computed from getTradeByMint() after transition — sellPriceSol typically undefined today so pnlSol will be undefined; field exists for when sell price tracking is added
 - [Phase 13-ui-rework]: /trades/history returns snake_case column names directly — frontend handles mapping; avoids transformation boilerplate in route
+- [Phase 13-ui-rework]: BADGE_COLORS and EVENT_LABELS moved entirely to FeedCard.tsx — single source of truth for event-type visual mapping
+- [Phase 13-ui-rework]: Auto-scroll useEffect depends on [feedEvents.value, isLive] only — card expand/collapse does not trigger scroll
 
 ### Pending Todos
 
@@ -209,6 +212,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 2 complete (maxConcurrentPositions guard before safety pipeline)
 
-Last session: 2026-03-03T21:44:43.893Z
-Stopped at: Completed 13-ui-rework-01-PLAN.md
+Last session: 2026-03-03T21:50:47.945Z
+Stopped at: Completed 13-ui-rework-03-PLAN.md
 Resume file: None

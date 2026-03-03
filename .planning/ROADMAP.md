@@ -217,7 +217,7 @@ Plans:
 **Goal:** Complete visual and functional rework of the Preact web dashboard: sidebar + content layout replacing horizontal tabs, rich expandable feed cards with external links, P&L charts and sortable completed trade history, and a bold visual overhaul driven by the frontend-design skill
 **Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06
 **Depends on:** Phase 12
-**Plans:** 1/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [ ] 13-01-PLAN.md — Backend data surface: enrich BotEvent with safetyScore/source/buyAmountSol, add /api/trades/history endpoint, install lightweight-charts
