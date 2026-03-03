@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 13 context gathered
-last_updated: "2026-03-03T20:58:50.110Z"
+stopped_at: Completed 13-ui-rework-01-PLAN.md
+last_updated: "2026-03-03T21:44:43.899Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
   total_phases: 13
   completed_phases: 12
-  total_plans: 30
-  completed_plans: 30
+  total_plans: 35
+  completed_plans: 31
   percent: 100
 ---
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 11-fix-bonding-curve-issue P01 | 3 | 1 tasks | 4 files |
 | Phase 12-dry-run-functionality P01 | 12 | 2 tasks | 21 files |
 | Phase 12 P02 | 20 | 3 tasks | 10 files |
+| Phase 13-ui-rework P01 | 4 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,9 @@ Recent decisions affecting current work:
 - [Phase 12-01]: PositionManager transitions MONITORING->COMPLETED (not FAILED) on dry-run trigger — COMPLETED is correct terminal state
 - [Phase 12-02]: isDryRun threaded via BotEvent -> SSE JSON -> FeedEvent — both interfaces must declare the field for TypeScript, but serialization is automatic
 - [Phase 12-02]: Header banner reads configSignal.value.dryRun directly in render — Preact signals auto-subscription means no explicit effect or state needed
+- [Phase 13-ui-rework]: result.aggregateScore (not result.score) used for safetyScore on TOKEN_DETECTED — SafetyResult has aggregateScore field, not score
+- [Phase 13-ui-rework]: pnlSol computed from getTradeByMint() after transition — sellPriceSol typically undefined today so pnlSol will be undefined; field exists for when sell price tracking is added
+- [Phase 13-ui-rework]: /trades/history returns snake_case column names directly — frontend handles mapping; avoids transformation boilerplate in route
 
 ### Pending Todos
 
@@ -205,6 +209,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 2 complete (maxConcurrentPositions guard before safety pipeline)
 
-Last session: 2026-03-03T20:58:50.104Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-ui-rework/13-CONTEXT.md
+Last session: 2026-03-03T21:44:43.893Z
+Stopped at: Completed 13-ui-rework-01-PLAN.md
+Resume file: None
