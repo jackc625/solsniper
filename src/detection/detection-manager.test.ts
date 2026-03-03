@@ -54,6 +54,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     PUMPPORTAL_ENABLED: true,
     RAYDIUM_ENABLED: true,
     DASHBOARD_PORT: 3001,
+    SOLSNIPER_JUPITER_API_KEY: 'test-jupiter-key',
     ...overrides,
   };
 }
@@ -66,6 +67,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['detection']> = {}):
     stopLossPct: -50,
     takeProfitPct: 300,
     minSafetyScore: 60,
+    dryRun: false,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,

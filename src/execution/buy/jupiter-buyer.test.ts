@@ -18,8 +18,8 @@ vi.mock('../../config/env.js', () => ({
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockBroadcastAndConfirm, mockDeserialize, mockJupiterQuote, mockJupiterSwap } = vi.hoisted(() => {
-  const mockBroadcastAndConfirm = vi.fn().mockResolvedValue({
+const { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSwap } = vi.hoisted(() => {
+  const mockBroadcastWithRetry = vi.fn().mockResolvedValue({
     signature: 'test-sig-jupiter',
     blockhash: 'test-blockhash',
     lastValidBlockHeight: 1000,
@@ -34,11 +34,11 @@ const { mockBroadcastAndConfirm, mockDeserialize, mockJupiterQuote, mockJupiterS
   const mockJupiterQuote = vi.fn();
   const mockJupiterSwap = vi.fn();
 
-  return { mockBroadcastAndConfirm, mockDeserialize, mockJupiterQuote, mockJupiterSwap };
+  return { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSwap };
 });
 
 vi.mock('../broadcaster.js', () => ({
-  broadcastAndConfirm: mockBroadcastAndConfirm,
+  broadcastWithRetry: mockBroadcastWithRetry,
 }));
 
 vi.mock('@solana/web3.js', async (importOriginal) => {
@@ -80,6 +80,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['execution']['buy']>
     stopLossPct: -50,
     takeProfitPct: 300,
     minSafetyScore: 60,
+    dryRun: false,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -138,7 +139,7 @@ describe('jupiterBuy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Re-establish default mock behavior after clearAllMocks
-    mockBroadcastAndConfirm.mockResolvedValue({
+    mockBroadcastWithRetry.mockResolvedValue({
       signature: 'test-sig-jupiter',
       blockhash: 'test-blockhash',
       lastValidBlockHeight: 1000,
@@ -161,7 +162,7 @@ describe('jupiterBuy', () => {
     expect(result.signature).toBe('test-sig-jupiter');
     expect(result.amountTokens).toBe(1000000);
     expect(mockDeserialize).toHaveBeenCalledOnce();
-    expect(mockBroadcastAndConfirm).toHaveBeenCalledOnce();
+    expect(mockBroadcastWithRetry).toHaveBeenCalledOnce();
   });
 
   it('quote HTTP error — jupiterClient.quote throws — propagates error', async () => {

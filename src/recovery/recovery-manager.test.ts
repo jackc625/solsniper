@@ -473,6 +473,79 @@ describe('RecoveryManager', () => {
   });
 
   // -------------------------------------------------------------------------
+  describe('dry-run trade abandonment', () => {
+    it('abandons dry-run MONITORING trades on recovery (transitions to ABANDONED)', async () => {
+      const store = makeMockTradeStore({
+        getMonitoringTrades: vi.fn().mockReturnValue([
+          makeTrade({ id: 1, mint: MONITORING_MINT_1, state: 'MONITORING', dryRun: true }),
+        ]),
+      });
+      const conn = makeMockConnection(0n);
+      const rm = new RecoveryManager(store as any, conn as any, WALLET_PUBKEY, sellLadder as any);
+      const summary = await rm.run();
+
+      // Dry-run MONITORING trade should be abandoned
+      expect(store.transition).toHaveBeenCalledWith(MONITORING_MINT_1, 'MONITORING', 'ABANDONED', {
+        errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+      });
+      // Should NOT count toward monitoring
+      expect(summary.monitoring).toBe(0);
+    });
+
+    it('counts only real (non-dry-run) MONITORING trades in summary', async () => {
+      const store = makeMockTradeStore({
+        getMonitoringTrades: vi.fn().mockReturnValue([
+          makeTrade({ id: 1, mint: MONITORING_MINT_1, state: 'MONITORING', dryRun: true }),
+          makeTrade({ id: 2, mint: MONITORING_MINT_2, state: 'MONITORING', dryRun: false }),
+        ]),
+      });
+      const conn = makeMockConnection(0n);
+      const rm = new RecoveryManager(store as any, conn as any, WALLET_PUBKEY, sellLadder as any);
+      const summary = await rm.run();
+
+      // Only 1 real MONITORING trade counts
+      expect(summary.monitoring).toBe(1);
+      // Dry-run one gets abandoned
+      expect(store.transition).toHaveBeenCalledWith(MONITORING_MINT_1, 'MONITORING', 'ABANDONED', {
+        errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+      });
+    });
+
+    it('abandons dry-run BUYING trades without RPC balance check', async () => {
+      const store = makeMockTradeStore({
+        getBuyingTrades: vi.fn().mockReturnValue([
+          makeTrade({ id: 1, mint: MINT_A, state: 'BUYING', dryRun: true }),
+        ]),
+      });
+      const conn = makeMockConnection(0n);
+      const rm = new RecoveryManager(store as any, conn as any, WALLET_PUBKEY, sellLadder as any);
+      const summary = await rm.run();
+
+      expect(store.transition).toHaveBeenCalledWith(MINT_A, 'BUYING', 'ABANDONED', {
+        errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+      });
+      // Should NOT count as buyingUnrecovered (dry-run is expected)
+      expect(summary.buyingUnrecovered).toBe(0);
+      expect(summary.buyingRecovered).toBe(0);
+    });
+
+    it('abandons dry-run SELLING trades without RPC balance check', async () => {
+      const store = makeMockTradeStore({
+        getSellingTrades: vi.fn().mockReturnValue([
+          makeTrade({ id: 1, mint: SELLING_MINT_1, state: 'SELLING', dryRun: true }),
+        ]),
+      });
+      const conn = makeMockConnection(0n);
+      const rm = new RecoveryManager(store as any, conn as any, WALLET_PUBKEY, sellLadder as any);
+      await rm.run();
+
+      expect(store.transition).toHaveBeenCalledWith(SELLING_MINT_1, 'SELLING', 'ABANDONED', {
+        errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe('startup ordering (integration hint)', () => {
     it('run() resolves (returns summary) before any external async work completes — verifies await semantics', async () => {
       // A fire-and-forget sell takes a long time but run() should still resolve promptly

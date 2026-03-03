@@ -91,6 +91,7 @@ function makeConfig(
     stopLossPct: -50,
     takeProfitPct: 300,
     minSafetyScore: 60,
+    dryRun: false,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -513,6 +514,89 @@ describe('PositionManager', () => {
       await pm.tick();
 
       // Only MINT_A's SL fires
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('dry-run position handling', () => {
+    it('transitions MONITORING->COMPLETED without calling fireSell when trade.dryRun=true (stop-loss)', async () => {
+      // amountSol=1.0, Jupiter returns 0.4 SOL → ratio=0.4 < 0.5 (-50% SL)
+      mockJupiterQuote(0.4 * 1e9);
+
+      const mockTransition = vi.fn().mockReturnValue(1);
+      (mockTradeStore as any).transition = mockTransition;
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, dryRun: true }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // fireSell/sellLadder.sell must NOT have been called
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+      // transition to COMPLETED should be called with dry-run error message
+      expect(mockTransition).toHaveBeenCalledWith(MINT_A, 'MONITORING', 'COMPLETED', {
+        errorMessage: 'DRY_RUN_TRIGGER: STOP_LOSS',
+      });
+    });
+
+    it('transitions MONITORING->COMPLETED without calling fireSell when trade.dryRun=true (tiered TP)', async () => {
+      // amountSol=1.0, Jupiter returns 2.1 SOL → ratio=2.1 >= 2x (tier 0)
+      mockJupiterQuote(2.1 * 1e9);
+
+      const mockTransition = vi.fn().mockReturnValue(1);
+      (mockTradeStore as any).transition = mockTransition;
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, dryRun: true }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+      expect(mockTransition).toHaveBeenCalledWith(MINT_A, 'MONITORING', 'COMPLETED', {
+        errorMessage: expect.stringContaining('DRY_RUN_TRIGGER: TIERED_TP'),
+      });
+    });
+
+    it('transitions MONITORING->COMPLETED without calling fireSell when trade.dryRun=true (trailing stop)', async () => {
+      mockJupiterQuote(1.5 * 1e9); // 1.5 SOL, below 2.0 watermark * 0.8 = 1.6
+
+      const mockTransition = vi.fn().mockReturnValue(1);
+      (mockTradeStore as any).transition = mockTransition;
+
+      const config = makeConfig({ trailingStopPct: 20 });
+
+      const pm = makePositionManager(config);
+      (pm as any).highWatermarks.set(MINT_A, 2.0);
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, dryRun: true }),
+      ]);
+
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+      expect(mockTransition).toHaveBeenCalledWith(MINT_A, 'MONITORING', 'COMPLETED', {
+        errorMessage: 'DRY_RUN_TRIGGER: TRAILING_STOP',
+      });
+    });
+
+    it('dry-run=false proceeds normally — real trade fires sell as usual', async () => {
+      // amountSol=1.0, Jupiter returns 0.4 SOL → ratio=0.4 < 0.5 (-50% SL)
+      mockJupiterQuote(0.4 * 1e9);
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, dryRun: false }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // Real trade should call fireSell
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
     });

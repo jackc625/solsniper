@@ -53,6 +53,7 @@ function makeTradingConfig(): TradingConfig {
     stopLossPct: -50,
     takeProfitPct: 300,
     minSafetyScore: 60,
+    dryRun: false,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,

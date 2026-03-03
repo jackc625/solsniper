@@ -70,6 +70,7 @@ const mockTradingConfig: TradingConfig = {
   stopLossPct: -0.15,
   takeProfitPct: 0.5,
   minSafetyScore: 60,
+  dryRun: false,
   detection: {
     wsHeartbeatIntervalMs: 30000,
     wsBaseBackoffMs: 3000,

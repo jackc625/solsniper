@@ -1,0 +1,194 @@
+/**
+ * Unit tests for jitoSell dry-run gate.
+ *
+ * Tests that dry-run mode intercepts before Jupiter API calls and Jito bundle submission.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Connection, Keypair } from '@solana/web3.js';
+
+// ---------------------------------------------------------------------------
+// Mock env.js first — logger.ts imports env for LOG_LEVEL/NODE_ENV
+// ---------------------------------------------------------------------------
+vi.mock('../../config/env.js', () => ({
+  env: {
+    SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
+  },
+}));
+
+// ---------------------------------------------------------------------------
+// Hoisted mocks
+// ---------------------------------------------------------------------------
+const { mockJupiterQuote, mockJupiterSwap } = vi.hoisted(() => {
+  const mockJupiterQuote = vi.fn();
+  const mockJupiterSwap = vi.fn();
+  return { mockJupiterQuote, mockJupiterSwap };
+});
+
+// Mock getRuntimeConfig so we can control dryRun flag
+vi.mock('../../config/trading.js', () => ({
+  getRuntimeConfig: vi.fn().mockReturnValue({ dryRun: false }),
+  tradingConfig: {},
+}));
+
+// Mock jupiter-client
+vi.mock('../jupiter-client.js', () => ({
+  jupiterClient: { quote: mockJupiterQuote, swap: mockJupiterSwap },
+}));
+
+// ---------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------
+import { jitoSell } from './jito-seller.js';
+import { getRuntimeConfig } from '../../config/trading.js';
+import type { TradingConfig } from '../../config/trading.js';
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+const mockWallet = {
+  publicKey: {
+    toBase58: () => 'So11111111111111111111111111111111111111112',
+  },
+} as unknown as Keypair;
+
+const mockConnections = [
+  {
+    getLatestBlockhash: vi.fn().mockResolvedValue({ blockhash: 'test-blockhash', lastValidBlockHeight: 1000 }),
+  } as unknown as Connection,
+];
+
+function makeTradingConfig(): TradingConfig {
+  return {
+    buyAmountSol: 0.1,
+    maxSlippageBps: 1000,
+    maxConcurrentPositions: 3,
+    stopLossPct: -50,
+    takeProfitPct: 300,
+    minSafetyScore: 60,
+    dryRun: false,
+    detection: {
+      wsHeartbeatIntervalMs: 30000,
+      wsBaseBackoffMs: 3000,
+      wsMaxBackoffMs: 60000,
+      wsExcessiveReconnectThreshold: 5,
+      wsExcessiveReconnectWindowMs: 600000,
+      statsIntervalMs: 900000,
+      dedupWindowMs: 3600000,
+    },
+    safety: {
+      tier2TimeoutMs: 2000,
+      tier3TimeoutMs: 5000,
+      cacheTtlMs: 300000,
+      weights: { rugCheck: 40, holder: 30, creator: 30 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50 },
+      rugCheckScoreInverted: true,
+      blocklistPath: './data/creator-blocklist.json',
+    },
+    execution: {
+      buy: {
+        slippageBps: 1000,
+        priorityFeeBaseLamports: 100000,
+        priorityFeeMultiplier: 1,
+      },
+      sell: {
+        standardSlippageBps: 500,
+        emergencySlippageBps: 4900,
+        standardTimeoutMs: 30000,
+        highFeeTimeoutMs: 20000,
+        highFeeMultiplier: 3,
+        jitoTimeoutMs: 30000,
+        jitoTipLamports: 100000,
+        chunkedTimeoutMs: 60000,
+        emergencyTimeoutMs: 30000,
+        emergencyPriorityMultiplier: 10,
+      },
+    },
+    positionManagement: {
+      pollIntervalMs: 5000,
+      stopLossPct: -50,
+      tieredTp: [{ at: 2, pct: 33 }, { at: 5, pct: 33 }, { at: 10, pct: 34 }],
+      trailingStopPct: 0,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('jitoSell dry-run gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getRuntimeConfig).mockReturnValue({ dryRun: false } as ReturnType<typeof getRuntimeConfig>);
+    // Reset connection mock
+    (mockConnections[0]!.getLatestBlockhash as ReturnType<typeof vi.fn>).mockResolvedValue({
+      blockhash: 'test-blockhash',
+      lastValidBlockHeight: 1000,
+    });
+  });
+
+  it('dry-run: returns synthetic signature starting with DRY_RUN_JITO_ without calling Jupiter', async () => {
+    vi.mocked(getRuntimeConfig).mockReturnValue({ dryRun: true } as ReturnType<typeof getRuntimeConfig>);
+
+    const config = makeTradingConfig();
+    const result = await jitoSell(
+      'So11111111111111111111111111111111111111112',
+      1000000n,
+      config,
+      mockWallet,
+      mockConnections
+    );
+
+    // Signature should start with DRY_RUN_JITO_
+    expect(result).toMatch(/^DRY_RUN_JITO_/);
+    // Jupiter APIs must NOT have been called
+    expect(mockJupiterQuote).not.toHaveBeenCalled();
+    expect(mockJupiterSwap).not.toHaveBeenCalled();
+  });
+
+  it('dry-run: does NOT call fetch (Jito bundle endpoint) in dry-run mode', async () => {
+    vi.mocked(getRuntimeConfig).mockReturnValue({ dryRun: true } as ReturnType<typeof getRuntimeConfig>);
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ result: 'bundle-id' }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const config = makeTradingConfig();
+    await jitoSell(
+      'So11111111111111111111111111111111111111112',
+      1000000n,
+      config,
+      mockWallet,
+      mockConnections
+    );
+
+    // fetch (Jito bundle submission) must NOT have been called
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('dry-run=false: attempts Jupiter quote (normal path — would fail without full setup)', async () => {
+    vi.mocked(getRuntimeConfig).mockReturnValue({ dryRun: false } as ReturnType<typeof getRuntimeConfig>);
+    // Make Jupiter quote throw to verify it was called
+    mockJupiterQuote.mockRejectedValueOnce(new Error('Jupiter unavailable'));
+
+    const config = makeTradingConfig();
+
+    await expect(
+      jitoSell(
+        'So11111111111111111111111111111111111111112',
+        1000000n,
+        config,
+        mockWallet,
+        mockConnections
+      )
+    ).rejects.toThrow('Jupiter unavailable');
+
+    // Jupiter was called (dry-run=false proceeds normally)
+    expect(mockJupiterQuote).toHaveBeenCalledOnce();
+  });
+});

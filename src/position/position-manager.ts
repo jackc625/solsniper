@@ -230,6 +230,16 @@ export class PositionManager {
         'PositionManager: tiered TP triggered',
       );
 
+      if (trade.dryRun) {
+        log.info(
+          { dryRun: true, mint, trigger: 'TIERED_TP', tier: tierIndex, at: activeTier.at, pct: activeTier.pct, ratio: ratio.toFixed(3) },
+          '[DRY RUN] take-profit would have triggered'
+        );
+        this.tradeStore.transition(mint, 'MONITORING', 'COMPLETED', {
+          errorMessage: `DRY_RUN_TRIGGER: TIERED_TP tier=${tierIndex}`,
+        });
+        return;
+      }
       this.fireSell(mint, tokensToSell);
       this.tierIndices.set(mint, nextTierIndex);
       return;
@@ -249,6 +259,16 @@ export class PositionManager {
           },
           'PositionManager: trailing stop triggered',
         );
+        if (trade.dryRun) {
+          log.info(
+            { dryRun: true, mint, trigger: 'TRAILING_STOP', highWatermark: newWatermark, currentValueSol, trailingStopPct },
+            '[DRY RUN] trailing stop would have triggered'
+          );
+          this.tradeStore.transition(mint, 'MONITORING', 'COMPLETED', {
+            errorMessage: `DRY_RUN_TRIGGER: TRAILING_STOP`,
+          });
+          return;
+        }
         this.fireSell(mint, tokenAmountRaw);
         return;
       }
@@ -267,6 +287,16 @@ export class PositionManager {
         },
         'PositionManager: stop-loss triggered',
       );
+      if (trade.dryRun) {
+        log.info(
+          { dryRun: true, mint, trigger: 'STOP_LOSS', ratio: ratio.toFixed(3), stopLossPct },
+          '[DRY RUN] stop-loss would have triggered'
+        );
+        this.tradeStore.transition(mint, 'MONITORING', 'COMPLETED', {
+          errorMessage: `DRY_RUN_TRIGGER: STOP_LOSS`,
+        });
+        return;
+      }
       this.fireSell(mint, tokenAmountRaw);
       return;
     }

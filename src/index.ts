@@ -2,7 +2,7 @@
 // required environment variables. If validation fails, process.exit(1) is called
 // before any other code runs.
 import { env } from './config/env.js';
-import { tradingConfig } from './config/trading.js';
+import { tradingConfig, getRuntimeConfig } from './config/trading.js';
 import { logger, createModuleLogger } from './core/logger.js';
 import { RpcManager } from './core/rpc-manager.js';
 import { DetectionManager } from './detection/detection-manager.js';
@@ -181,7 +181,7 @@ async function main(): Promise<void> {
         // Write-ahead: record BUYING state before any on-chain action (PER-02)
         // Pass source and detected token program so SQLite trade record is complete from creation time.
         // This ensures crash recovery, chunked-seller ATA lookup, and sell ladder source checks all work.
-        tradeStore.createBuyingRecord(event.mint, event.source, result.programId);
+        tradeStore.createBuyingRecord(event.mint, event.source, result.programId, getRuntimeConfig().dryRun);
         // Execute buy — routes to PumpPortal (bonding curve) or Jupiter (migrated) based on event.source
         void executionEngine.buy(event);
       }

@@ -17,6 +17,7 @@ import bs58 from 'bs58';
 import { broadcastAndConfirm } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
+import { getRuntimeConfig } from '../../config/trading.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('jito-seller');
@@ -53,6 +54,16 @@ export async function jitoSell(
   const maxPriorityFee = Math.floor(config.execution.buy.priorityFeeBaseLamports * sell.highFeeMultiplier);
 
   log.debug({ mint, tokenAmount: tokenAmount.toString() }, 'Jito bundle sell');
+
+  // DRY RUN GATE 2: intercept before Jupiter API call and Jito bundle submission
+  if (getRuntimeConfig().dryRun) {
+    const signature = `DRY_RUN_JITO_${Date.now()}`;
+    log.info(
+      { dryRun: true, mint, tokenAmount: tokenAmount.toString(), signature },
+      '[DRY RUN] jitoSell intercepted — bundle NOT submitted'
+    );
+    return signature;
+  }
 
   // Step 1: Get Jupiter quote + swap transaction
   const params = new URLSearchParams({

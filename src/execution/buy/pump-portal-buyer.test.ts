@@ -5,8 +5,8 @@ import type { TradingConfig } from '../../config/trading.js';
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockBroadcastAndConfirm, mockDeserialize } = vi.hoisted(() => {
-  const mockBroadcastAndConfirm = vi.fn().mockResolvedValue({
+const { mockBroadcastWithRetry, mockDeserialize } = vi.hoisted(() => {
+  const mockBroadcastWithRetry = vi.fn().mockResolvedValue({
     signature: 'test-sig-pump',
     blockhash: 'test-blockhash',
     lastValidBlockHeight: 1000,
@@ -18,11 +18,11 @@ const { mockBroadcastAndConfirm, mockDeserialize } = vi.hoisted(() => {
     serialize: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
   });
 
-  return { mockBroadcastAndConfirm, mockDeserialize };
+  return { mockBroadcastWithRetry, mockDeserialize };
 });
 
 vi.mock('../broadcaster.js', () => ({
-  broadcastAndConfirm: mockBroadcastAndConfirm,
+  broadcastWithRetry: mockBroadcastWithRetry,
 }));
 
 vi.mock('@solana/web3.js', async (importOriginal) => {
@@ -59,6 +59,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['execution']['buy']>
     stopLossPct: -50,
     takeProfitPct: 300,
     minSafetyScore: 60,
+    dryRun: false,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -122,7 +123,7 @@ describe('pumpPortalBuy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Re-establish default mock behavior after clearAllMocks
-    mockBroadcastAndConfirm.mockResolvedValue({
+    mockBroadcastWithRetry.mockResolvedValue({
       signature: 'test-sig-pump',
       blockhash: 'test-blockhash',
       lastValidBlockHeight: 1000,
@@ -144,7 +145,7 @@ describe('pumpPortalBuy', () => {
     expect(result.success).toBe(true);
     expect(result.signature).toBe('test-sig-pump');
     expect(mockDeserialize).toHaveBeenCalledOnce();
-    expect(mockBroadcastAndConfirm).toHaveBeenCalledOnce();
+    expect(mockBroadcastWithRetry).toHaveBeenCalledOnce();
 
     vi.unstubAllGlobals();
   });
@@ -157,7 +158,7 @@ describe('pumpPortalBuy', () => {
 
     expect(result.success).toBe(false);
     expect(result.errorMessage).toBe('PumpPortal HTTP 400');
-    expect(mockBroadcastAndConfirm).not.toHaveBeenCalled();
+    expect(mockBroadcastWithRetry).not.toHaveBeenCalled();
 
     vi.unstubAllGlobals();
   });

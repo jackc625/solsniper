@@ -117,6 +117,14 @@ export class RecoveryManager {
     // Step 3: Process SELLING trades (one per mint after dedup)
     // -------------------------------------------------------------------------
     for (const trade of currentSellingTrades) {
+      // Skip dry-run SELLING trades — no real tokens exist
+      if (trade.dryRun) {
+        this.tradeStore.transition(trade.mint, 'SELLING', 'ABANDONED', {
+          errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+        });
+        continue;
+      }
+
       try {
         const balance = await withTimeout(
           this.getWalletTokenBalance(trade.mint),
@@ -156,6 +164,15 @@ export class RecoveryManager {
     // -------------------------------------------------------------------------
     const buyingTrades = this.tradeStore.getBuyingTrades();
     for (const trade of buyingTrades) {
+      // Skip dry-run BUYING trades — no real tokens were purchased
+      if (trade.dryRun) {
+        this.tradeStore.transition(trade.mint, 'BUYING', 'ABANDONED', {
+          errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+        });
+        // Don't count as buyingUnrecovered — expected behavior for dry-run
+        continue;
+      }
+
       try {
         const balance = await withTimeout(
           this.getWalletTokenBalance(trade.mint),
@@ -186,10 +203,22 @@ export class RecoveryManager {
     }
 
     // -------------------------------------------------------------------------
-    // Step 5: Count MONITORING trades (no wallet check needed)
+    // Step 5: Count MONITORING trades — abandon dry-run trades (shadow tracking is ephemeral)
     // -------------------------------------------------------------------------
     const monitoringTrades = this.tradeStore.getMonitoringTrades();
-    monitoring = monitoringTrades.length;
+    let dryRunAbandoned = 0;
+    for (const trade of monitoringTrades) {
+      if (trade.dryRun) {
+        this.tradeStore.transition(trade.mint, 'MONITORING', 'ABANDONED', {
+          errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
+        });
+        dryRunAbandoned++;
+      }
+    }
+    monitoring = monitoringTrades.filter(t => !t.dryRun).length;
+    if (dryRunAbandoned > 0) {
+      log.info({ count: dryRunAbandoned }, 'Dry-run MONITORING trades abandoned');
+    }
     log.debug({ count: monitoring }, 'MONITORING trades loaded as-is');
 
     // -------------------------------------------------------------------------
