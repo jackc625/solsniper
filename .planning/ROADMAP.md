@@ -200,3 +200,14 @@ Plans:
 
 Plans:
 - [ ] 11-01-PLAN.md — Bonding curve PDA exclusion in tier2-holder (both paths), source-aware zero-holder logic, SafetyPipeline source threading, test updates
+
+### Phase 12: dry run functionality
+
+**Goal:** Run the entire real pipeline against mainnet (real detection, real safety checks, real transaction building) but intercept at two gate points before signing/broadcasting. Shadow price tracking via PositionManager shows what P&L would have been. Dashboard shows DRY RUN badges on feed events and a prominent mode banner.
+**Requirements**: DRY-01, DRY-02, DRY-03, DRY-04, DRY-05, DRY-06, DRY-07, DRY-08
+**Depends on:** Phase 11
+**Plans:** 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Backend core: Trade interface + config flag + schema migration + trade-store threading + broadcaster Gate 1 + jito-seller Gate 2 + recovery skip + position manager log-only triggers + index.ts wiring
+- [ ] 12-02-PLAN.md — Dashboard: BotEvent isDryRun field + config patch route + stats exclusion + LiveFeed badge + Header banner + Settings toggle + end-to-end human verification
