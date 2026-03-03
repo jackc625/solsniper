@@ -206,7 +206,7 @@ Plans:
 **Goal:** Run the entire real pipeline against mainnet (real detection, real safety checks, real transaction building) but intercept at two gate points before signing/broadcasting. Shadow price tracking via PositionManager shows what P&L would have been. Dashboard shows DRY RUN badges on feed events and a prominent mode banner.
 **Requirements**: DRY-01, DRY-02, DRY-03, DRY-04, DRY-05, DRY-06, DRY-07, DRY-08
 **Depends on:** Phase 11
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 12-01-PLAN.md — Backend core: Trade interface + config flag + schema migration + trade-store threading + broadcaster Gate 1 + jito-seller Gate 2 + recovery skip + position manager log-only triggers + index.ts wiring
