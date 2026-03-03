@@ -171,6 +171,20 @@
         border: 0;
       }
 
+      /* ---- Input focus enhancement ---- */
+      input:focus {
+        outline: 1px solid var(--amber);
+        outline-offset: 1px;
+        border-color: var(--amber) !important;
+      }
+
+      /* ---- Responsive: icon-only sidebar at narrow widths ---- */
+      @media (max-width: 1024px) {
+        :root {
+          --sidebar-w: 52px;
+        }
+      }
+
       /* ---- Keyframes ---- */
       @keyframes pulse-dot {
         0%, 100% { opacity: 1; }

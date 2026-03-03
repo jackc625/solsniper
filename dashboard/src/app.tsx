@@ -23,7 +23,8 @@ export function App() {
             <span style={{ opacity: 0.6 }}>&#9670;</span>
           </div>
         )}
-        <main style={MAIN}>
+        {/* key forces re-mount animation on view change */}
+        <main key={view} style={MAIN}>
           {view === 'feed'        && <LiveFeed />}
           {view === 'performance' && <Performance />}
           {view === 'settings'    && <Settings />}

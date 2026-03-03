@@ -21,9 +21,10 @@ const NAV_ITEMS: { view: View; label: string; abbr: string }[] = [
 ];
 
 export function Sidebar({ activeView, onNavigate }: SidebarProps) {
-  const [stats, setStats]       = useState<Stats | null>(null);
-  const [connected, setConnected] = useState(true);
-  const [lastTick, setLastTick] = useState(Date.now());
+  const [stats, setStats]           = useState<Stats | null>(null);
+  const [connected, setConnected]   = useState(true);
+  const [lastTick, setLastTick]     = useState(Date.now());
+  const [hoveredView, setHovered]   = useState<View | null>(null);
 
   // Poll /api/stats every 5 s (mirrors old Header pattern)
   useEffect(() => {
@@ -46,7 +47,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
     return () => clearInterval(id);
   }, []);
 
-  // Connection staleness check
+  // Connection staleness check — mark disconnected if no successful poll in 15s
   useEffect(() => {
     const id = setInterval(() => {
       if (Date.now() - lastTick > 15_000) setConnected(false);
@@ -84,18 +85,33 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
       <nav style={NAV_CONTAINER} aria-label="Main navigation">
         <div style={NAV_SECTION_LABEL}>NAVIGATION</div>
         {NAV_ITEMS.map(({ view, label, abbr }) => {
-          const isActive = activeView === view;
+          const isActive  = activeView === view;
+          const isHovered = hoveredView === view;
           return (
             <button
               key={view}
               onClick={() => onNavigate(view)}
+              onMouseEnter={() => setHovered(view)}
+              onMouseLeave={() => setHovered(null)}
               aria-current={isActive ? 'page' : undefined}
               style={{
                 ...NAV_ITEM,
-                ...(isActive ? NAV_ITEM_ACTIVE : NAV_ITEM_INACTIVE),
+                background: isActive
+                  ? 'var(--amber-glow)'
+                  : isHovered
+                  ? 'rgba(255,255,255,0.03)'
+                  : 'transparent',
+                color: isActive ? 'var(--text-bright)' : 'var(--gray)',
               }}
             >
-              <span style={{ ...NAV_ABBR, color: isActive ? 'var(--amber)' : 'var(--text-dim)' }}>
+              <span style={{
+                ...NAV_ABBR,
+                color: isActive
+                  ? 'var(--amber)'
+                  : isHovered
+                  ? 'var(--text)'
+                  : 'var(--text-dim)',
+              }}>
                 {abbr}
               </span>
               <span style={NAV_LABEL}>{label}</span>
@@ -106,7 +122,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
       </nav>
 
       {/* ---- Spacer ---- */}
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: '1' }} />
 
       {/* ---- Stats panel ---- */}
       <div style={STATS_PANEL}>
@@ -124,7 +140,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
         <div style={STAT_ROW}>
           <span style={STAT_KEY}>WIN RATE</span>
           <span style={{ ...STAT_VAL, color: 'var(--teal)' }}>
-            {stats?.winRate != null ? `${stats.winRate}%` : '—'}
+            {stats?.winRate != null ? `${stats.winRate}%` : '\u2014'}
           </span>
         </div>
 
@@ -133,7 +149,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
         <div style={STAT_ROW}>
           <span style={STAT_KEY}>OPEN POS</span>
           <span style={{ ...STAT_VAL, color: 'var(--blue)' }}>
-            {stats?.openPositions ?? '—'}
+            {stats?.openPositions ?? '\u2014'}
           </span>
         </div>
       </div>
@@ -145,7 +161,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
           background: connected ? 'var(--green)' : 'var(--red)',
           animation: connected ? 'pulse-dot 2s ease-in-out infinite' : 'none',
         }} />
-        <span style={{ color: connected ? 'var(--text-dim)' : 'var(--red)', fontSize: '10px' }}>
+        <span style={{ color: connected ? 'var(--text-dim)' : 'var(--red)', fontSize: '10px', letterSpacing: '0.1em' }}>
           {connected ? 'CONNECTED' : 'NO SIGNAL'}
         </span>
       </div>
@@ -221,12 +237,12 @@ const DRY_RUN_BADGE: Record<string, string> = {
 };
 
 const DRY_RUN_DOT: Record<string, string> = {
-  width:     '6px',
-  height:    '6px',
+  width:       '6px',
+  height:      '6px',
   borderRadius: '50%',
-  background: 'var(--yellow)',
-  animation:  'pulse-dot 1.2s ease-in-out infinite',
-  flexShrink: '0',
+  background:  'var(--yellow)',
+  animation:   'pulse-dot 1.2s ease-in-out infinite',
+  flexShrink:  '0',
 };
 
 const NAV_CONTAINER: Record<string, string> = {
@@ -248,23 +264,13 @@ const NAV_ITEM: Record<string, string> = {
   gap:            'var(--sp-3)',
   width:          '100%',
   padding:        'var(--sp-3) var(--sp-4)',
-  background:     'transparent',
   border:         'none',
   cursor:         'pointer',
   textAlign:      'left',
   fontFamily:     'var(--font-mono)',
   fontSize:       '12px',
-  transition:     'background var(--tx-fast)',
+  transition:     'background var(--tx-fast), color var(--tx-fast)',
   position:       'relative',
-};
-
-const NAV_ITEM_ACTIVE: Record<string, string> = {
-  background:  'var(--amber-glow)',
-  color:       'var(--text-bright)',
-};
-
-const NAV_ITEM_INACTIVE: Record<string, string> = {
-  color: 'var(--gray)',
 };
 
 const NAV_ABBR: Record<string, string> = {
@@ -306,10 +312,10 @@ const STATS_HEADER: Record<string, string> = {
 };
 
 const STAT_ROW: Record<string, string> = {
-  display:       'flex',
+  display:        'flex',
   justifyContent: 'space-between',
-  alignItems:    'baseline',
-  padding:       '4px 0',
+  alignItems:     'baseline',
+  padding:        '4px 0',
 };
 
 const STAT_KEY: Record<string, string> = {
@@ -319,9 +325,9 @@ const STAT_KEY: Record<string, string> = {
 };
 
 const STAT_VAL: Record<string, string> = {
-  fontFamily:    'var(--font-mono)',
-  fontSize:      '13px',
-  fontWeight:    'bold',
+  fontFamily: 'var(--font-mono)',
+  fontSize:   '13px',
+  fontWeight: 'bold',
 };
 
 const STAT_DIVIDER: Record<string, string> = {
@@ -331,12 +337,12 @@ const STAT_DIVIDER: Record<string, string> = {
 };
 
 const CONN_BAR: Record<string, string> = {
-  display:        'flex',
-  alignItems:     'center',
-  gap:            '6px',
-  padding:        'var(--sp-3) var(--sp-4)',
-  borderTop:      '1px solid var(--border)',
-  marginTop:      'var(--sp-3)',
+  display:     'flex',
+  alignItems:  'center',
+  gap:         '6px',
+  padding:     'var(--sp-3) var(--sp-4)',
+  borderTop:   '1px solid var(--border)',
+  marginTop:   'var(--sp-3)',
 };
 
 const CONN_DOT: Record<string, string> = {
