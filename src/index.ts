@@ -163,16 +163,17 @@ async function main(): Promise<void> {
   // 14. Wire token events through safety pipeline and trade persistence
   detectionManager.on('token', async (event) => {
     try {
+      // POS-06: Enforce max concurrent position limit (before safety pipeline to avoid wasted RPC calls)
+      const activePositions = tradeStore.getMonitoringTrades().length;
+      if (activePositions >= tradingConfig.maxConcurrentPositions) {
+        log.info({ mint: event.mint, activePositions, limit: tradingConfig.maxConcurrentPositions },
+          'Max concurrent positions reached — skipping safety checks');
+        return;
+      }
+
       const result = await safetyPipeline.evaluate(event);
       if (result.pass) {
         botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}`, isDryRun: getRuntimeConfig().dryRun });
-        // POS-06: Enforce max concurrent position limit
-        const activePositions = tradeStore.getMonitoringTrades().length;
-        if (activePositions >= tradingConfig.maxConcurrentPositions) {
-          log.info({ mint: event.mint, activePositions, limit: tradingConfig.maxConcurrentPositions },
-            'Max concurrent positions reached — buy rejected');
-          return;
-        }
         // Duplicate guard: reject if a non-terminal trade already exists for this mint
         if (tradeStore.isActive(event.mint)) {
           log.debug({ mint: event.mint }, 'Duplicate buy blocked by active-mints guard');
