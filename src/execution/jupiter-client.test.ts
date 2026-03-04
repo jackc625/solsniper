@@ -108,7 +108,7 @@ describe('JupiterClient', () => {
     await expect(client.quote(params)).rejects.toThrow('Jupiter rate limited (429)');
 
     // Second call should throw immediately WITHOUT calling fetch
-    await expect(client.quote(params)).rejects.toThrow('Jupiter rate limited — cooldown active');
+    await expect(client.quote(params)).rejects.toThrow('Jupiter rate limited -- cooldown active');
     expect(mockFetch).toHaveBeenCalledTimes(1); // Only the first call hit the network
   });
 
@@ -196,7 +196,7 @@ describe('JupiterClient', () => {
 
     // swap() should throw without fetching
     await expect(client.swap({ quoteResponse: {} })).rejects.toThrow(
-      'Jupiter rate limited — cooldown active',
+      'Jupiter rate limited -- cooldown active',
     );
     expect(mockFetch).toHaveBeenCalledTimes(1); // Only the initial 429 hit the network
   });
@@ -306,7 +306,7 @@ describe('JupiterClient', () => {
 
     // swap() must also be blocked
     await expect(client.swap({ quoteResponse: {} })).rejects.toThrow(
-      'Jupiter rate limited — cooldown active',
+      'Jupiter rate limited -- cooldown active',
     );
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });

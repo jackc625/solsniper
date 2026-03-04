@@ -30,6 +30,10 @@ vi.mock('./pump-portal-seller.js', () => ({
   pumpPortalSell: mockPumpPortalSell,
 }));
 
+vi.mock('../../utils/parse-sol-received.js', () => ({
+  parseSolReceived: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks are registered)
 // ---------------------------------------------------------------------------
@@ -105,6 +109,7 @@ function makeTradeStore(overrides?: { getTradeByMintResult?: Partial<Trade> | un
   return {
     transition: vi.fn().mockReturnValue(1),
     getTradeByMint: vi.fn().mockReturnValue(overrides?.getTradeByMintResult),
+    addSellPrice: vi.fn().mockReturnValue(1),
   };
 }
 
@@ -123,7 +128,7 @@ describe('SellLadder', () => {
   });
 
   it('STANDARD succeeds — returns success result and completes MONITORING→SELLING→COMPLETED transitions', async () => {
-    mockStandardSell.mockResolvedValue('sig1');
+    mockStandardSell.mockResolvedValue({ signature: 'sig1', solReceived: 0.5 });
 
     const tradeStore = makeTradeStore();
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -150,8 +155,8 @@ describe('SellLadder', () => {
   it('STANDARD times out, HIGH_FEE succeeds — returns HIGH_FEE step result', async () => {
     // STANDARD: never resolves (simulates timeout)
     mockStandardSell
-      .mockImplementationOnce(() => new Promise<string>(() => {}))  // STANDARD: hangs forever
-      .mockResolvedValueOnce('sig-high-fee');                        // HIGH_FEE: resolves
+      .mockImplementationOnce(() => new Promise<never>(() => {}))                                  // STANDARD: hangs forever
+      .mockResolvedValueOnce({ signature: 'sig-high-fee', solReceived: 0.5 });                    // HIGH_FEE: resolves
 
     const tradeStore = makeTradeStore();
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -168,10 +173,10 @@ describe('SellLadder', () => {
 
   it('all steps exhaust — returns failure and transitions SELLING→FAILED', async () => {
     // All steps never resolve (timeout-based advancement)
-    mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));
-    mockChunkedSell.mockImplementation(() => new Promise<number>(() => {}));
-    mockPumpPortalSell.mockImplementation(() => new Promise<string>(() => {}));
+    mockStandardSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockChunkedSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockPumpPortalSell.mockImplementation(() => new Promise<never>(() => {}));
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -198,8 +203,8 @@ describe('SellLadder', () => {
 
   it('JITO_BUNDLE step called third after STANDARD and HIGH_FEE fail', async () => {
     // STANDARD and HIGH_FEE time out; JITO succeeds
-    mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));
-    mockJitoSell.mockResolvedValue('sig-jito');
+    mockStandardSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockJitoSell.mockResolvedValue({ signature: 'sig-jito', solReceived: 0.5 });
 
     const tradeStore = makeTradeStore();
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -220,12 +225,12 @@ describe('SellLadder', () => {
     // PUMPPORTAL skips (no JupiterRouteError in lastError — timed out instead)
     // EMERGENCY succeeds
     mockStandardSell
-      .mockImplementationOnce(() => new Promise<string>(() => {}))  // STANDARD: hang
-      .mockImplementationOnce(() => new Promise<string>(() => {}))  // HIGH_FEE: hang
-      .mockResolvedValueOnce('sig-emergency');                       // EMERGENCY: succeed
+      .mockImplementationOnce(() => new Promise<never>(() => {}))                     // STANDARD: hang
+      .mockImplementationOnce(() => new Promise<never>(() => {}))                     // HIGH_FEE: hang
+      .mockResolvedValueOnce({ signature: 'sig-emergency', solReceived: 0.5 });       // EMERGENCY: succeed
 
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));  // JITO: hang
-    mockChunkedSell.mockResolvedValue(0);  // CHUNKED: 0 tranches
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));  // JITO: hang
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 0 });  // CHUNKED: 0 tranches
 
     const tradeStore = makeTradeStore();  // no source set — PUMPPORTAL will skip
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -242,10 +247,10 @@ describe('SellLadder', () => {
 
   it('CHUNKED returns 2 tranches — succeeds and transitions SELLING→COMPLETED without signature', async () => {
     mockStandardSell
-      .mockImplementationOnce(() => new Promise<string>(() => {}))  // STANDARD: hang
-      .mockImplementationOnce(() => new Promise<string>(() => {})); // HIGH_FEE: hang
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));  // JITO: hang
-    mockChunkedSell.mockResolvedValue(2);  // CHUNKED: 2 tranches confirmed
+      .mockImplementationOnce(() => new Promise<never>(() => {}))  // STANDARD: hang
+      .mockImplementationOnce(() => new Promise<never>(() => {})); // HIGH_FEE: hang
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));  // JITO: hang
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 2, solReceived: 1.0 });  // CHUNKED: 2 tranches confirmed
 
     const tradeStore = makeTradeStore();
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -267,11 +272,11 @@ describe('SellLadder', () => {
   it('EMERGENCY step uses emergencySlippageBps (4900 bps = 49%) — verify standardSell called with correct options', async () => {
     // All steps fail except EMERGENCY
     mockStandardSell
-      .mockImplementationOnce(() => new Promise<string>(() => {}))  // STANDARD: hang
-      .mockImplementationOnce(() => new Promise<string>(() => {}))  // HIGH_FEE: hang
-      .mockResolvedValueOnce('sig-emergency');                       // EMERGENCY: succeed
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));   // JITO: hang
-    mockChunkedSell.mockResolvedValue(0);  // CHUNKED: 0 tranches
+      .mockImplementationOnce(() => new Promise<never>(() => {}))                      // STANDARD: hang
+      .mockImplementationOnce(() => new Promise<never>(() => {}))                      // HIGH_FEE: hang
+      .mockResolvedValueOnce({ signature: 'sig-emergency', solReceived: 0.5 });        // EMERGENCY: succeed
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));   // JITO: hang
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 0 });  // CHUNKED: 0 tranches
 
     const tradeStore = makeTradeStore();  // no pumpportal source — PUMPPORTAL skips
     const config = makeTradingConfig();
@@ -307,9 +312,9 @@ describe('SellLadder', () => {
     // JITO throws JupiterRouteError
     mockJitoSell.mockRejectedValue(new JupiterRouteError('Jupiter quote HTTP 400: TOKEN_NOT_TRADABLE', 'TOKEN_NOT_TRADABLE'));
     // CHUNKED returns 0 (no route)
-    mockChunkedSell.mockResolvedValue(0);
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 0 });
     // PUMPPORTAL succeeds
-    mockPumpPortalSell.mockResolvedValue('pump-sell-sig');
+    mockPumpPortalSell.mockResolvedValue({ signature: 'pump-sell-sig', solReceived: 0.3 });
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -327,11 +332,11 @@ describe('SellLadder', () => {
 
     // All Jupiter steps fail with route error
     mockStandardSell
-      .mockRejectedValueOnce(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'))  // STANDARD
-      .mockRejectedValueOnce(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'))  // HIGH_FEE
-      .mockResolvedValueOnce('sig-emergency');                                          // EMERGENCY
+      .mockRejectedValueOnce(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'))                 // STANDARD
+      .mockRejectedValueOnce(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'))                 // HIGH_FEE
+      .mockResolvedValueOnce({ signature: 'sig-emergency', solReceived: 0.5 });                       // EMERGENCY
     mockJitoSell.mockRejectedValue(new JupiterRouteError('no route', 'TOKEN_NOT_TRADABLE'));
-    mockChunkedSell.mockResolvedValue(0);
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 0 });
 
     // source is raydium, not pumpportal — PUMPPORTAL step should skip
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'raydium' } });
@@ -348,11 +353,11 @@ describe('SellLadder', () => {
   it('PUMPPORTAL step skipped when last error is not a JupiterRouteError', async () => {
     // STANDARD fails with a generic error
     mockStandardSell
-      .mockRejectedValueOnce(new Error('Network timeout'))   // STANDARD
-      .mockRejectedValueOnce(new Error('Network timeout'))   // HIGH_FEE
-      .mockResolvedValueOnce('sig-emergency');               // EMERGENCY
+      .mockRejectedValueOnce(new Error('Network timeout'))                              // STANDARD
+      .mockRejectedValueOnce(new Error('Network timeout'))                              // HIGH_FEE
+      .mockResolvedValueOnce({ signature: 'sig-emergency', solReceived: 0.5 });        // EMERGENCY
     mockJitoSell.mockRejectedValue(new Error('Jito error'));
-    mockChunkedSell.mockResolvedValue(0);
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 0 });
 
     // pumpportal token, but last error is generic (not JupiterRouteError)
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
@@ -368,9 +373,9 @@ describe('SellLadder', () => {
 
   it('CHUNKED step passes tradeStore to chunkedSell', async () => {
     // All steps before CHUNKED hang, CHUNKED resolves with 1
-    mockStandardSell.mockImplementation(() => new Promise<string>(() => {}));
-    mockJitoSell.mockImplementation(() => new Promise<string>(() => {}));
-    mockChunkedSell.mockResolvedValue(1);
+    mockStandardSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 1, solReceived: 0.5 });
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal', tokenProgramId: 'SomeToken22ProgramId' } });
     const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
@@ -384,5 +389,97 @@ describe('SellLadder', () => {
     expect(mockChunkedSell).toHaveBeenCalledOnce();
     const chunkedArgs = mockChunkedSell.mock.calls[0];
     expect(chunkedArgs[4]).toBe(tradeStore);  // 5th arg = tradeStore
+  });
+
+  // ---------------------------------------------------------------------------
+  // New Plan 02 tests: solReceived threading, pnlSol formula, fallback
+  // ---------------------------------------------------------------------------
+
+  it('STANDARD succeeds -- passes sellPriceSol to tradeStore.transition()', async () => {
+    mockStandardSell.mockResolvedValue({ signature: 'sig1', solReceived: 0.42 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    // Verify sellPriceSol is passed in the SELLING->COMPLETED transition
+    expect(tradeStore.transition).toHaveBeenNthCalledWith(
+      2,
+      MINT,
+      'SELLING',
+      'COMPLETED',
+      expect.objectContaining({ sellSignature: 'sig1', sellPriceSol: 0.42 })
+    );
+  });
+
+  it('pnlSol is computed as sellPriceSol - amountSol (not buyPriceSol)', async () => {
+    mockStandardSell.mockResolvedValue({ signature: 'sig-pnl', solReceived: 0.15 });
+
+    const tradeStore = makeTradeStore({
+      getTradeByMintResult: {
+        sellPriceSol: 0.15,
+        amountSol: 0.10,
+        buyPriceSol: 0.000001,  // buyPriceSol is per-token unit -- NOT used for P&L
+      }
+    });
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    // Capture emitted events
+    const { botEventBus } = await import('../../dashboard/bot-event-bus.js');
+    const events: Array<{ type: string; pnlSol?: number }> = [];
+    const handler = (e: { type: string; pnlSol?: number }) => events.push(e);
+    botEventBus.on('event', handler);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    const confirmed = events.find(e => e.type === 'SELL_CONFIRMED');
+    // pnlSol = 0.15 - 0.10 = 0.05 (NOT 0.15 - 0.000001)
+    expect(confirmed?.pnlSol).toBeCloseTo(0.05, 6);
+
+    botEventBus.removeListener('event', handler);
+  });
+
+  it('CHUNKED succeeds -- passes accumulated solReceived as sellPriceSol', async () => {
+    mockStandardSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockChunkedSell.mockResolvedValue({ confirmedTranches: 2, solReceived: 0.88 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001);
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    expect(tradeStore.transition).toHaveBeenLastCalledWith(
+      MINT,
+      'SELLING',
+      'COMPLETED',
+      expect.objectContaining({ sellPriceSol: 0.88 })
+    );
+  });
+
+  it('uses fallbackSolReceived when solReceived is undefined', async () => {
+    mockStandardSell.mockResolvedValue({ signature: 'sig-fb', solReceived: undefined });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, 0.25);  // fallback = 0.25 SOL
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    expect(tradeStore.transition).toHaveBeenLastCalledWith(
+      MINT,
+      'SELLING',
+      'COMPLETED',
+      expect.objectContaining({ sellPriceSol: 0.25 })
+    );
   });
 });

@@ -205,7 +205,8 @@ describe('PositionManager', () => {
       await pm.tick();
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+      // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from the quote above)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4);
     });
 
     it('does NOT fire sell when position value is above stop-loss threshold', async () => {
@@ -236,7 +237,8 @@ describe('PositionManager', () => {
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // 33% of 1_000_000 = 330_000 (integer division: 1_000_000 * 33n / 100n = 330000n)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n);
+      // 3rd arg is lastKnownQuoteSol fallback (2.1 SOL from the quote above)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 2.1);
     });
 
     it('tier 1 fires — sells tier 1 tokens when ratio >= 5x and tier index is 1', async () => {
@@ -256,7 +258,8 @@ describe('PositionManager', () => {
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // tier 1: pct=33, so 1_000_000 * 33n / 100n = 330000n
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n);
+      // 3rd arg is lastKnownQuoteSol fallback (5.1 SOL from the quote above)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 5.1);
     });
 
     it('tiered TP exhausted (past last tier) — no tiered TP fires, SL still evaluates', async () => {
@@ -328,7 +331,8 @@ describe('PositionManager', () => {
       // sell should fire (TP wins over SL — TP returns early before SL check)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // TP sells 50% of 1_000_000 = 500_000
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 500_000n);
+      // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from the quote above)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 500_000n, 0.4);
     });
   });
 
@@ -352,7 +356,8 @@ describe('PositionManager', () => {
       await pm.tick();
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+      // 3rd arg is lastKnownQuoteSol fallback (1.5 SOL from the quote above)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 1.5);
     });
 
     it('does NOT fire trailing stop when trailingStopPct=0 (disabled)', async () => {
@@ -525,8 +530,9 @@ describe('PositionManager', () => {
       await expect(pm.tick()).resolves.not.toThrow();
 
       // Sell should be called with rounded amount
+      // 3rd arg is lastKnownQuoteSol fallback (0.3 SOL from the quote above)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_001n);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_001n, 0.3);
     });
   });
 
@@ -551,8 +557,9 @@ describe('PositionManager', () => {
       await pm.tick();
 
       // Only MINT_A's SL fires
+      // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from MINT_A's quote)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4);
     });
   });
 
@@ -634,8 +641,9 @@ describe('PositionManager', () => {
       await pm.tick();
 
       // Real trade should call fireSell
+      // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from the quote above)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4);
     });
   });
 
@@ -653,7 +661,8 @@ describe('PositionManager', () => {
       await pm.tick();
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+      // 3rd arg is lastKnownQuoteSol fallback (0.8 SOL from the quote above)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.8);
     });
 
     it('does NOT fire sell when position held shorter than maxHoldTimeMs', async () => {
@@ -716,8 +725,9 @@ describe('PositionManager', () => {
       await pm.tick();
 
       // SL fires (checked before max hold time), sell called exactly once
+      // 3rd arg is lastKnownQuoteSol fallback (0.3 SOL from the quote above)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.3);
     });
   });
 

@@ -190,7 +190,7 @@ describe('RecoveryManager', () => {
       const summary = await rm.run();
 
       expect(store.transition).toHaveBeenCalledWith(MINT_A, 'BUYING', 'FAILED', {
-        errorMessage: 'RECOVERY: balance=0 — buy did not land',
+        errorMessage: 'RECOVERY: balance=0 -- buy did not land',
       });
       expect(summary.buyingRecovered).toBe(0);
       expect(summary.buyingUnrecovered).toBe(1);
@@ -284,7 +284,7 @@ describe('RecoveryManager', () => {
       const summary = await rm.run();
 
       expect(store.transition).toHaveBeenCalledWith(SELLING_MINT_1, 'SELLING', 'COMPLETED', {
-        errorMessage: 'RECOVERY: sell may have landed — wallet empty',
+        errorMessage: 'RECOVERY: sell may have landed -- wallet empty',
       });
       expect(sellLadder.sell).not.toHaveBeenCalled();
       expect(summary.sellingCompleted).toBe(1);

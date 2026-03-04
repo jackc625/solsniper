@@ -24,6 +24,7 @@ import { getRuntimeConfig } from '../../config/trading.js';
 import type { TradeStore } from '../../persistence/trade-store.js';
 import { createModuleLogger } from '../../core/logger.js';
 import { botEventBus } from '../../dashboard/bot-event-bus.js';
+import { parseSolReceived } from '../../utils/parse-sol-received.js';
 
 const log = createModuleLogger('sell-ladder');
 
@@ -53,8 +54,11 @@ export class SellLadder {
    * Transitions trade from MONITORING → SELLING before starting.
    * Transitions to COMPLETED on success or FAILED if all steps exhaust.
    * EXE-09: Emergency step uses emergencySlippageBps (4900 = 49%).
+   *
+   * @param fallbackSolReceived - Last known Jupiter quote value from PositionManager.
+   *   Used as final fallback if on-chain parse fails and solReceived is still undefined.
    */
-  async sell(mint: string, tokenAmount: bigint): Promise<SellResult> {
+  async sell(mint: string, tokenAmount: bigint, fallbackSolReceived?: number): Promise<SellResult> {
     const { sell } = this.config.execution;
 
     // Emit SELL_TRIGGERED at entry -- dashboard sees all sell attempts regardless of outcome
@@ -134,6 +138,7 @@ export class SellLadder {
       log.info({ mint, step: step.name, timeoutMs: step.timeoutMs }, 'Sell ladder step starting');
 
       let signature: string | undefined;
+      let solReceived: number | undefined;
       let stepSucceeded = false;
 
       try {
@@ -144,15 +149,39 @@ export class SellLadder {
           ),
         ]);
 
-        // CHUNKED returns ChunkedSellOutcome; others return SellOutcome
-        if (step.name === 'CHUNKED') {
-          const chunkedOutcome = result as ChunkedSellOutcome;
-          stepSucceeded = chunkedOutcome.confirmedTranches > 0;
+        // Discriminate ChunkedSellOutcome (has confirmedTranches) from SellOutcome (has signature)
+        if ('confirmedTranches' in result) {
+          const chunked = result as ChunkedSellOutcome;
+          stepSucceeded = chunked.confirmedTranches > 0;
           signature = undefined;  // No single signature for chunked sells
+          solReceived = chunked.solReceived;
         } else {
           const outcome = result as SellOutcome;
           signature = outcome.signature;
+          solReceived = outcome.solReceived;
           stepSucceeded = true;
+        }
+
+        // EMERGENCY step override: per locked decision, EMERGENCY (49% slippage) uses
+        // on-chain transaction parse instead of Jupiter quote outAmount because the quote
+        // is unreliable at extreme slippage levels.
+        if (stepSucceeded && step.name === 'EMERGENCY' && signature) {
+          const onChainSol = await parseSolReceived(signature, this.wallet.publicKey, this.connections[0]);
+          if (onChainSol != null) {
+            log.info({ mint, quoteEstimate: solReceived, onChainActual: onChainSol }, 'EMERGENCY: using on-chain parse instead of quote');
+            solReceived = onChainSol;
+          } else {
+            log.warn({ mint, quoteEstimate: solReceived }, 'EMERGENCY: on-chain parse failed, using quote estimate as fallback');
+            // Keep solReceived from the quote as last resort
+          }
+        }
+
+        // Fallback: if solReceived is still undefined after all attempts,
+        // use PositionManager's last known quote value (per locked decision:
+        // "Fall back to last known PositionManager quote value rather than storing NULL")
+        if (stepSucceeded && solReceived == null && fallbackSolReceived != null) {
+          log.warn({ mint, fallbackSolReceived }, 'solReceived undefined -- falling back to last known PositionManager quote');
+          solReceived = fallbackSolReceived;
         }
       } catch (err) {
         lastError = err;  // Track for PUMPPORTAL trigger logic
@@ -161,15 +190,39 @@ export class SellLadder {
       }
 
       if (stepSucceeded) {
+        // Detect partial sell: if trade already has accumulated sell_price_sol from prior tiers
+        const priorTrade = this.tradeStore.getTradeByMint(mint);
+        const hasPriorSellPrice = priorTrade?.sellPriceSol != null && priorTrade.sellPriceSol > 0;
+
+        if (hasPriorSellPrice && solReceived != null) {
+          // This is a subsequent tier in a tiered TP sequence -- accumulate and emit SELL_PARTIAL
+          this.tradeStore.addSellPrice(mint, solReceived);
+          const runningTotal = (priorTrade.sellPriceSol ?? 0) + solReceived;
+          botEventBus.emit('event', {
+            type: 'SELL_PARTIAL',
+            mint,
+            ts: Date.now(),
+            detail: `${step.name}: +${solReceived.toFixed(6)} SOL (total: ${runningTotal.toFixed(6)} SOL)`,
+            isDryRun: getRuntimeConfig().dryRun,
+            pnlSol: solReceived,
+          });
+          log.info({ mint, step: step.name, tierSolReceived: solReceived, runningTotal }, 'Partial sell confirmed -- SELL_PARTIAL emitted');
+        }
+
+        // Transition SELLING -> COMPLETED with sellPriceSol
         this.tradeStore.transition(mint, 'SELLING', 'COMPLETED', {
           sellSignature: signature,
+          sellPriceSol: solReceived,
         });
+
         const completedTrade = this.tradeStore.getTradeByMint(mint);
-        const pnlSol = (completedTrade?.sellPriceSol != null && completedTrade?.buyPriceSol != null)
-          ? completedTrade.sellPriceSol - completedTrade.buyPriceSol
+        // FIX: pnlSol = sellPriceSol - amountSol (total out minus total in)
+        // Was incorrectly: sellPriceSol - buyPriceSol (per-token unit delta)
+        const pnlSol = (completedTrade?.sellPriceSol != null && completedTrade?.amountSol != null)
+          ? completedTrade.sellPriceSol - completedTrade.amountSol
           : undefined;
         botEventBus.emit('event', { type: 'SELL_CONFIRMED', mint, ts: Date.now(), detail: step.name, isDryRun: getRuntimeConfig().dryRun, pnlSol });
-        log.info({ mint, step: step.name, signature }, 'Sell confirmed -- trade COMPLETED');
+        log.info({ mint, step: step.name, signature, solReceived, pnlSol }, 'Sell confirmed -- trade COMPLETED');
         return { success: true, step: step.name, signature };
       }
     }
@@ -179,8 +232,9 @@ export class SellLadder {
       errorMessage: 'SELL_FAILED: all ladder steps exhausted',
     });
     const failedTrade = this.tradeStore.getTradeByMint(mint);
-    const pnlSol = (failedTrade?.sellPriceSol != null && failedTrade?.buyPriceSol != null)
-      ? failedTrade.sellPriceSol - failedTrade.buyPriceSol
+    // FIX: pnlSol uses amountSol (not buyPriceSol)
+    const pnlSol = (failedTrade?.sellPriceSol != null && failedTrade?.amountSol != null)
+      ? failedTrade.sellPriceSol - failedTrade.amountSol
       : undefined;
     botEventBus.emit('event', { type: 'SELL_FAILED', mint, ts: Date.now(), detail: 'all ladder steps exhausted', isDryRun: getRuntimeConfig().dryRun, pnlSol });
     log.error({ mint }, 'SELL_FAILED: all escalation steps exhausted');
