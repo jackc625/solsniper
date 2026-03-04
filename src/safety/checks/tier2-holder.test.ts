@@ -26,6 +26,7 @@ const USER_WALLET_4 = 'Fkc4FN7PPhyGsAcHPW3dBBsgxEmdSgZqdnBFxoMkjmQ';
 const DEFAULT_CONFIG = {
   top1SoftBlockThreshold: 0.25,
   top10SoftBlockThreshold: 0.50,
+  minUserHolders: 2,
 };
 
 /**
@@ -320,8 +321,9 @@ describe('checkHolderConcentration', () => {
     expect(result.source).toBe('holder_concentration');
   });
 
-  it('zero user holders with source=pumpportal returns pass=true, score=50', async () => {
-    // All holders are bonding curve PDA (excluded) — no user holders remain
+  it('zero user holders with source=pumpportal and minUserHolders=2 returns pass=false, score=0', async () => {
+    // All holders are bonding curve PDA (excluded) — no user holders remain.
+    // With minUserHolders=2 (default), tokens below threshold are rejected.
     const totalSupply = '1000000000';
     const connection = makeMockConnection({
       largestAccounts: [
@@ -334,6 +336,71 @@ describe('checkHolderConcentration', () => {
     });
 
     const result = await checkHolderConcentration(MOCK_MINT, connection, DEFAULT_CONFIG, undefined, 'pumpportal');
+
+    expect(result.pass).toBe(false);
+    expect(result.score).toBe(0);
+    expect(result.source).toBe('holder_concentration');
+    expect(result.detail).toContain('below minimum holders');
+  });
+
+  it('pumpportal with 1 user holder and minUserHolders=2 returns pass=false', async () => {
+    // One real user holder, but threshold requires 2 — should reject
+    const totalSupply = '1000000000';
+    const connection = makeMockConnection({
+      largestAccounts: [
+        { address: USER_WALLET_1, amount: '100000000' }, // 10% — one user holder
+      ],
+      totalSupply,
+      accountOwners: {
+        [USER_WALLET_1]: USER_WALLET_1,
+      },
+    });
+
+    const result = await checkHolderConcentration(MOCK_MINT, connection, DEFAULT_CONFIG, undefined, 'pumpportal');
+
+    expect(result.pass).toBe(false);
+    expect(result.score).toBe(0);
+    expect(result.source).toBe('holder_concentration');
+    expect(result.detail).toContain('below minimum holders: 1 < 2 required');
+  });
+
+  it('pumpportal with 2 user holders and minUserHolders=2 proceeds to concentration check', async () => {
+    // Exactly at threshold — proceeds to normal concentration check
+    // Two holders at 10% each: top1=10% < 25%, top10=20% < 50% — passes
+    const totalSupply = '1000000000';
+    const connection = makeMockConnection({
+      largestAccounts: [
+        { address: USER_WALLET_1, amount: '100000000' }, // 10%
+        { address: USER_WALLET_2, amount: '100000000' }, // 10%
+      ],
+      totalSupply,
+      accountOwners: {
+        [USER_WALLET_1]: USER_WALLET_1,
+        [USER_WALLET_2]: USER_WALLET_2,
+      },
+    });
+
+    const result = await checkHolderConcentration(MOCK_MINT, connection, DEFAULT_CONFIG, undefined, 'pumpportal');
+
+    expect(result.pass).toBe(true);
+    expect(result.source).toBe('holder_concentration');
+  });
+
+  it('pumpportal with 0 user holders and minUserHolders=0 returns pass=true, score=50', async () => {
+    // When operator sets minUserHolders=0, original pass-through behavior is preserved
+    const totalSupply = '1000000000';
+    const connection = makeMockConnection({
+      largestAccounts: [
+        { address: BONDING_CURVE_ADDR, amount: '1000000000' }, // 100% — bonding curve, excluded
+      ],
+      totalSupply,
+      accountOwners: {
+        [BONDING_CURVE_ADDR]: BONDING_CURVE_ADDR,
+      },
+    });
+
+    const configWithZeroThreshold = { ...DEFAULT_CONFIG, minUserHolders: 0 };
+    const result = await checkHolderConcentration(MOCK_MINT, connection, configWithZeroThreshold, undefined, 'pumpportal');
 
     expect(result.pass).toBe(true);
     expect(result.score).toBe(50);
