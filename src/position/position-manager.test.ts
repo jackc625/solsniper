@@ -206,7 +206,8 @@ describe('PositionManager', () => {
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from the quote above)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4);
+      // 4th arg is partial=false (stop-loss is a full sell)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4, false);
     });
 
     it('does NOT fire sell when position value is above stop-loss threshold', async () => {
@@ -238,7 +239,8 @@ describe('PositionManager', () => {
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // 33% of 1_000_000 = 330_000 (integer division: 1_000_000 * 33n / 100n = 330000n)
       // 3rd arg is lastKnownQuoteSol fallback (2.1 SOL from the quote above)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 2.1);
+      // 4th arg is partial=true (tier 0 of 3 -- more tiers remain)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 2.1, true);
     });
 
     it('tier 1 fires — sells tier 1 tokens when ratio >= 5x and tier index is 1', async () => {
@@ -259,7 +261,8 @@ describe('PositionManager', () => {
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // tier 1: pct=33, so 1_000_000 * 33n / 100n = 330000n
       // 3rd arg is lastKnownQuoteSol fallback (5.1 SOL from the quote above)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 5.1);
+      // 4th arg is partial=true (tier 1 of 3 -- tier 2 remains)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 5.1, true);
     });
 
     it('tiered TP exhausted (past last tier) — no tiered TP fires, SL still evaluates', async () => {
@@ -332,7 +335,8 @@ describe('PositionManager', () => {
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // TP sells 50% of 1_000_000 = 500_000
       // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from the quote above)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 500_000n, 0.4);
+      // 4th arg is partial=false (only 1 tier configured -- this is the final tier)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 500_000n, 0.4, false);
     });
   });
 
@@ -357,7 +361,8 @@ describe('PositionManager', () => {
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // 3rd arg is lastKnownQuoteSol fallback (1.5 SOL from the quote above)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 1.5);
+      // 4th arg is partial=false (trailing stop is a full sell)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 1.5, false);
     });
 
     it('does NOT fire trailing stop when trailingStopPct=0 (disabled)', async () => {
@@ -531,8 +536,9 @@ describe('PositionManager', () => {
 
       // Sell should be called with rounded amount
       // 3rd arg is lastKnownQuoteSol fallback (0.3 SOL from the quote above)
+      // 4th arg is partial=false (stop-loss is a full sell)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_001n, 0.3);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_001n, 0.3, false);
     });
   });
 
@@ -558,8 +564,9 @@ describe('PositionManager', () => {
 
       // Only MINT_A's SL fires
       // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from MINT_A's quote)
+      // 4th arg is partial=false (stop-loss is a full sell)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4, false);
     });
   });
 
@@ -642,8 +649,9 @@ describe('PositionManager', () => {
 
       // Real trade should call fireSell
       // 3rd arg is lastKnownQuoteSol fallback (0.4 SOL from the quote above)
+      // 4th arg is partial=false (stop-loss is a full sell)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4, false);
     });
   });
 
@@ -662,7 +670,8 @@ describe('PositionManager', () => {
 
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       // 3rd arg is lastKnownQuoteSol fallback (0.8 SOL from the quote above)
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.8);
+      // 4th arg is partial=false (max hold time is a full sell)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.8, false);
     });
 
     it('does NOT fire sell when position held shorter than maxHoldTimeMs', async () => {
@@ -726,8 +735,9 @@ describe('PositionManager', () => {
 
       // SL fires (checked before max hold time), sell called exactly once
       // 3rd arg is lastKnownQuoteSol fallback (0.3 SOL from the quote above)
+      // 4th arg is partial=false (stop-loss is a full sell)
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
-      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.3);
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.3, false);
     });
   });
 
