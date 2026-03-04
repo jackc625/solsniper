@@ -1,5 +1,5 @@
 /**
- * sell-ladder.ts — Orchestrates the 6-step sell escalation ladder (EXE-06).
+ * sell-ladder.ts -- Orchestrates the 6-step sell escalation ladder (EXE-06).
  *
  * Step order: STANDARD → HIGH_FEE → JITO_BUNDLE → CHUNKED → PUMPPORTAL → EMERGENCY
  * Advancement: time-based only (timeout expiry per step, not failure count)
@@ -18,7 +18,7 @@ import { jitoSell } from './jito-seller.js';
 import { chunkedSell } from './chunked-seller.js';
 import { pumpPortalSell } from './pump-portal-seller.js';
 import { JupiterRouteError } from '../jupiter-client.js';
-import type { SellResult, SellStep } from '../../types/index.js';
+import type { SellResult, SellStep, SellOutcome, ChunkedSellOutcome } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { getRuntimeConfig } from '../../config/trading.js';
 import type { TradeStore } from '../../persistence/trade-store.js';
@@ -57,7 +57,7 @@ export class SellLadder {
   async sell(mint: string, tokenAmount: bigint): Promise<SellResult> {
     const { sell } = this.config.execution;
 
-    // Emit SELL_TRIGGERED at entry — dashboard sees all sell attempts regardless of outcome
+    // Emit SELL_TRIGGERED at entry -- dashboard sees all sell attempts regardless of outcome
     botEventBus.emit('event', { type: 'SELL_TRIGGERED', mint, ts: Date.now(), detail: `${tokenAmount} tokens`, isDryRun: getRuntimeConfig().dryRun });
 
     // Transition to SELLING before starting the ladder
@@ -69,7 +69,7 @@ export class SellLadder {
     const steps: Array<{
       name: SellStep;
       timeoutMs: number;
-      fn: () => Promise<string | number>;
+      fn: () => Promise<SellOutcome | ChunkedSellOutcome>;
     }> = [
       {
         name: 'STANDARD',
@@ -106,14 +106,14 @@ export class SellLadder {
           // Only fire for pumpportal-sourced tokens with Jupiter route errors
           const trade = this.tradeStore.getTradeByMint(mint);
           if (trade?.source !== 'pumpportal') {
-            throw new Error('PumpPortal sell: not a pumpportal token — skipping');
+            throw new Error('PumpPortal sell: not a pumpportal token -- skipping');
           }
           if (
             !(lastError instanceof JupiterRouteError) ||
             !lastError.code ||
             !PUMPPORTAL_TRIGGER_CODES.has(lastError.code)
           ) {
-            throw new Error('PumpPortal sell: last error not a route failure — skipping');
+            throw new Error('PumpPortal sell: last error not a route failure -- skipping');
           }
           return pumpPortalSell(mint, tokenAmount, this.config, this.wallet, this.connections);
         },
@@ -144,19 +144,20 @@ export class SellLadder {
           ),
         ]);
 
-        // CHUNKED returns number (count of tranches confirmed); others return string (signature)
+        // CHUNKED returns ChunkedSellOutcome; others return SellOutcome
         if (step.name === 'CHUNKED') {
-          const confirmedTranches = result as number;
-          stepSucceeded = confirmedTranches > 0;
+          const chunkedOutcome = result as ChunkedSellOutcome;
+          stepSucceeded = chunkedOutcome.confirmedTranches > 0;
           signature = undefined;  // No single signature for chunked sells
         } else {
-          signature = result as string;
+          const outcome = result as SellOutcome;
+          signature = outcome.signature;
           stepSucceeded = true;
         }
       } catch (err) {
         lastError = err;  // Track for PUMPPORTAL trigger logic
         const message = err instanceof Error ? err.message : String(err);
-        log.warn({ mint, step: step.name, message }, 'Sell step failed or timed out — advancing');
+        log.warn({ mint, step: step.name, message }, 'Sell step failed or timed out -- advancing');
       }
 
       if (stepSucceeded) {
@@ -168,12 +169,12 @@ export class SellLadder {
           ? completedTrade.sellPriceSol - completedTrade.buyPriceSol
           : undefined;
         botEventBus.emit('event', { type: 'SELL_CONFIRMED', mint, ts: Date.now(), detail: step.name, isDryRun: getRuntimeConfig().dryRun, pnlSol });
-        log.info({ mint, step: step.name, signature }, 'Sell confirmed — trade COMPLETED');
+        log.info({ mint, step: step.name, signature }, 'Sell confirmed -- trade COMPLETED');
         return { success: true, step: step.name, signature };
       }
     }
 
-    // All steps exhausted — EXE-06 terminal failure
+    // All steps exhausted -- EXE-06 terminal failure
     this.tradeStore.transition(mint, 'SELLING', 'FAILED', {
       errorMessage: 'SELL_FAILED: all ladder steps exhausted',
     });

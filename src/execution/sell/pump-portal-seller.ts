@@ -10,6 +10,8 @@ import { VersionedTransaction } from '@solana/web3.js';
 import type { Connection, Keypair } from '@solana/web3.js';
 import { broadcastAndConfirm } from '../broadcaster.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { SellOutcome } from '../../types/index.js';
+import { parseSolReceived } from '../../utils/parse-sol-received.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('pump-portal-seller');
@@ -23,7 +25,7 @@ const PUMPPORTAL_API = 'https://pumpportal.fun/api/trade-local';
  * @param config       - Trading config (slippage from sell.standardSlippageBps)
  * @param wallet       - Signer keypair
  * @param connections  - RPC connections for broadcast
- * @returns Transaction signature string on success
+ * @returns SellOutcome { signature, solReceived } on success
  * @throws On HTTP error or broadcast failure
  */
 export async function pumpPortalSell(
@@ -32,7 +34,7 @@ export async function pumpPortalSell(
   config: TradingConfig,
   wallet: Keypair,
   connections: Connection[]
-): Promise<string> {
+): Promise<SellOutcome> {
   const { sell } = config.execution;
   // CRITICAL: PumpPortal slippage is PERCENT, not basis points (bps/100 = percent)
   const slippagePct = sell.standardSlippageBps / 100;
@@ -63,6 +65,9 @@ export async function pumpPortalSell(
   const tx = VersionedTransaction.deserialize(txBytes);
   const result = await broadcastAndConfirm(tx, wallet, connections);
 
-  log.info({ mint, signature: result.signature }, 'PumpPortal sell confirmed');
-  return result.signature;
+  // PumpPortal has no Jupiter quote — parse actual SOL received from on-chain tx
+  const solReceived = await parseSolReceived(result.signature, wallet.publicKey, connections[0]);
+
+  log.info({ mint, signature: result.signature, solReceived }, 'PumpPortal sell confirmed');
+  return { signature: result.signature, solReceived };
 }

@@ -15,6 +15,7 @@ import type { Connection, Keypair } from '@solana/web3.js';
 import { broadcastAndConfirm } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { SellOutcome } from '../../types/index.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('standard-seller');
@@ -37,7 +38,7 @@ export async function standardSell(
   config: TradingConfig,
   wallet: Keypair,
   connections: Connection[]
-): Promise<string> {  // returns signature on success, throws on failure
+): Promise<SellOutcome> {  // returns SellOutcome { signature, solReceived } on success, throws on failure
   const { slippageBps, feeMultiplier } = options;
   const maxPriorityFee = Math.floor(
     config.execution.buy.priorityFeeBaseLamports * feeMultiplier
@@ -54,6 +55,8 @@ export async function standardSell(
     maxAccounts: '64',
   });
   const quoteResponse = await jupiterClient.quote(params);
+  // Extract solReceived from quote outAmount — same pattern as PositionManager.getPositionValueSol()
+  const solReceived = Number((quoteResponse as { outAmount: string }).outAmount) / 1e9;
 
   const swapResponse = await jupiterClient.swap({
     userPublicKey: wallet.publicKey.toBase58(),
@@ -72,5 +75,5 @@ export async function standardSell(
   const txBytes = Buffer.from(swapResponse.swapTransaction, 'base64');
   const tx = VersionedTransaction.deserialize(txBytes);
   const result = await broadcastAndConfirm(tx, wallet, connections);
-  return result.signature;
+  return { signature: result.signature, solReceived };
 }

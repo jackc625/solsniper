@@ -113,3 +113,15 @@ export interface SellResult {
   signature?: string;
   errorMessage?: string;
 }
+
+/** Return type for Jupiter-based sellers (standard, high-fee, jito, emergency, pumpportal). */
+export interface SellOutcome {
+  signature: string;
+  solReceived?: number;  // SOL received from sell (undefined only on true parse failure)
+}
+
+/** Return type for chunked seller (multiple tranches). */
+export interface ChunkedSellOutcome {
+  confirmedTranches: number;
+  solReceived?: number;  // sum of outAmounts across confirmed tranches
+}

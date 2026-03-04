@@ -3,6 +3,17 @@ import type { Keypair, Connection } from '@solana/web3.js';
 import type { TradingConfig } from '../../config/trading.js';
 
 // ---------------------------------------------------------------------------
+// Mock env.js first — logger.ts imports env for LOG_LEVEL/NODE_ENV
+// ---------------------------------------------------------------------------
+vi.mock('../../config/env.js', () => ({
+  env: {
+    SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
+  },
+}));
+
+// ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
 const { mockBroadcastAndConfirm } = vi.hoisted(() => {
@@ -44,7 +55,8 @@ const mockWallet = {
   },
 } as unknown as Keypair;
 
-const mockConnections = [{} as unknown as Connection];
+// parseSolReceived calls connection.getTransaction — mock it to return null (no on-chain parse in unit tests)
+const mockConnections = [{ getTransaction: vi.fn().mockResolvedValue(null) } as unknown as Connection];
 
 function makeTradingConfig(): TradingConfig {
   return {
@@ -124,7 +136,8 @@ describe('pumpPortalSell', () => {
 
     const result = await pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections);
 
-    expect(result).toBe('pump-sell-sig');
+    // getTransaction returns null in unit test → solReceived is undefined
+    expect(result).toEqual({ signature: 'pump-sell-sig', solReceived: undefined });
     expect(mockBroadcastAndConfirm).toHaveBeenCalledOnce();
   });
 

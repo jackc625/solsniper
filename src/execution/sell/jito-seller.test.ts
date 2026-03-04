@@ -142,8 +142,9 @@ describe('jitoSell dry-run gate', () => {
       mockConnections
     );
 
-    // Signature should start with DRY_RUN_JITO_
-    expect(result).toMatch(/^DRY_RUN_JITO_/);
+    // Result is SellOutcome — signature should start with DRY_RUN_JITO_, solReceived is undefined in dry-run
+    expect(result.signature).toMatch(/^DRY_RUN_JITO_/);
+    expect(result.solReceived).toBeUndefined();
     // Jupiter APIs must NOT have been called
     expect(mockJupiterQuote).not.toHaveBeenCalled();
     expect(mockJupiterSwap).not.toHaveBeenCalled();

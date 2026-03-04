@@ -18,6 +18,7 @@ import { broadcastAndConfirm } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { getRuntimeConfig } from '../../config/trading.js';
+import type { SellOutcome } from '../../types/index.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('jito-seller');
@@ -48,7 +49,7 @@ export async function jitoSell(
   config: TradingConfig,
   wallet: Keypair,
   connections: Connection[]
-): Promise<string> {
+): Promise<SellOutcome> {
   const { sell } = config.execution;
   const slippageBps = sell.standardSlippageBps;  // Jito uses standard slippage
   const maxPriorityFee = Math.floor(config.execution.buy.priorityFeeBaseLamports * sell.highFeeMultiplier);
@@ -62,7 +63,7 @@ export async function jitoSell(
       { dryRun: true, mint, tokenAmount: tokenAmount.toString(), signature },
       '[DRY RUN] jitoSell intercepted — bundle NOT submitted'
     );
-    return signature;
+    return { signature, solReceived: undefined };
   }
 
   // Step 1: Get Jupiter quote + swap transaction
@@ -74,6 +75,8 @@ export async function jitoSell(
     maxAccounts: '64',
   });
   const quoteResponse = await jupiterClient.quote(params);
+  // Extract solReceived from quote outAmount — same pattern as PositionManager.getPositionValueSol()
+  const solReceived = Number((quoteResponse as { outAmount: string }).outAmount) / 1e9;
 
   const swapResponse = await jupiterClient.swap({
     userPublicKey: wallet.publicKey.toBase58(),
@@ -143,7 +146,7 @@ export async function jitoSell(
   // Since we signed the tx ourselves, the signature is the first element of tx.signatures
   const swapSignature = bs58.encode(swapTx.signatures[0]);
   log.info({ bundleId, swapSignature }, 'Jito bundle landed');
-  return swapSignature;
+  return { signature: swapSignature, solReceived };
 }
 
 async function pollBundleStatus(bundleId: string): Promise<'Landed' | 'Failed' | 'Pending'> {
