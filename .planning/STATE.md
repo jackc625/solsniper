@@ -214,11 +214,12 @@ None.
 |---|-------------|------|--------|-----------|
 | 1 | document config.json values with inline comments | 2026-02-27 | 94a3749 | [1-document-config-json-values-with-inline-](./quick/1-document-config-json-values-with-inline-/) |
 | 2 | move maxConcurrentPositions check before safety pipeline | 2026-03-03 | fe068fb | [2-move-maxconcurrentpositions-check-before](./quick/2-move-maxconcurrentpositions-check-before/) |
+| 3 | add configurable minimum holder threshold | 2026-03-04 | 235224b | [3-add-configurable-minimum-holder-threshol](./quick/3-add-configurable-minimum-holder-threshol/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-03 - Quick task 2 complete (maxConcurrentPositions guard before safety pipeline)
+Last activity: 2026-03-04 - Quick task 3 complete (configurable minUserHolders threshold for pumpportal tokens)
 
-Last session: 2026-03-03T21:57:40.816Z
-Stopped at: Completed 13-ui-rework-02-PLAN.md
+Last session: 2026-03-04T01:12:00Z
+Stopped at: Completed quick task 3 (minUserHolders threshold)
 Resume file: None
