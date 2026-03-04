@@ -231,7 +231,7 @@ Plans:
 **Goal:** Fix the two sell price bugs that break all P&L tracking: (1) sellers discard SOL received amounts so sellPriceSol is never stored, and (2) dashboard SQL computes P&L using the wrong formula. After this phase, every completed sell stores total SOL received and the dashboard shows accurate per-trade and aggregate P&L.
 **Requirements**: None (bugfix phase — no new requirements)
 **Depends on:** Phase 13
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 14-01-PLAN.md — SellOutcome/ChunkedSellOutcome types, update all 4 sellers to return solReceived (Jupiter quote outAmount or on-chain parse)
