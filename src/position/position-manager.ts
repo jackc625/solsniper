@@ -1,5 +1,5 @@
 /**
- * position-manager.ts — Autonomous position exit management (Phase 7).
+ * position-manager.ts -- Autonomous position exit management (Phase 7).
  *
  * Polls Jupiter quotes for all MONITORING positions at a configured interval.
  * Fires exit triggers based on:
@@ -43,7 +43,7 @@ export class PositionManager {
   /** mint → next tier index (0 = first tier, tieredTp.length = all tiers exhausted) */
   private readonly tierIndices = new Map<string, number>();
 
-  /** mints currently being sold — prevents double-sell on same position */
+  /** mints currently being sold -- prevents double-sell on same position */
   private readonly sellsInFlight = new Set<string>();
 
   constructor(
@@ -61,7 +61,7 @@ export class PositionManager {
    */
   start(): void {
     if (this.running) {
-      log.warn('PositionManager.start() called while already running — ignoring');
+      log.warn('PositionManager.start() called while already running -- ignoring');
       return;
     }
 
@@ -85,6 +85,7 @@ export class PositionManager {
         stopLossPct: this.config.positionManagement.stopLossPct,
         trailingStopPct: this.config.positionManagement.trailingStopPct,
         tieredTpTiers: this.config.positionManagement.tieredTp.length,
+        maxHoldTimeMs: this.config.positionManagement.maxHoldTimeMs,
       },
       'PositionManager started',
     );
@@ -108,7 +109,7 @@ export class PositionManager {
    * Schedules the next poll tick using recursive setTimeout.
    * When JupiterClient is in cooldown, stretches the interval by cooldownRemainingMs
    * so monitoring yields rate budget to trade-critical buy/sell calls.
-   * Critical: NOT setInterval — each tick waits for the previous to complete.
+   * Critical: NOT setInterval -- each tick waits for the previous to complete.
    */
   private scheduleTick(): void {
     const cooldownMs = this.jupiterClient.cooldownRemainingMs();
@@ -162,10 +163,18 @@ export class PositionManager {
     // 2. PumpPortal backfill: amountTokens may be undefined for PumpPortal trades
     let amountTokens = trade.amountTokens;
     if (amountTokens == null) {
-      log.warn({ mint }, 'evaluatePosition: amountTokens missing — backfilling via on-chain query');
+      // Dry-run trades have no on-chain tokens -- complete immediately instead of looping
+      if (trade.dryRun) {
+        log.info({ mint }, 'evaluatePosition: dry-run trade with no amountTokens -- completing');
+        this.tradeStore.transition(mint, 'MONITORING', 'COMPLETED', {
+          errorMessage: 'DRY_RUN_COMPLETED: no amountTokens and no on-chain balance for dry-run',
+        });
+        return;
+      }
+      log.warn({ mint }, 'evaluatePosition: amountTokens missing -- backfilling via on-chain query');
       const balance = await this.getWalletTokenBalance(mint);
       if (balance === 0n) {
-        log.warn({ mint }, 'evaluatePosition: on-chain balance is 0 — cannot monitor, skipping');
+        log.warn({ mint }, 'evaluatePosition: on-chain balance is 0 -- cannot monitor, skipping');
         return;
       }
       this.tradeStore.updateMonitoringAmount(mint, Number(balance));
@@ -177,13 +186,13 @@ export class PositionManager {
     const currentValueSol = await this.getPositionValueSol(mint, tokenAmountRaw);
 
     if (currentValueSol === null) {
-      log.warn({ mint }, 'evaluatePosition: Jupiter quote failed — skipping tick');
+      log.warn({ mint }, 'evaluatePosition: Jupiter quote failed -- skipping tick');
       return;
     }
 
     // Guard: no entry price to compare against
     if (trade.amountSol == null) {
-      log.debug({ mint }, 'evaluatePosition: amountSol missing — cannot evaluate exit triggers');
+      log.debug({ mint }, 'evaluatePosition: amountSol missing -- cannot evaluate exit triggers');
       return;
     }
 
@@ -205,7 +214,7 @@ export class PositionManager {
       'evaluatePosition: tick',
     );
 
-    // 4. Exit evaluation — TP takes priority over SL per locked decision
+    // 4. Exit evaluation -- TP takes priority over SL per locked decision
 
     const { tieredTp, stopLossPct, trailingStopPct } = this.config.positionManagement;
 
@@ -334,7 +343,7 @@ export class PositionManager {
    * Returns null on any failure (caller skips the tick).
    *
    * Uses the centralized JupiterClient for authenticated, rate-limit-aware requests.
-   * Response: { outAmount: string } — raw lamports, divide by 1e9 for SOL
+   * Response: { outAmount: string } -- raw lamports, divide by 1e9 for SOL
    */
   private async getPositionValueSol(mint: string, tokenAmountRaw: bigint): Promise<number | null> {
     const params = new URLSearchParams({

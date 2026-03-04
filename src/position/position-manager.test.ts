@@ -139,6 +139,7 @@ function makeConfig(
         { at: 10, pct: 34 },
       ],
       trailingStopPct: 0,
+      maxHoldTimeMs: 120000,
       ...overrides,
     },
   };
@@ -635,6 +636,19 @@ describe('PositionManager', () => {
       // Real trade should call fireSell
       expect(mockSellLadder.sell).toHaveBeenCalledOnce();
       expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('maxHoldTimeMs config', () => {
+    it('makeConfig() includes maxHoldTimeMs with default 120000', () => {
+      const config = makeConfig();
+      expect(config.positionManagement.maxHoldTimeMs).toBe(120000);
+    });
+
+    it('makeConfig() allows overriding maxHoldTimeMs to 0 (disabled)', () => {
+      const config = makeConfig({ maxHoldTimeMs: 0 });
+      expect(config.positionManagement.maxHoldTimeMs).toBe(0);
     });
   });
 

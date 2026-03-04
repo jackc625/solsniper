@@ -77,6 +77,7 @@ const PositionManagementConfigSchema = z.object({
     { at: 10, pct: 34 },
   ]),
   trailingStopPct: z.number().min(0).max(100).default(0), // 0 = disabled
+  maxHoldTimeMs: z.number().int().min(0).default(120000), // 0 = disabled, default 2 min
 });
 
 export type PositionManagementConfig = z.infer<typeof PositionManagementConfigSchema>;
@@ -121,7 +122,7 @@ if (!configResult.success) {
 
 export const tradingConfig: TradingConfig = configResult.data;
 
-// Runtime mutable shadow — dashboard can patch at runtime.
+// Runtime mutable shadow -- dashboard can patch at runtime.
 // Existing callers continue using tradingConfig for the static initial value.
 // New dashboard-aware code calls getRuntimeConfig() to get live values.
 let _runtimeConfig: TradingConfig = configResult.data;

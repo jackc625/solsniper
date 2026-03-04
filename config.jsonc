@@ -15,7 +15,7 @@
   "takeProfitPct": 300,
 
   // Minimum composite safety score (0-100) a token must pass before buying. Higher = safer, fewer buys.
-  "minSafetyScore": 60,
+  "minSafetyScore": 80,
 
   // Enable dry-run mode: runs full pipeline against mainnet but intercepts before signing/broadcasting.
   // Dry-run trades are tracked with shadow P&L but no real SOL is spent.
@@ -28,7 +28,7 @@
     // Starting reconnect delay (ms) after a WebSocket disconnects. Doubles on each retry.
     "wsBaseBackoffMs": 3000,
 
-    // Maximum reconnect delay (ms) — caps the exponential backoff ceiling.
+    // Maximum reconnect delay (ms) -- caps the exponential backoff ceiling.
     "wsMaxBackoffMs": 60000,
 
     // Number of reconnects within wsExcessiveReconnectWindowMs that triggers an alert.
@@ -56,13 +56,13 @@
 
     "weights": {
       // Score weight (out of 100) given to the rug-check result in the composite safety score.
-      "rugCheck": 40,
+      "rugCheck": 50,
 
       // Score weight (out of 100) given to holder concentration analysis.
-      "holder": 30,
+      "holder": 25,
 
       // Score weight (out of 100) given to creator history analysis.
-      "creator": 30
+      "creator": 25
     },
 
     "holder": {
@@ -100,7 +100,7 @@
       // Slippage for normal sell attempts (basis points). 500 = 5%.
       "standardSlippageBps": 500,
 
-      // Slippage for emergency sell escalation (basis points). 4900 = 49% — used when all else fails.
+      // Slippage for emergency sell escalation (basis points). 4900 = 49% -- used when all else fails.
       "emergencySlippageBps": 4900,
 
       // Timeout (ms) for a standard sell attempt before escalating to next tier.
@@ -132,7 +132,7 @@
   "positionManagement": {
     // Price polling interval in milliseconds. Default: 5 seconds.
     // Rate limit note: at 5s intervals, max ~12 req/min per position.
-    // Free-tier Jupiter limit is 60 req/min — safe for up to 5 concurrent positions.
+    // Free-tier Jupiter limit is 60 req/min -- safe for up to 5 concurrent positions.
     "pollIntervalMs": 5000,
 
     // Stop-loss threshold as a percentage. Negative value.
@@ -150,6 +150,10 @@
 
     // Trailing stop-loss percentage drop from high watermark.
     // 0 = disabled (default). 20 = sell when price drops 20% from peak.
-    "trailingStopPct": 0
+    "trailingStopPct": 20,
+
+    // Maximum time (ms) to hold a position before auto-selling. 0 = disabled.
+    // Default: 120000 (2 minutes). Prevents bag-holding sideways tokens.
+    "maxHoldTimeMs": 120000
   }
 }

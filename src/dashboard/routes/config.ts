@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getRuntimeConfig, patchRuntimeConfig } from '../../config/trading.js';
 
-// Partial update schema — only fields the dashboard Settings tab can change.
+// Partial update schema -- only fields the dashboard Settings tab can change.
 // Uses .optional() so the POST body may include any subset.
 const ConfigPatchSchema = z.object({
   dryRun:                  z.boolean().optional(),  // Phase 12: dry-run toggle
@@ -15,6 +15,7 @@ const ConfigPatchSchema = z.object({
   positionManagement: z.object({
     stopLossPct:       z.number().negative().optional(),
     trailingStopPct:   z.number().min(0).max(100).optional(),
+    maxHoldTimeMs:     z.number().int().min(0).optional(),
     tieredTp: z.array(z.object({
       at:  z.number().positive(),
       pct: z.number().int().min(1).max(100),
@@ -30,13 +31,13 @@ const ConfigPatchSchema = z.object({
 });
 
 export async function configRoute(fastify: FastifyInstance): Promise<void> {
-  // GET /api/config — return current runtime config
+  // GET /api/config -- return current runtime config
   fastify.get('/config', async (_request, reply) => {
     return reply.send(getRuntimeConfig());
   });
 
-  // POST /api/config — apply partial updates atomically
-  // Changes are in-memory only — restart reverts to config file values (CONTEXT.md constraint)
+  // POST /api/config -- apply partial updates atomically
+  // Changes are in-memory only -- restart reverts to config file values (CONTEXT.md constraint)
   fastify.post('/config', async (request, reply) => {
     const result = ConfigPatchSchema.safeParse(request.body);
     if (!result.success) {
