@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-04T14:47:59.721Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-04T15:06:17.405Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
   total_phases: 14
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 38
-  completed_plans: 37
+  completed_plans: 38
   percent: 100
 ---
 
@@ -77,6 +77,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 13-ui-rework P02 | 9 | 4 tasks | 5 files |
 | Phase 14-sell-price-bug-fixes P03 | 4 | 2 tasks | 2 files |
 | Phase 14-sell-price-bug-fixes P01 | 9 | 2 tasks | 11 files |
+| Phase 14-sell-price-bug-fixes P02 | 14 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -206,6 +207,9 @@ Recent decisions affecting current work:
 - [Phase 14-sell-price-bug-fixes]: SellOutcome.solReceived is optional (not nullable) — undefined only on true parse failure; avoids null checks at call sites
 - [Phase 14-sell-price-bug-fixes]: parseSolReceived extracted as shared utility (not inline) for reuse by pumpportal-seller and sell-ladder EMERGENCY step
 - [Phase 14-sell-price-bug-fixes]: sell-ladder.ts type annotations updated in Plan 01 (not Plan 02) to fix blocking tsc errors from seller return type changes
+- [Phase 14-sell-price-bug-fixes]: EMERGENCY step uses parseSolReceived on-chain parse (Jupiter quotes unreliable at 49% slippage extremes)
+- [Phase 14-sell-price-bug-fixes]: On-chain parse failure falls back to PositionManager lastKnownQuoteSol, then undefined -- avoids storing NULL
+- [Phase 14-sell-price-bug-fixes]: TradeStore.addSellPrice uses COALESCE SQL increment pattern -- crash-safe, no in-memory accumulation between restarts
 
 ### Pending Todos
 
@@ -229,6 +233,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 4 complete (maxHoldTimeMs auto-sell after hold time exceeded)
 
-Last session: 2026-03-04T14:47:59.716Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-03-04T15:06:17.400Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None
