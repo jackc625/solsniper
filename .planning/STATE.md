@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-04T02:44:32.491Z"
+stopped_at: Completed 14-03-PLAN.md (dashboard P&L SQL fix)
+last_updated: "2026-03-04T14:42:32.604Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
   total_phases: 14
   completed_phases: 13
-  total_plans: 35
-  completed_plans: 35
+  total_plans: 38
+  completed_plans: 36
   percent: 100
 ---
 
@@ -75,6 +75,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 13-ui-rework P03 | 3 | 2 tasks | 2 files |
 | Phase 13-ui-rework P04 | 8 | 2 tasks | 2 files |
 | Phase 13-ui-rework P02 | 9 | 4 tasks | 5 files |
+| Phase 14-sell-price-bug-fixes P03 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -199,6 +200,8 @@ Recent decisions affecting current work:
 - [Phase 13-ui-rework]: Header.tsx deleted -- stats and DRY RUN moved to Sidebar and App banner
 - [Phase 13-ui-rework]: DRY RUN shown in both sidebar badge AND content-area full-width banner for maximum visibility
 - [Phase 13-ui-rework]: Responsive sidebar collapses to 52px at 1024px via CSS custom property override -- no JS needed
+- [Phase 14-sell-price-bug-fixes]: Source-reading test approach chosen over database-backed tests for trades routes P&L verification
+- [Phase 14-sell-price-bug-fixes]: Win rate denominator changed to total_with_pnl; wins = COMPLETED trades with positive P&L only
 
 ### Pending Todos
 
@@ -222,6 +225,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 4 complete (maxHoldTimeMs auto-sell after hold time exceeded)
 
-Last session: 2026-03-04T02:44:32.485Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-sell-price-bug-fixes/14-CONTEXT.md
+Last session: 2026-03-04T14:42:32.595Z
+Stopped at: Completed 14-03-PLAN.md (dashboard P&L SQL fix)
+Resume file: None
