@@ -215,11 +215,12 @@ None.
 | 1 | document config.json values with inline comments | 2026-02-27 | 94a3749 | [1-document-config-json-values-with-inline-](./quick/1-document-config-json-values-with-inline-/) |
 | 2 | move maxConcurrentPositions check before safety pipeline | 2026-03-03 | fe068fb | [2-move-maxconcurrentpositions-check-before](./quick/2-move-maxconcurrentpositions-check-before/) |
 | 3 | add configurable minimum holder threshold | 2026-03-04 | 235224b | [3-add-configurable-minimum-holder-threshol](./quick/3-add-configurable-minimum-holder-threshol/) |
+| 4 | add maxHoldTimeMs config to auto-sell position | 2026-03-03 | 74c25e4 | [4-add-maxholdtimems-config-to-auto-sell-po](./quick/4-add-maxholdtimems-config-to-auto-sell-po/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-04 - Quick task 3 complete (configurable minUserHolders threshold for pumpportal tokens)
+Last activity: 2026-03-03 - Quick task 4 complete (maxHoldTimeMs auto-sell after hold time exceeded)
 
-Last session: 2026-03-04T01:12:00Z
-Stopped at: Completed quick task 3 (minUserHolders threshold)
+Last session: 2026-03-03T20:56:00Z
+Stopped at: Completed quick task 4 (maxHoldTimeMs threshold)
 Resume file: None
