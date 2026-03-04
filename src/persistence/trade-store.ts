@@ -1,5 +1,5 @@
 /**
- * TradeStore — SQLite-backed trade persistence with state machine and duplicate guard.
+ * TradeStore -- SQLite-backed trade persistence with state machine and duplicate guard.
  *
  * Architectural guarantee: createBuyingRecord() is fully synchronous.
  * The Set check and DB write are a single synchronous operation with no async
@@ -7,7 +7,7 @@
  *
  * ESM interop note: better-sqlite3 is a CommonJS native module.
  * We use createRequire() because Node16 module resolution does not allow
- * default CJS imports in ESM without esModuleInterop — and even with it,
+ * default CJS imports in ESM without esModuleInterop -- and even with it,
  * the @types/better-sqlite3 types need a manual cast here to satisfy tsc.
  */
 import { createRequire } from 'node:module';
@@ -45,6 +45,7 @@ export class TradeStore {
   private readonly stmtGetDetected: BetterSqlite3.Statement;
   private readonly stmtUpdateStateById: BetterSqlite3.Statement;
   private readonly stmtSetMonitoringAmount: BetterSqlite3.Statement;
+  private readonly stmtAddSellPrice: BetterSqlite3.Statement;
   private readonly stmtGetByMint: BetterSqlite3.Statement;
 
   constructor(dbPath: string) {
@@ -56,7 +57,7 @@ export class TradeStore {
 
     if (dbPath !== ':memory:') {
       // WAL mode gives better write concurrency for file-backed DBs.
-      // Skip for :memory: — SQLite silently reverts WAL on in-memory DBs.
+      // Skip for :memory: -- SQLite silently reverts WAL on in-memory DBs.
       this.db.pragma('journal_mode = WAL');
     }
 
@@ -67,7 +68,7 @@ export class TradeStore {
       try {
         this.db.exec(sql);
       } catch {
-        // Column already exists — safe to ignore
+        // Column already exists -- safe to ignore
       }
     }
 
@@ -109,7 +110,7 @@ export class TradeStore {
     );
 
     this.stmtGetMonitoring = this.db.prepare(
-      `SELECT id, mint, state, created_at, updated_at, amount_tokens, source, token_program_id, dry_run
+      `SELECT id, mint, state, created_at, updated_at, amount_sol, amount_tokens, source, token_program_id, dry_run
        FROM trades WHERE state = 'MONITORING' ORDER BY updated_at DESC`
     );
 
@@ -128,6 +129,13 @@ export class TradeStore {
     this.stmtSetMonitoringAmount = this.db.prepare(
       `UPDATE trades SET amount_tokens = @amount_tokens, updated_at = @now
        WHERE mint = @mint AND state = 'MONITORING'`
+    );
+
+    this.stmtAddSellPrice = this.db.prepare(
+      `UPDATE trades SET
+         sell_price_sol = COALESCE(sell_price_sol, 0) + @delta,
+         updated_at = @now
+       WHERE mint = @mint AND state IN ('MONITORING', 'SELLING')`
     );
 
     this.stmtGetByMint = this.db.prepare(
@@ -155,7 +163,7 @@ export class TradeStore {
    * Throws immediately if the mint is already in the active Set.
    *
    * The synchronous better-sqlite3 API ensures no async gap exists between
-   * the Set check and the DB write — this is the duplicate-guard guarantee.
+   * the Set check and the DB write -- this is the duplicate-guard guarantee.
    *
    * @param source - Optional detection source ('pumpportal' | 'raydium' | 'pumpswap')
    * @param tokenProgramId - Optional detected token program ID (base58 pubkey)
@@ -237,7 +245,7 @@ export class TradeStore {
 
   /**
    * Returns all trades currently in SELLING state.
-   * Ordered by updated_at DESC — most recently updated first, useful for
+   * Ordered by updated_at DESC -- most recently updated first, useful for
    * duplicate-SELLING detection during crash recovery.
    */
   getSellingTrades(): Trade[] {
@@ -269,6 +277,23 @@ export class TradeStore {
   }
 
   /**
+   * Adds deltaSol to the existing sell_price_sol (or initializes from 0).
+   * Used for tiered take-profit: each tier fire accumulates its SOL received
+   * into sell_price_sol incrementally (crash-safe, no in-memory accumulation).
+   *
+   * Only updates trades in MONITORING or SELLING state.
+   * Returns number of rows changed (0 if trade not in valid state).
+   */
+  addSellPrice(mint: string, deltaSol: number): number {
+    const result = this.stmtAddSellPrice.run({
+      mint,
+      delta: deltaSol,
+      now: Date.now(),
+    });
+    return result.changes;
+  }
+
+  /**
    * Returns all trades currently in DETECTED state (id + mint only).
    */
   getDetectedTrades(): Pick<Trade, 'id' | 'mint'>[] {
@@ -276,7 +301,7 @@ export class TradeStore {
   }
 
   /**
-   * Id-precise state transition — for deduplicating multiple SELLING rows
+   * Id-precise state transition -- for deduplicating multiple SELLING rows
    * for the same mint during crash recovery.
    *
    * Uses the row id instead of mint+state in the WHERE clause, so callers

@@ -6,6 +6,7 @@ export type BotEventType =
   | 'BUY_CONFIRMED'
   | 'BUY_FAILED'
   | 'SELL_TRIGGERED'
+  | 'SELL_PARTIAL'      // Emitted per tiered TP tier fire
   | 'SELL_CONFIRMED'
   | 'SELL_FAILED'
   | 'ERROR';
@@ -13,7 +14,7 @@ export type BotEventType =
 export interface BotEvent {
   type: BotEventType;
   mint: string;
-  ts: number;             // Unix ms — Date.now()
+  ts: number;             // Unix ms -- Date.now()
   detail?: string;        // Brief human-readable description for feed row
   isDryRun?: boolean;     // Phase 12: true for dry-run trades
   safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED)
@@ -22,7 +23,7 @@ export interface BotEvent {
   pnlSol?: number;        // Realized P&L in SOL (present on SELL_CONFIRMED/SELL_FAILED when known)
 }
 
-// Typed EventEmitter3 — only one event name ('event') with BotEvent payload.
+// Typed EventEmitter3 -- only one event name ('event') with BotEvent payload.
 // Using named import (not default import) per project convention (avoids TS2507).
 type BotEventBusEvents = {
   event: (e: BotEvent) => void;
@@ -30,6 +31,6 @@ type BotEventBusEvents = {
 
 class BotEventBusCls extends EventEmitter<BotEventBusEvents> {}
 
-// Singleton — one instance shared across the entire process.
+// Singleton -- one instance shared across the entire process.
 // If no SSE clients are connected, emitted events are simply dropped.
 export const botEventBus = new BotEventBusCls();

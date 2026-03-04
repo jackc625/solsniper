@@ -28,8 +28,12 @@ import type { JupiterClient } from '../execution/jupiter-client.js';
 import type { TradingConfig } from '../config/trading.js';
 import type { Trade } from '../types/index.js';
 import { createModuleLogger } from '../core/logger.js';
+import { JupiterRouteError } from '../execution/jupiter-client.js';
 
 const log = createModuleLogger('position-manager');
+
+/** Jupiter route-failure codes that indicate the token is permanently un-quotable via Jupiter. */
+const JUPITER_ROUTE_FAILURE_CODES = new Set(['TOKEN_NOT_TRADABLE', 'NO_ROUTES_FOUND', 'ROUTE_NOT_FOUND']);
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -45,6 +49,9 @@ export class PositionManager {
 
   /** mints currently being sold -- prevents double-sell on same position */
   private readonly sellsInFlight = new Set<string>();
+
+  /** mint -> last known position value in SOL from Jupiter quote (for sell price fallback) */
+  private readonly lastKnownQuoteSol = new Map<string, number>();
 
   constructor(
     private readonly tradeStore: TradeStore,
@@ -183,12 +190,46 @@ export class PositionManager {
 
     // 3. Jupiter quote fetch
     const tokenAmountRaw = BigInt(Math.round(amountTokens));
-    const currentValueSol = await this.getPositionValueSol(mint, tokenAmountRaw);
+    let currentValueSol: number | null;
+    try {
+      currentValueSol = await this.getPositionValueSol(mint, tokenAmountRaw);
+    } catch (err) {
+      if (
+        err instanceof JupiterRouteError &&
+        err.code &&
+        JUPITER_ROUTE_FAILURE_CODES.has(err.code) &&
+        trade.source === 'pumpportal'
+      ) {
+        // Token is un-quotable via Jupiter -- fire sell so the ladder escalates to PumpPortal step
+        log.warn(
+          { mint, errorCode: err.code },
+          'evaluatePosition: Jupiter route failure for pumpportal token -- firing sell for PumpPortal fallback',
+        );
+        if (trade.dryRun) {
+          log.info(
+            { dryRun: true, mint, trigger: 'JUPITER_ROUTE_FAILURE', errorCode: err.code },
+            '[DRY RUN] PumpPortal fallback sell would have triggered',
+          );
+          this.tradeStore.transition(mint, 'MONITORING', 'COMPLETED', {
+            errorMessage: `DRY_RUN_TRIGGER: JUPITER_ROUTE_FAILURE (${err.code})`,
+          });
+          return;
+        }
+        this.fireSell(mint, tokenAmountRaw);
+        return;
+      }
+      // Non-route errors: skip tick as before
+      log.warn({ mint }, 'evaluatePosition: Jupiter quote failed -- skipping tick');
+      return;
+    }
 
     if (currentValueSol === null) {
       log.warn({ mint }, 'evaluatePosition: Jupiter quote failed -- skipping tick');
       return;
     }
+
+    // Store last known quote value for sell price fallback (used when on-chain parse fails)
+    this.lastKnownQuoteSol.set(mint, currentValueSol);
 
     // Guard: no entry price to compare against
     if (trade.amountSol == null) {
@@ -343,12 +384,14 @@ export class PositionManager {
   /**
    * Fires a sell for the given mint/amount.
    * - Adds mint to sellsInFlight
+   * - Passes last known Jupiter quote value as fallback for sell price (if on-chain parse fails)
    * - Fire-and-forget: SellLadder handles MONITORING→SELLING transition internally
    * - Removes from sellsInFlight when the sell settles (via .finally())
    */
   private fireSell(mint: string, tokensToSell: bigint): void {
     this.sellsInFlight.add(mint);
-    const p = this.sellLadder.sell(mint, tokensToSell);
+    const fallbackSolValue = this.lastKnownQuoteSol.get(mint);
+    const p = this.sellLadder.sell(mint, tokensToSell, fallbackSolValue);
     // Discard the promise for the caller (fire-and-forget), but clean up on settle
     void p;
     p.finally(() => {
@@ -386,7 +429,9 @@ export class PositionManager {
     try {
       const data = (await this.jupiterClient.quote(params)) as { outAmount: string };
       return Number(data.outAmount) / 1e9;
-    } catch {
+    } catch (err) {
+      // Let JupiterRouteError propagate so evaluatePosition can trigger PumpPortal fallback
+      if (err instanceof JupiterRouteError) throw err;
       return null;
     }
   }
