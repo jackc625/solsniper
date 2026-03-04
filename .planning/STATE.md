@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 13-ui-rework-02-PLAN.md
-last_updated: "2026-03-04T00:40:39.561Z"
+stopped_at: Phase 14 context gathered
+last_updated: "2026-03-04T02:44:32.491Z"
 last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
 progress:
-  total_phases: 13
+  total_phases: 14
   completed_phases: 13
   total_plans: 35
   completed_plans: 35
@@ -85,6 +85,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 - Phase 11 added: fix bonding curve issue
 - Phase 12 added: dry run functionality
 - Phase 13 added: UI rework
+- Phase 14 added: sell price bug fixes
 
 ### Decisions
 
@@ -221,6 +222,6 @@ None.
 
 Last activity: 2026-03-03 - Quick task 4 complete (maxHoldTimeMs auto-sell after hold time exceeded)
 
-Last session: 2026-03-03T20:56:00Z
-Stopped at: Completed quick task 4 (maxHoldTimeMs threshold)
-Resume file: None
+Last session: 2026-03-04T02:44:32.485Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-sell-price-bug-fixes/14-CONTEXT.md
