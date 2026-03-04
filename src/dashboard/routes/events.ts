@@ -6,12 +6,19 @@ import { botEventBus, type BotEvent } from '../bot-event-bus.js';
 
 export async function eventsRoute(fastify: FastifyInstance): Promise<void> {
   fastify.get('/events', { sse: true }, async (_request, reply) => {
+    // Force SSE headers to be sent immediately so Fastify sees reply.raw.headersSent === true
+    // and doesn't close the connection when the handler returns.
+    reply.sse.sendHeaders();
+
+    // Keep the SSE connection open indefinitely
+    reply.sse.keepAlive();
+
     // Register listener for this client
     const sendEvent = (event: BotEvent): void => {
       if (reply.sse.isConnected) {
         void reply.sse.send({
           event: event.type,
-          data: JSON.stringify(event),
+          data: event,
         });
       }
     };
@@ -22,8 +29,5 @@ export async function eventsRoute(fastify: FastifyInstance): Promise<void> {
     reply.sse.onClose(() => {
       botEventBus.off('event', sendEvent);
     });
-
-    // Keep the SSE connection open indefinitely
-    reply.sse.keepAlive();
   });
 }
