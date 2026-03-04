@@ -309,6 +309,35 @@ export class PositionManager {
       this.fireSell(mint, tokenAmountRaw);
       return;
     }
+
+    // --- Max hold time ---
+    const { maxHoldTimeMs } = this.config.positionManagement;
+    if (maxHoldTimeMs > 0) {
+      const holdDurationMs = Date.now() - trade.createdAt;
+      if (holdDurationMs >= maxHoldTimeMs) {
+        log.info(
+          {
+            mint,
+            holdDurationMs,
+            maxHoldTimeMs,
+            currentValueSol,
+          },
+          'PositionManager: max hold time exceeded',
+        );
+        if (trade.dryRun) {
+          log.info(
+            { dryRun: true, mint, trigger: 'MAX_HOLD_TIME', holdDurationMs, maxHoldTimeMs },
+            '[DRY RUN] max hold time would have triggered',
+          );
+          this.tradeStore.transition(mint, 'MONITORING', 'COMPLETED', {
+            errorMessage: `DRY_RUN_TRIGGER: MAX_HOLD_TIME`,
+          });
+          return;
+        }
+        this.fireSell(mint, tokenAmountRaw);
+        return;
+      }
+    }
   }
 
   /**

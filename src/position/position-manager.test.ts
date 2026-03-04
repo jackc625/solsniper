@@ -640,6 +640,88 @@ describe('PositionManager', () => {
   });
 
   // -------------------------------------------------------------------------
+  describe('max hold time', () => {
+    it('fires sell (full position) when position held longer than maxHoldTimeMs', async () => {
+      // Trade created 130s ago, maxHoldTimeMs=120000 → holdDuration=130s > 120s → fires sell
+      mockJupiterQuote(0.8 * 1e9); // ratio=0.8 → no SL/TP triggers before max hold time
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, createdAt: Date.now() - 130_000 }),
+      ]);
+
+      const pm = makePositionManager(makeConfig({ maxHoldTimeMs: 120000 }));
+      await pm.tick();
+
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+
+    it('does NOT fire sell when position held shorter than maxHoldTimeMs', async () => {
+      // Trade created 60s ago, maxHoldTimeMs=120000 → holdDuration=60s < 120s → no sell
+      mockJupiterQuote(0.8 * 1e9); // ratio=0.8 → no other triggers
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, createdAt: Date.now() - 60_000 }),
+      ]);
+
+      const pm = makePositionManager(makeConfig({ maxHoldTimeMs: 120000 }));
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+
+    it('does NOT fire sell when maxHoldTimeMs=0 (disabled) even if held very long', async () => {
+      // Trade created a very long time ago, but maxHoldTimeMs=0 disables the check
+      mockJupiterQuote(0.8 * 1e9); // ratio=0.8 → no other triggers
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, createdAt: Date.now() - 999_999_999 }),
+      ]);
+
+      const pm = makePositionManager(makeConfig({ maxHoldTimeMs: 0 }));
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+
+    it('transitions dry-run trade to COMPLETED with DRY_RUN_TRIGGER: MAX_HOLD_TIME (no fireSell)', async () => {
+      mockJupiterQuote(0.8 * 1e9); // ratio=0.8 → no other triggers
+
+      const mockTransition = vi.fn().mockReturnValue(1);
+      (mockTradeStore as any).transition = mockTransition;
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, createdAt: Date.now() - 130_000, dryRun: true }),
+      ]);
+
+      const pm = makePositionManager(makeConfig({ maxHoldTimeMs: 120000 }));
+      await pm.tick();
+
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+      expect(mockTransition).toHaveBeenCalledWith(MINT_A, 'MONITORING', 'COMPLETED', {
+        errorMessage: 'DRY_RUN_TRIGGER: MAX_HOLD_TIME',
+      });
+    });
+
+    it('SL takes priority over max hold time when both would trigger', async () => {
+      // Trade created 130s ago (exceeds maxHoldTimeMs=120000) AND ratio=0.3 (below SL -50%)
+      // SL is checked first → fires → max hold time block never reached
+      mockJupiterQuote(0.3 * 1e9); // ratio=0.3 < slThreshold=0.5 → SL triggers
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000, createdAt: Date.now() - 130_000 }),
+      ]);
+
+      const pm = makePositionManager(makeConfig({ maxHoldTimeMs: 120000, stopLossPct: -50 }));
+      await pm.tick();
+
+      // SL fires (checked before max hold time), sell called exactly once
+      expect(mockSellLadder.sell).toHaveBeenCalledOnce();
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe('maxHoldTimeMs config', () => {
     it('makeConfig() includes maxHoldTimeMs with default 120000', () => {
       const config = makeConfig();

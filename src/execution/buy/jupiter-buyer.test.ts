@@ -124,6 +124,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['execution']['buy']>
       stopLossPct: -50,
       tieredTp: [{ at: 2, pct: 33 }, { at: 5, pct: 33 }, { at: 10, pct: 34 }],
       trailingStopPct: 0,
+      maxHoldTimeMs: 120000,
     },
   };
 }
