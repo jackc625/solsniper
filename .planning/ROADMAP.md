@@ -225,3 +225,15 @@ Plans:
 - [ ] 13-03-PLAN.md — LiveFeed rework: rich expandable FeedCards with Solscan/pump.fun links, safety scores, source badges
 - [ ] 13-04-PLAN.md — Performance rework: P&L chart (lightweight-charts), win rate visualization, sortable completed trade history table
 - [ ] 13-05-PLAN.md — End-to-end human verification of complete UI rework across all views
+
+### Phase 14: sell price bug fixes
+
+**Goal:** Fix the two sell price bugs that break all P&L tracking: (1) sellers discard SOL received amounts so sellPriceSol is never stored, and (2) dashboard SQL computes P&L using the wrong formula. After this phase, every completed sell stores total SOL received and the dashboard shows accurate per-trade and aggregate P&L.
+**Requirements**: None (bugfix phase — no new requirements)
+**Depends on:** Phase 13
+**Plans:** 3 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — SellOutcome/ChunkedSellOutcome types, update all 4 sellers to return solReceived (Jupiter quote outAmount or on-chain parse)
+- [ ] 14-02-PLAN.md — SellLadder solReceived threading, pnlSol formula fix, TradeStore.addSellPrice(), SELL_PARTIAL event type
+- [ ] 14-03-PLAN.md — Dashboard SQL fix: P&L formula sell_price_sol - amount_sol, win rate denominator fix
