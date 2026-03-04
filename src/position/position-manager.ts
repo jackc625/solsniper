@@ -290,7 +290,10 @@ export class PositionManager {
         });
         return;
       }
-      this.fireSell(mint, tokensToSell);
+      // partial=true when there are more tiers remaining after this one.
+      // The final tier (nextTierIndex >= tieredTp.length) transitions to COMPLETED normally.
+      const isPartial = nextTierIndex < tieredTp.length;
+      this.fireSell(mint, tokensToSell, isPartial);
       this.tierIndices.set(mint, nextTierIndex);
       return;
     }
@@ -387,11 +390,13 @@ export class PositionManager {
    * - Passes last known Jupiter quote value as fallback for sell price (if on-chain parse fails)
    * - Fire-and-forget: SellLadder handles MONITORING→SELLING transition internally
    * - Removes from sellsInFlight when the sell settles (via .finally())
+   * - When partial=true: sell ladder transitions SELLING->MONITORING after success (not COMPLETED),
+   *   enabling subsequent tiers to fire. Used for non-final tiered TP sells.
    */
-  private fireSell(mint: string, tokensToSell: bigint): void {
+  private fireSell(mint: string, tokensToSell: bigint, partial = false): void {
     this.sellsInFlight.add(mint);
     const fallbackSolValue = this.lastKnownQuoteSol.get(mint);
-    const p = this.sellLadder.sell(mint, tokensToSell, fallbackSolValue);
+    const p = this.sellLadder.sell(mint, tokensToSell, fallbackSolValue, partial);
     // Discard the promise for the caller (fire-and-forget), but clean up on settle
     void p;
     p.finally(() => {

@@ -57,8 +57,11 @@ export class SellLadder {
    *
    * @param fallbackSolReceived - Last known Jupiter quote value from PositionManager.
    *   Used as final fallback if on-chain parse fails and solReceived is still undefined.
+   * @param partial - When true, a successful sell transitions SELLING -> MONITORING (not COMPLETED)
+   *   and decrements amount_tokens by the sold amount. Used for tiered TP partial sells where
+   *   subsequent tiers must still fire. Defaults to false (full sell -> COMPLETED).
    */
-  async sell(mint: string, tokenAmount: bigint, fallbackSolReceived?: number): Promise<SellResult> {
+  async sell(mint: string, tokenAmount: bigint, fallbackSolReceived?: number, partial = false): Promise<SellResult> {
     const { sell } = this.config.execution;
 
     // Emit SELL_TRIGGERED at entry -- dashboard sees all sell attempts regardless of outcome
@@ -190,14 +193,47 @@ export class SellLadder {
       }
 
       if (stepSucceeded) {
-        // Detect partial sell: if trade already has accumulated sell_price_sol from prior tiers
+        // Accumulate sell price for tiered TP tracking (crash-safe SQL increment).
+        // Called BEFORE getTradeByMint so priorTrade.sellPriceSol reflects the already-accumulated total.
+        if (solReceived != null) {
+          this.tradeStore.addSellPrice(mint, solReceived);
+        }
+
+        // Read accumulated state (including the just-added delta for partial path display)
         const priorTrade = this.tradeStore.getTradeByMint(mint);
         const hasPriorSellPrice = priorTrade?.sellPriceSol != null && priorTrade.sellPriceSol > 0;
 
+        if (partial) {
+          // --- PARTIAL SELL: return to MONITORING for next tier ---
+
+          // Emit SELL_PARTIAL event (for both first-tier and subsequent-tier partials)
+          const totalSellPrice = priorTrade?.sellPriceSol ?? 0;
+          botEventBus.emit('event', {
+            type: 'SELL_PARTIAL',
+            mint,
+            ts: Date.now(),
+            detail: `${step.name}: +${(solReceived ?? 0).toFixed(6)} SOL (total: ${totalSellPrice.toFixed(6)} SOL)`,
+            isDryRun: getRuntimeConfig().dryRun,
+            pnlSol: solReceived,
+          });
+          log.info({ mint, step: step.name, tierSolReceived: solReceived, totalSellPrice }, 'Partial sell confirmed -- returning to MONITORING');
+
+          // Transition SELLING -> MONITORING (not COMPLETED)
+          this.tradeStore.transition(mint, 'SELLING', 'MONITORING', {
+            sellSignature: signature,
+          });
+
+          // Decrement amount_tokens by the sold amount so next tier uses remaining balance
+          this.tradeStore.decrementTokenAmount(mint, Number(tokenAmount));
+
+          return { success: true, step: step.name, signature };
+        }
+
+        // --- FULL SELL: transition to COMPLETED ---
+
+        // Emit SELL_PARTIAL for accumulated tiers context (if this is the final tier after prior partials)
         if (hasPriorSellPrice && solReceived != null) {
-          // This is a subsequent tier in a tiered TP sequence -- accumulate and emit SELL_PARTIAL
-          this.tradeStore.addSellPrice(mint, solReceived);
-          const runningTotal = (priorTrade.sellPriceSol ?? 0) + solReceived;
+          const runningTotal = priorTrade.sellPriceSol! + solReceived;
           botEventBus.emit('event', {
             type: 'SELL_PARTIAL',
             mint,
@@ -206,13 +242,15 @@ export class SellLadder {
             isDryRun: getRuntimeConfig().dryRun,
             pnlSol: solReceived,
           });
-          log.info({ mint, step: step.name, tierSolReceived: solReceived, runningTotal }, 'Partial sell confirmed -- SELL_PARTIAL emitted');
         }
 
-        // Transition SELLING -> COMPLETED with sellPriceSol
+        // Transition SELLING -> COMPLETED.
+        // Don't overwrite accumulated sell_price_sol from addSellPrice -- let COALESCE preserve it.
+        // When hasPriorSellPrice is true (tiered sell), sell_price_sol was already accumulated via addSellPrice.
+        // When false (non-tiered sell), pass solReceived directly as before.
         this.tradeStore.transition(mint, 'SELLING', 'COMPLETED', {
           sellSignature: signature,
-          sellPriceSol: solReceived,
+          sellPriceSol: hasPriorSellPrice ? undefined : solReceived,
         });
 
         const completedTrade = this.tradeStore.getTradeByMint(mint);

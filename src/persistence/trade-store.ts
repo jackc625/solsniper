@@ -46,6 +46,7 @@ export class TradeStore {
   private readonly stmtUpdateStateById: BetterSqlite3.Statement;
   private readonly stmtSetMonitoringAmount: BetterSqlite3.Statement;
   private readonly stmtAddSellPrice: BetterSqlite3.Statement;
+  private readonly stmtDecrementTokenAmount: BetterSqlite3.Statement;
   private readonly stmtGetByMint: BetterSqlite3.Statement;
 
   constructor(dbPath: string) {
@@ -136,6 +137,13 @@ export class TradeStore {
          sell_price_sol = COALESCE(sell_price_sol, 0) + @delta,
          updated_at = @now
        WHERE mint = @mint AND state IN ('MONITORING', 'SELLING')`
+    );
+
+    this.stmtDecrementTokenAmount = this.db.prepare(
+      `UPDATE trades SET
+         amount_tokens = amount_tokens - @delta,
+         updated_at = @now
+       WHERE mint = @mint AND state = 'MONITORING'`
     );
 
     this.stmtGetByMint = this.db.prepare(
@@ -288,6 +296,23 @@ export class TradeStore {
     const result = this.stmtAddSellPrice.run({
       mint,
       delta: deltaSol,
+      now: Date.now(),
+    });
+    return result.changes;
+  }
+
+  /**
+   * Decrements amount_tokens by delta for a MONITORING trade.
+   * Used after a partial tiered TP sell succeeds: the sold amount is
+   * subtracted so subsequent tiers calculate against remaining balance.
+   *
+   * Only updates trades in MONITORING state.
+   * Returns number of rows changed (0 if trade not in MONITORING state).
+   */
+  decrementTokenAmount(mint: string, delta: number): number {
+    const result = this.stmtDecrementTokenAmount.run({
+      mint,
+      delta,
       now: Date.now(),
     });
     return result.changes;

@@ -110,6 +110,7 @@ function makeTradeStore(overrides?: { getTradeByMintResult?: Partial<Trade> | un
     transition: vi.fn().mockReturnValue(1),
     getTradeByMint: vi.fn().mockReturnValue(overrides?.getTradeByMintResult),
     addSellPrice: vi.fn().mockReturnValue(1),
+    decrementTokenAmount: vi.fn().mockReturnValue(1),
   };
 }
 
@@ -481,5 +482,106 @@ describe('SellLadder', () => {
       'COMPLETED',
       expect.objectContaining({ sellPriceSol: 0.25 })
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Quick-5 partial sell tests: tiered TP SELLING->MONITORING cycling
+  // ---------------------------------------------------------------------------
+
+  it('partial=true sell succeeds -- transitions SELLING->MONITORING and decrements tokens', async () => {
+    mockStandardSell.mockResolvedValue({ signature: 'sig-partial', solReceived: 0.3 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true);
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'STANDARD', signature: 'sig-partial' });
+    // addSellPrice accumulates the tier's SOL
+    expect(tradeStore.addSellPrice).toHaveBeenCalledWith(MINT, 0.3);
+    // Transition to MONITORING (not COMPLETED)
+    expect(tradeStore.transition).toHaveBeenLastCalledWith(
+      MINT,
+      'SELLING',
+      'MONITORING',
+      expect.objectContaining({ sellSignature: 'sig-partial' })
+    );
+    // Decrement amount_tokens by sold amount
+    expect(tradeStore.decrementTokenAmount).toHaveBeenCalledWith(MINT, Number(TOKEN_AMOUNT));
+    // COMPLETED transition must NOT be called
+    const calls = tradeStore.transition.mock.calls;
+    const completedCall = calls.find((c: unknown[]) => c[2] === 'COMPLETED');
+    expect(completedCall).toBeUndefined();
+  });
+
+  it('partial=false sell succeeds -- transitions SELLING->COMPLETED (default behavior preserved)', async () => {
+    mockStandardSell.mockResolvedValue({ signature: 'sig-full', solReceived: 0.5 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);  // no partial flag (defaults false)
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    // Transitions to COMPLETED
+    expect(tradeStore.transition).toHaveBeenLastCalledWith(
+      MINT,
+      'SELLING',
+      'COMPLETED',
+      expect.anything()
+    );
+    // decrementTokenAmount must NOT be called
+    expect(tradeStore.decrementTokenAmount).not.toHaveBeenCalled();
+  });
+
+  it('partial=true all steps exhaust -- still transitions SELLING->FAILED', async () => {
+    mockStandardSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockJitoSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockChunkedSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockPumpPortalSell.mockImplementation(() => new Promise<never>(() => {}));
+
+    const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true);
+    await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001 + 60001 + 30001 + 30001);
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: false, errorMessage: 'SELL_FAILED: all ladder steps exhausted' });
+    expect(tradeStore.transition).toHaveBeenLastCalledWith(
+      MINT,
+      'SELLING',
+      'FAILED',
+      expect.objectContaining({ errorMessage: 'SELL_FAILED: all ladder steps exhausted' })
+    );
+    expect(tradeStore.decrementTokenAmount).not.toHaveBeenCalled();
+  });
+
+  it('partial=true SELL_PARTIAL event emitted with correct SOL detail', async () => {
+    mockStandardSell.mockResolvedValue({ signature: 'sig-p', solReceived: 0.2 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const { botEventBus } = await import('../../dashboard/bot-event-bus.js');
+    const events: Array<{ type: string }> = [];
+    const handler = (e: { type: string }) => events.push(e);
+    botEventBus.on('event', handler);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true);
+    await vi.runAllTimersAsync();
+    await resultPromise;
+
+    const partialEvent = events.find(e => e.type === 'SELL_PARTIAL');
+    expect(partialEvent).toBeDefined();
+    // SELL_CONFIRMED must NOT be emitted for partial sells
+    const confirmedEvent = events.find(e => e.type === 'SELL_CONFIRMED');
+    expect(confirmedEvent).toBeUndefined();
+
+    botEventBus.removeListener('event', handler);
   });
 });
