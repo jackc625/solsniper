@@ -228,11 +228,12 @@ None.
 | 2 | move maxConcurrentPositions check before safety pipeline | 2026-03-03 | fe068fb | [2-move-maxconcurrentpositions-check-before](./quick/2-move-maxconcurrentpositions-check-before/) |
 | 3 | add configurable minimum holder threshold | 2026-03-04 | 235224b | [3-add-configurable-minimum-holder-threshol](./quick/3-add-configurable-minimum-holder-threshol/) |
 | 4 | add maxHoldTimeMs config to auto-sell position | 2026-03-03 | 74c25e4 | [4-add-maxholdtimems-config-to-auto-sell-po](./quick/4-add-maxholdtimems-config-to-auto-sell-po/) |
+| 5 | fix tiered take-profit partial sells | 2026-03-04 | 175cf42 | [5-fix-tiered-take-profit-partial-sells-mus](./quick/5-fix-tiered-take-profit-partial-sells-mus/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-03 - Quick task 4 complete (maxHoldTimeMs auto-sell after hold time exceeded)
+Last activity: 2026-03-04 - Quick task 5 complete (tiered TP partial sells: SELLING->MONITORING cycling, decrementTokenAmount)
 
-Last session: 2026-03-04T15:06:17.400Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-03-04T16:11:00.000Z
+Stopped at: Completed quick task 5
 Resume file: None
