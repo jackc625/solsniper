@@ -6,6 +6,7 @@ import stripJsonComments from 'strip-json-comments';
 const HolderConfigSchema = z.object({
   top1SoftBlockThreshold: z.number().min(0).max(1).default(0.25),
   top10SoftBlockThreshold: z.number().min(0).max(1).default(0.50),
+  minUserHolders: z.number().int().min(0).default(2),
 });
 
 const SafetyWeightsSchema = z.object({

@@ -21,6 +21,7 @@ const PUMP_FUN_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5u
 interface HolderConfig {
   top1SoftBlockThreshold: number;  // e.g. 0.25 = 25%
   top10SoftBlockThreshold: number; // e.g. 0.50 = 50%
+  minUserHolders: number;          // minimum real user holders required (pumpportal only)
 }
 
 /**

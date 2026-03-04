@@ -6,7 +6,7 @@
   "maxSlippageBps": 1000,
 
   // Maximum number of open token positions held simultaneously.
-  "maxConcurrentPositions": 3,
+  "maxConcurrentPositions": 1,
 
   // Sell all tokens if position drops below this % from buy price. Negative number (e.g. -50 = -50%).
   "stopLossPct": -50,
@@ -19,7 +19,7 @@
 
   // Enable dry-run mode: runs full pipeline against mainnet but intercepts before signing/broadcasting.
   // Dry-run trades are tracked with shadow P&L but no real SOL is spent.
-  "dryRun": false,
+  "dryRun": true,
 
   "detection": {
     // How often (ms) to send a ping to keep WebSocket connections alive. Default: 30 000 ms (30 s).
@@ -70,7 +70,11 @@
       "top1SoftBlockThreshold": 0.25,
 
       // Fraction of supply (0-1) held by the top 10 wallets combined that triggers a soft safety penalty.
-      "top10SoftBlockThreshold": 0.50
+      "top10SoftBlockThreshold": 0.50,
+
+      // Minimum number of real user holders required for pumpportal tokens to pass.
+      // Tokens with fewer user holders are rejected. 0 = accept tokens with no holders.
+      "minUserHolders": 2
     },
 
     // Set true if the rug-check API returns risk scores (high = bad). The bot inverts them to safety scores (high = good).
