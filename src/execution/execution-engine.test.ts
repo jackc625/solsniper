@@ -6,11 +6,12 @@ import type { TradingConfig } from '../config/trading.js';
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote } = vi.hoisted(() => {
+const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig } = vi.hoisted(() => {
   const mockPumpPortalBuy = vi.fn();
   const mockJupiterBuy = vi.fn();
   const mockJupiterClientQuote = vi.fn();
-  return { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote };
+  const mockGetRuntimeConfig = vi.fn().mockReturnValue({ dryRun: false });
+  return { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig };
 });
 
 vi.mock('./buy/pump-portal-buyer.js', () => ({
@@ -25,6 +26,10 @@ vi.mock('./jupiter-client.js', () => ({
   jupiterClient: {
     quote: mockJupiterClientQuote,
   },
+}));
+
+vi.mock('../config/trading.js', () => ({
+  getRuntimeConfig: mockGetRuntimeConfig,
 }));
 
 // ---------------------------------------------------------------------------
@@ -62,7 +67,7 @@ function makeTradingConfig(): TradingConfig {
       tier3TimeoutMs: 5000,
       cacheTtlMs: 300000,
       weights: { rugCheck: 40, holder: 30, creator: 30 },
-      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
     },
@@ -114,6 +119,7 @@ describe('ExecutionEngine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockGetRuntimeConfig.mockReturnValue({ dryRun: false });
   });
 
   afterEach(() => {
@@ -296,6 +302,81 @@ describe('ExecutionEngine', () => {
     await vi.runAllTimersAsync();
 
     expect(mockJupiterClientQuote).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Dry-run PumpPortal bonding curve estimation
+  // ---------------------------------------------------------------------------
+
+  it('dry-run PumpPortal buy with bonding curve data — estimates amountTokens', async () => {
+    mockGetRuntimeConfig.mockReturnValue({ dryRun: true });
+    mockPumpPortalBuy.mockResolvedValue({
+      success: true,
+      signature: 'dry-run-sig',
+      amountTokens: undefined,
+    });
+    mockJupiterClientQuote.mockResolvedValue({});
+
+    const tradeStore = makeTradeStore();
+    const config = makeTradingConfig();
+    config.buyAmountSol = 0.01;
+    const engine = new ExecutionEngine(mockWallet, mockConnections, config, tradeStore as never);
+
+    const event = makeEvent('pumpportal');
+    event.vSolInBondingCurve = 30;
+    event.vTokensInBondingCurve = 1_073_000_000;
+
+    const buyPromise = engine.buy(event);
+    await vi.runAllTimersAsync();
+    await buyPromise;
+
+    // Verify transition was called with estimated amountTokens
+    expect(tradeStore.transition).toHaveBeenCalledWith(
+      event.mint,
+      'BUYING',
+      'MONITORING',
+      expect.objectContaining({
+        buySignature: 'dry-run-sig',
+        amountSol: 0.01,
+      }),
+    );
+
+    // Extract the actual amountTokens from the call
+    const transitionArgs = tradeStore.transition.mock.calls[0][3];
+    // Expected: tokensHuman = 1_073_000_000 * (0.01 * 0.9875) / (30 + 0.01 * 0.9875)
+    //         = 1_073_000_000 * 0.009875 / 30.009875 ≈ 353,008
+    // amountTokens = Math.round(353,008 * 1e6) ≈ 353,008,000,000 (raw, 6 decimals)
+    expect(transitionArgs.amountTokens).toBeGreaterThan(0);
+    expect(transitionArgs.amountTokens).toBeTypeOf('number');
+    // buyPriceSol should be populated (not undefined)
+    expect(transitionArgs.buyPriceSol).toBeTypeOf('number');
+    expect(transitionArgs.buyPriceSol).toBeGreaterThan(0);
+  });
+
+  it('dry-run PumpPortal buy without bonding curve data — amountTokens stays undefined', async () => {
+    mockGetRuntimeConfig.mockReturnValue({ dryRun: true });
+    mockPumpPortalBuy.mockResolvedValue({
+      success: true,
+      signature: 'dry-run-sig',
+      amountTokens: undefined,
+    });
+    mockJupiterClientQuote.mockResolvedValue({});
+
+    const tradeStore = makeTradeStore();
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    // Event without bonding curve data
+    const event = makeEvent('pumpportal');
+
+    const buyPromise = engine.buy(event);
+    await vi.runAllTimersAsync();
+    await buyPromise;
+
+    // amountTokens should remain undefined (no estimation possible)
+    const transitionArgs = tradeStore.transition.mock.calls[0][3];
+    expect(transitionArgs.amountTokens).toBeUndefined();
+    // buyPriceSol should be undefined when amountTokens is missing
+    expect(transitionArgs.buyPriceSol).toBeUndefined();
   });
 
   it('post-buy verification buy() returns without waiting for verification (fire-and-forget)', async () => {

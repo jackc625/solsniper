@@ -82,7 +82,7 @@ function makeTradingConfig(): TradingConfig {
       tier3TimeoutMs: 5000,
       cacheTtlMs: 300000,
       weights: { rugCheck: 40, holder: 30, creator: 30 },
-      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
     },

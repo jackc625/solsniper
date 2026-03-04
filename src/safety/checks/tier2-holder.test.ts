@@ -162,6 +162,7 @@ describe('checkHolderConcentration', () => {
     const result = await checkHolderConcentration(MOCK_MINT, connection, {
       top1SoftBlockThreshold: 0.35, // 35% threshold — top1=30% passes
       top10SoftBlockThreshold: 0.50, // top10=60% fails
+      minUserHolders: 2,
     });
 
     expect(result.pass).toBe(false);

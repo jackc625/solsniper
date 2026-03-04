@@ -67,6 +67,7 @@ function mockJupiterFailure() {
 const mockTradeStore = {
   getMonitoringTrades: vi.fn(),
   updateMonitoringAmount: vi.fn().mockReturnValue(1),
+  transition: vi.fn().mockReturnValue(1),
 };
 
 const mockSellLadder = {
@@ -106,7 +107,7 @@ function makeConfig(
       tier3TimeoutMs: 5000,
       cacheTtlMs: 300000,
       weights: { rugCheck: 40, holder: 30, creator: 30 },
-      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
     },
@@ -468,6 +469,41 @@ describe('PositionManager', () => {
       // Cannot monitor with 0 tokens — no sell, no updateMonitoringAmount
       expect(mockSellLadder.sell).not.toHaveBeenCalled();
       expect(mockTradeStore.updateMonitoringAmount).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('dry-run fallback for missing amountTokens', () => {
+    it('completes dry-run trade immediately when amountTokens is missing (fallback)', async () => {
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined, dryRun: true }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // On-chain query should NOT be called — dry-run has no tokens
+      expect(mockConnection.getParsedTokenAccountsByOwner).not.toHaveBeenCalled();
+      // Should transition to COMPLETED immediately
+      expect(mockTradeStore.transition).toHaveBeenCalledWith(
+        MINT_A, 'MONITORING', 'COMPLETED',
+        { errorMessage: 'DRY_RUN_COMPLETED: no amountTokens and no on-chain balance for dry-run' },
+      );
+    });
+
+    it('non-dry-run trade with missing amountTokens still does on-chain backfill', async () => {
+      mockJupiterQuote(1.0 * 1e9); // ratio=1.0, no SL/TP
+      mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({ value: [] });
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined, dryRun: false }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // On-chain query SHOULD be called for real trades
+      expect(mockConnection.getParsedTokenAccountsByOwner).toHaveBeenCalled();
     });
   });
 
