@@ -155,9 +155,8 @@ export async function checkHolderConcentration(
     }
 
     if (userHolders.length === 0) {
-      if (source === 'pumpportal') {
-        // Pump.fun tokens in the bonding curve phase have no user holders yet — expected.
-        // Return pass=true with score=50 (neutral) rather than hard-blocking a valid token.
+      if (source === 'pumpportal' && config.minUserHolders === 0) {
+        // Config allows zero holders — pump.fun bonding curve phase tokens pass with neutral score
         return {
           pass: true,
           score: 50,
@@ -169,7 +168,18 @@ export async function checkHolderConcentration(
         pass: false,
         score: 0,
         source: 'holder_concentration',
-        detail: 'no user holders found (all system accounts)',
+        detail: source === 'pumpportal'
+          ? `below minimum holders: 0 < ${config.minUserHolders} required`
+          : 'no user holders found (all system accounts)',
+      };
+    }
+
+    if (source === 'pumpportal' && userHolders.length < config.minUserHolders) {
+      return {
+        pass: false,
+        score: 0,
+        source: 'holder_concentration',
+        detail: `below minimum holders: ${userHolders.length} < ${config.minUserHolders} required`,
       };
     }
 
