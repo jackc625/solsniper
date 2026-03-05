@@ -12,14 +12,14 @@ SolSniper is built as a reactive pipeline: foundation utilities first, then dete
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Foundation & Operations** - Config, logging, RPC manager, resilient WebSocket, wallet security, graceful shutdown (completed 2026-02-20)
+- [x] **Phase 1: Foundation & Operations** - Config, logging, RPC manager, resilient WebSocket, wallet security, graceful shutdown (completed 2015-02-20)
 - [ ] **Phase 2: Token Detection** - PumpPortal and Raydium WebSocket listeners with auto-reconnect and heartbeat
-- [x] **Phase 3: Safety Pipeline** - Parallel tiered safety checks with aggregate scoring and threshold enforcement (completed 2026-02-27)
-- [x] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention (completed 2026-02-27)
-- [x] **Phase 5: Execution Engine** - Jupiter and PumpPortal buy, sell escalation ladder with Jito bundles, multi-RPC broadcast (completed 2026-02-27)
-- [x] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart (completed 2026-02-27)
-- [x] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits (completed 2026-02-27)
-- [x] **Phase 8: Web Dashboard** - Live trade feed via SSE, P&L tracking, filter configuration, in-process HTTP server (completed 2026-02-27)
+- [x] **Phase 3: Safety Pipeline** - Parallel tiered safety checks with aggregate scoring and threshold enforcement (completed 2015-02-27)
+- [x] **Phase 4: Trade Persistence** - SQLite trade journal with state machine, write-ahead pattern, and duplicate prevention (completed 2015-02-27)
+- [x] **Phase 5: Execution Engine** - Jupiter and PumpPortal buy, sell escalation ladder with Jito bundles, multi-RPC broadcast (completed 2015-02-27)
+- [x] **Phase 6: Crash Recovery** - Resume pending trades from SQLite, reconcile against on-chain state on restart (completed 2015-02-27)
+- [x] **Phase 7: Position Management** - Price monitoring, stop-loss, take-profit, tiered exits, trailing stop, position limits (completed 2015-02-27)
+- [x] **Phase 8: Web Dashboard** - Live trade feed via SSE, P&L tracking, filter configuration, in-process HTTP server (completed 2015-02-27)
 
 ## Phase Details
 
@@ -159,15 +159,15 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Operations | 2/2 | Complete   | 2026-02-20 |
+| 1. Foundation & Operations | 2/2 | Complete   | 2015-02-20 |
 | 2. Token Detection | 1/2 | In Progress|  |
-| 3. Safety Pipeline | 3/3 | Complete   | 2026-02-27 |
-| 4. Trade Persistence | 2/2 | Complete   | 2026-02-27 |
-| 5. Execution Engine | 4/4 | Complete   | 2026-02-27 |
-| 6. Crash Recovery | 2/2 | Complete   | 2026-02-27 |
-| 7. Position Management | 3/3 | Complete   | 2026-02-27 |
-| 8. Web Dashboard | 5/5 | Complete   | 2026-02-27 |
-| 9. Fix Broken Jupiter API | 2/2 | Complete   | 2026-03-02 |
+| 3. Safety Pipeline | 3/3 | Complete   | 2015-02-27 |
+| 4. Trade Persistence | 2/2 | Complete   | 2015-02-27 |
+| 5. Execution Engine | 4/4 | Complete   | 2015-02-27 |
+| 6. Crash Recovery | 2/2 | Complete   | 2015-02-27 |
+| 7. Position Management | 3/3 | Complete   | 2015-02-27 |
+| 8. Web Dashboard | 5/5 | Complete   | 2015-02-27 |
+| 9. Fix Broken Jupiter API | 2/2 | Complete   | 2015-03-02 |
 
 ### Phase 9: Fix broken Jupiter API
 
