@@ -755,6 +755,99 @@ describe('PositionManager', () => {
   });
 
   // -------------------------------------------------------------------------
+  describe('getWalletTokenBalance single-query fix (quick-6)', () => {
+    it('makes exactly ONE RPC call (not two) when backfilling Token-2022 token balance', async () => {
+      // After fix: only one getParsedTokenAccountsByOwner call with {mint} filter.
+      // Before fix: two calls (one with {mint}, one with {programId: TOKEN_2022_PROGRAM_ID}).
+      mockJupiterQuote(1.0 * 1e9); // ratio=1.0, no SL/TP
+
+      // Simulate Token-2022 account returned from mint-only query
+      mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({
+        value: [{
+          pubkey: WALLET_PUBKEY,
+          account: {
+            data: {
+              parsed: {
+                info: {
+                  mint: MINT_A,
+                  tokenAmount: { amount: '5000000' },
+                },
+              },
+            },
+          },
+        }],
+      });
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // Must be called exactly once (single mint-only query)
+      expect(mockConnection.getParsedTokenAccountsByOwner).toHaveBeenCalledTimes(1);
+
+      // Must be called with {mint} filter only (not {programId})
+      const [, filter] = mockConnection.getParsedTokenAccountsByOwner.mock.calls[0] as [unknown, { mint?: unknown; programId?: unknown }];
+      expect(filter).toHaveProperty('mint');
+      expect(filter).not.toHaveProperty('programId');
+
+      // updateMonitoringAmount called with 1x balance (5000000), not 2x (10000000)
+      expect(mockTradeStore.updateMonitoringAmount).toHaveBeenCalledWith(MINT_A, 5000000);
+    });
+
+    it('returns 1x balance for Token-2022 token (not 2x double-count)', async () => {
+      // This test verifies the core bug fix: before fix, a Token-2022 token with balance
+      // 5000000 would be counted twice (once via {mint} query, once via {programId} query),
+      // resulting in updateMonitoringAmount called with 10000000.
+      // After fix: exactly 5000000.
+      mockJupiterQuote(1.0 * 1e9);
+
+      mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({
+        value: [{
+          pubkey: WALLET_PUBKEY,
+          account: {
+            data: {
+              parsed: {
+                info: {
+                  mint: MINT_A,
+                  tokenAmount: { amount: '5000000' },
+                },
+              },
+            },
+          },
+        }],
+      });
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // Balance must be 5000000 (1x), not 10000000 (2x)
+      expect(mockTradeStore.updateMonitoringAmount).toHaveBeenCalledWith(MINT_A, 5000000);
+    });
+
+    it('returns 0n when no accounts found (mint-only query returns empty)', async () => {
+      mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({ value: [] });
+
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: undefined }),
+      ]);
+
+      const pm = makePositionManager();
+      await pm.tick();
+
+      // 0 balance → cannot monitor, no updateMonitoringAmount call
+      expect(mockTradeStore.updateMonitoringAmount).not.toHaveBeenCalled();
+      expect(mockSellLadder.sell).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe('start/stop lifecycle', () => {
     it('start() and stop() do not throw with no positions', () => {
       mockTradeStore.getMonitoringTrades.mockReturnValue([]);

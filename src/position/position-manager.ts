@@ -11,7 +11,8 @@
  * Guard: sellsInFlight Set prevents double-sells on the same position.
  *
  * PumpPortal backfill: positions with missing amountTokens are backfilled via
- * on-chain balance query (same dual-program query as RecoveryManager).
+ * on-chain balance query using a single mint-only RPC call (covers both SPL Token
+ * and Token-2022 programs without double-counting).
  *
  * Uses recursive setTimeout (not setInterval) so each poll waits for the
  * previous evaluation to complete before scheduling the next.
@@ -21,7 +22,6 @@
  * to trade-critical buy/sell calls.
  */
 import { PublicKey, Connection } from '@solana/web3.js';
-import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import type { TradeStore } from '../persistence/trade-store.js';
 import type { SellLadder } from '../execution/sell/sell-ladder.js';
 import type { JupiterClient } from '../execution/jupiter-client.js';
@@ -442,34 +442,28 @@ export class PositionManager {
   }
 
   /**
-   * Queries on-chain token balance for `mint` across both TOKEN_PROGRAM_ID
-   * (legacy SPL) and TOKEN_2022_PROGRAM_ID (pump.fun create_v2, Nov 2025+).
+   * Queries on-chain token balance for `mint` using a single mint-only filter.
    * Returns total balance as bigint (sum of all token accounts).
    *
-   * Identical dual-program query to RecoveryManager.getWalletTokenBalance().
+   * Why single query: getParsedTokenAccountsByOwner with {mint} searches ALL token
+   * programs (both SPL Token and Token-2022) per Solana RPC behaviour. The previous
+   * dual-query approach (one with {mint} + one with {programId: TOKEN_2022_PROGRAM_ID})
+   * caused double-counting for Token-2022 tokens, resulting in Jupiter error 6024
+   * (InsufficientFunds) when the reported balance was 2x the actual on-chain balance.
+   *
+   * Reference: https://github.com/solana-labs/solana/issues/31923
    */
   private async getWalletTokenBalance(mint: string): Promise<bigint> {
     const mintPubKey = new PublicKey(mint);
 
-    const [legacyResult, token2022Result] = await Promise.all([
-      // Legacy SPL: filter by mint directly
-      this.connection.getParsedTokenAccountsByOwner(this.walletPubKey, { mint: mintPubKey }),
-      // Token-2022 (pump.fun create_v2): filter by programId, then client-side by mint
-      this.connection
-        .getParsedTokenAccountsByOwner(this.walletPubKey, { programId: TOKEN_2022_PROGRAM_ID })
-        .then(res => ({
-          value: res.value.filter(a => a.account.data.parsed?.info?.mint === mint),
-        })),
-    ]);
+    const result = await this.connection.getParsedTokenAccountsByOwner(
+      this.walletPubKey,
+      { mint: mintPubKey },
+    );
 
     let total = 0n;
 
-    for (const acct of legacyResult.value) {
-      const amount: string | undefined = acct.account.data.parsed?.info?.tokenAmount?.amount;
-      if (amount) total += BigInt(amount);
-    }
-
-    for (const acct of token2022Result.value) {
+    for (const acct of result.value) {
       const amount: string | undefined = acct.account.data.parsed?.info?.tokenAmount?.amount;
       if (amount) total += BigInt(amount);
     }
