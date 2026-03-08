@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Connection, Keypair } from '@solana/web3.js';
 import type { TradingConfig } from '../../config/trading.js';
 import type { Trade } from '../../types/index.js';
+import { PublicKey } from '@solana/web3.js';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
@@ -43,11 +44,26 @@ import { SellLadder } from './sell-ladder.js';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const MINT = 'TestMint111111111111111111111111111111111111';
+// Valid Solana mainnet mint address (USDC) -- PublicKey constructor validates base58
+const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const TOKEN_AMOUNT = 1_000_000n;
 
-const mockWallet = {} as unknown as Keypair;
-const mockConnections = [{} as unknown as Connection];
+// Valid Solana mainnet address for wallet public key in tests
+const WALLET_PUBKEY = new PublicKey('So11111111111111111111111111111111111111112');
+
+// mockGetParsedTokenAccountsByOwner is shared across all tests; reset in beforeEach.
+// Default: returns TOKEN_AMOUNT tokens (matching the passed amount -- no mismatch)
+const mockGetParsedTokenAccountsByOwner = vi.fn();
+
+const mockWallet = {
+  publicKey: WALLET_PUBKEY,
+} as unknown as Keypair;
+
+const mockConnection = {
+  getParsedTokenAccountsByOwner: mockGetParsedTokenAccountsByOwner,
+} as unknown as Connection;
+
+const mockConnections = [mockConnection];
 
 function makeTradingConfig(): TradingConfig {
   return {
@@ -122,6 +138,21 @@ describe('SellLadder', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    // Default: wallet has TOKEN_AMOUNT tokens on-chain (matches passed amount -- no stale mismatch)
+    mockGetParsedTokenAccountsByOwner.mockResolvedValue({
+      value: [{
+        account: {
+          data: {
+            parsed: {
+              info: {
+                mint: MINT,
+                tokenAmount: { amount: TOKEN_AMOUNT.toString() },
+              },
+            },
+          },
+        },
+      }],
+    });
   });
 
   afterEach(() => {
@@ -583,5 +614,136 @@ describe('SellLadder', () => {
     expect(confirmedEvent).toBeUndefined();
 
     botEventBus.removeListener('event', handler);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Quick-6 fresh balance re-query tests
+  // ---------------------------------------------------------------------------
+
+  it('sell() re-queries on-chain balance before steps -- uses fresh balance when lower than passed amount', async () => {
+    // Passed tokenAmount = 1_000_000n but wallet only has 500_000 (stale DB value)
+    const FRESH_BALANCE = 500_000n;
+    mockGetParsedTokenAccountsByOwner.mockResolvedValue({
+      value: [{
+        account: {
+          data: {
+            parsed: {
+              info: {
+                mint: MINT,
+                tokenAmount: { amount: FRESH_BALANCE.toString() },
+              },
+            },
+          },
+        },
+      }],
+    });
+
+    mockStandardSell.mockResolvedValue({ signature: 'sig-fresh', solReceived: 0.25 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT); // TOKEN_AMOUNT = 1_000_000n (stale)
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'STANDARD', signature: 'sig-fresh' });
+
+    // standardSell must receive fresh balance (500_000n), not stale TOKEN_AMOUNT (1_000_000n)
+    const standardArgs = mockStandardSell.mock.calls[0];
+    expect(standardArgs[1]).toBe(FRESH_BALANCE); // 2nd arg is tokenAmount
+  });
+
+  it('sell() uses fresh balance for all sell steps when stale amount was higher', async () => {
+    // Wallet has 300_000 tokens; STANDARD and HIGH_FEE hang; JITO succeeds.
+    // All steps must use 300_000n (fresh), not TOKEN_AMOUNT (1_000_000n, stale).
+    const FRESH_BALANCE = 300_000n;
+    mockGetParsedTokenAccountsByOwner.mockResolvedValue({
+      value: [{
+        account: {
+          data: {
+            parsed: {
+              info: {
+                mint: MINT,
+                tokenAmount: { amount: FRESH_BALANCE.toString() },
+              },
+            },
+          },
+        },
+      }],
+    });
+
+    mockStandardSell.mockImplementation(() => new Promise<never>(() => {}));
+    mockJitoSell.mockResolvedValue({ signature: 'sig-jito', solReceived: 0.15 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT); // stale 1_000_000n passed
+    await vi.advanceTimersByTimeAsync(30001 + 20001); // STANDARD + HIGH_FEE timeout
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'JITO_BUNDLE', signature: 'sig-jito' });
+
+    // STANDARD was called with fresh balance
+    expect(mockStandardSell.mock.calls[0][1]).toBe(FRESH_BALANCE);
+    expect(mockStandardSell.mock.calls[1][1]).toBe(FRESH_BALANCE); // HIGH_FEE call
+    // JITO was called with fresh balance
+    expect(mockJitoSell.mock.calls[0][1]).toBe(FRESH_BALANCE);
+  });
+
+  it('sell() transitions to COMPLETED when fresh balance is 0 (wallet already empty)', async () => {
+    // Fresh balance = 0 means wallet is already empty (sell previously landed or tokens consumed)
+    mockGetParsedTokenAccountsByOwner.mockResolvedValue({ value: [] }); // no accounts = 0 balance
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'STANDARD', signature: undefined });
+    // No sell step functions should have been called -- returned early
+    expect(mockStandardSell).not.toHaveBeenCalled();
+    // Transition: MONITORING->SELLING (at start), SELLING->COMPLETED (wallet empty)
+    expect(tradeStore.transition).toHaveBeenNthCalledWith(1, MINT, 'MONITORING', 'SELLING');
+    expect(tradeStore.transition).toHaveBeenNthCalledWith(2, MINT, 'SELLING', 'COMPLETED', expect.anything());
+  });
+
+  it('partial sell decrements by fresh balance amount (not stale passed amount)', async () => {
+    // Stale amount = 1_000_000n, fresh balance = 400_000n.
+    // decrementTokenAmount must use 400_000 (fresh), not 1_000_000 (stale).
+    const FRESH_BALANCE = 400_000n;
+    mockGetParsedTokenAccountsByOwner.mockResolvedValue({
+      value: [{
+        account: {
+          data: {
+            parsed: {
+              info: {
+                mint: MINT,
+                tokenAmount: { amount: FRESH_BALANCE.toString() },
+              },
+            },
+          },
+        },
+      }],
+    });
+
+    mockStandardSell.mockResolvedValue({ signature: 'sig-partial', solReceived: 0.2 });
+
+    const tradeStore = makeTradeStore();
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+
+    const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true); // partial=true, stale amount
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toEqual({ success: true, step: 'STANDARD', signature: 'sig-partial' });
+
+    // decrementTokenAmount must use fresh balance (400_000), not stale (1_000_000)
+    expect(tradeStore.decrementTokenAmount).toHaveBeenCalledWith(MINT, Number(FRESH_BALANCE));
+    expect(tradeStore.decrementTokenAmount).not.toHaveBeenCalledWith(MINT, Number(TOKEN_AMOUNT));
   });
 });

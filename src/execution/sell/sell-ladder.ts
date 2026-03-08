@@ -12,7 +12,7 @@
  * the last error was a JupiterRouteError with a route-failure code.
  * This handles tokens that Jupiter cannot route (e.g., TOKEN_NOT_TRADABLE).
  */
-import type { Connection, Keypair } from '@solana/web3.js';
+import { PublicKey, type Connection, type Keypair } from '@solana/web3.js';
 import { standardSell } from './standard-seller.js';
 import { jitoSell } from './jito-seller.js';
 import { chunkedSell } from './chunked-seller.js';
@@ -70,6 +70,38 @@ export class SellLadder {
     // Transition to SELLING before starting the ladder
     this.tradeStore.transition(mint, 'MONITORING', 'SELLING');
 
+    // Re-query fresh on-chain balance before building the step array.
+    // The passed tokenAmount may be stale (DB value set at buy time or after prior partial sells).
+    // For Token-2022 tokens, a dual-query bug previously caused 2x balance reporting, leading to
+    // Jupiter error 6024 (InsufficientFunds). Single {mint} query covers both SPL Token and Token-2022.
+    const mintPubKey = new PublicKey(mint);
+    const balanceResult = await this.connections[0].getParsedTokenAccountsByOwner(
+      this.wallet.publicKey,
+      { mint: mintPubKey },
+    );
+    let freshBalance = 0n;
+    for (const acct of balanceResult.value) {
+      const amount: string | undefined = (acct.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount;
+      if (amount) freshBalance += BigInt(amount);
+    }
+
+    if (freshBalance === 0n) {
+      // Wallet is already empty -- sell may have previously landed or tokens already consumed.
+      log.warn({ mint, passedAmount: tokenAmount.toString() }, 'sell: wallet balance is 0 -- transitioning to COMPLETED without selling');
+      this.tradeStore.transition(mint, 'SELLING', 'COMPLETED', { sellSignature: undefined });
+      return { success: true, step: 'STANDARD', signature: undefined };
+    }
+
+    if (freshBalance < tokenAmount) {
+      log.warn(
+        { mint, passedAmount: tokenAmount.toString(), freshBalance: freshBalance.toString() },
+        'sell: fresh wallet balance lower than passed tokenAmount -- using fresh balance',
+      );
+    }
+
+    // Use fresh balance for all sell steps
+    const verifiedAmount = freshBalance < tokenAmount ? freshBalance : tokenAmount;
+
     // Track the last error to determine PUMPPORTAL step eligibility
     let lastError: unknown;
 
@@ -82,7 +114,7 @@ export class SellLadder {
         name: 'STANDARD',
         timeoutMs: sell.standardTimeoutMs,
         fn: () => standardSell(
-          mint, tokenAmount,
+          mint, verifiedAmount,
           { slippageBps: sell.standardSlippageBps, feeMultiplier: 1 },
           this.config, this.wallet, this.connections
         ),
@@ -91,7 +123,7 @@ export class SellLadder {
         name: 'HIGH_FEE',
         timeoutMs: sell.highFeeTimeoutMs,
         fn: () => standardSell(
-          mint, tokenAmount,
+          mint, verifiedAmount,
           { slippageBps: sell.standardSlippageBps, feeMultiplier: sell.highFeeMultiplier },
           this.config, this.wallet, this.connections
         ),
@@ -99,7 +131,7 @@ export class SellLadder {
       {
         name: 'JITO_BUNDLE',
         timeoutMs: sell.jitoTimeoutMs,
-        fn: () => jitoSell(mint, tokenAmount, this.config, this.wallet, this.connections),
+        fn: () => jitoSell(mint, verifiedAmount, this.config, this.wallet, this.connections),
       },
       {
         name: 'CHUNKED',
@@ -122,14 +154,14 @@ export class SellLadder {
           ) {
             throw new Error('PumpPortal sell: last error not a route failure -- skipping');
           }
-          return pumpPortalSell(mint, tokenAmount, this.config, this.wallet, this.connections);
+          return pumpPortalSell(mint, verifiedAmount, this.config, this.wallet, this.connections);
         },
       },
       {
         name: 'EMERGENCY',
         timeoutMs: sell.emergencyTimeoutMs,
         fn: () => standardSell(
-          mint, tokenAmount,
+          mint, verifiedAmount,
           // EXE-09: 49% slippage = 4900 bps, emergencyPriorityMultiplier for max fee
           { slippageBps: sell.emergencySlippageBps, feeMultiplier: sell.emergencyPriorityMultiplier },
           this.config, this.wallet, this.connections
@@ -223,8 +255,8 @@ export class SellLadder {
             sellSignature: signature,
           });
 
-          // Decrement amount_tokens by the sold amount so next tier uses remaining balance
-          this.tradeStore.decrementTokenAmount(mint, Number(tokenAmount));
+          // Decrement amount_tokens by the verified/fresh amount sold so next tier uses remaining balance
+          this.tradeStore.decrementTokenAmount(mint, Number(verifiedAmount));
 
           return { success: true, step: step.name, signature };
         }
