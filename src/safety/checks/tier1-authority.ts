@@ -15,7 +15,7 @@ const RETRY_DELAY_MS = 100;
  * Returns true if the error signals that the account was not found.
  *
  * Uses instanceof check against TokenAccountNotFoundError (not string matching).
- * TokenAccountNotFoundError has an empty .message — string matching is unreliable.
+ * TokenAccountNotFoundError has an empty .message -- string matching is unreliable.
  */
 function isAccountNotFoundError(err: unknown): boolean {
   return err instanceof TokenAccountNotFoundError;
@@ -57,11 +57,11 @@ export async function checkAuthorities(
       const info = await connection.getAccountInfo(mintPubkey);
 
       if (!info) {
-        // Account not found — throw TokenAccountNotFoundError for instanceof retry check
+        // Account not found -- throw TokenAccountNotFoundError for instanceof retry check
         throw new TokenAccountNotFoundError();
       }
 
-      // Detect program by owner — determines how to parse the mint account
+      // Detect program by owner -- determines how to parse the mint account
       const programId = info.owner.equals(TOKEN_2022_PROGRAM_ID)
         ? TOKEN_2022_PROGRAM_ID
         : TOKEN_PROGRAM_ID;

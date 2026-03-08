@@ -1,13 +1,13 @@
 /**
- * jupiter-buyer.ts — Executes buy transactions via Jupiter Swap API.
+ * jupiter-buyer.ts -- Executes buy transactions via Jupiter Swap API.
  *
  * EXE-01: Jupiter Swap API for migrated tokens (raydium, pumpswap).
- * Response is base64-encoded JSON field — use Buffer.from(base64, 'base64').
+ * Response is base64-encoded JSON field -- use Buffer.from(base64, 'base64').
  * Slippage is BASIS POINTS passed in quoteResponse; dynamicSlippage: false.
  */
 import { VersionedTransaction } from '@solana/web3.js';
 import type { Connection, Keypair } from '@solana/web3.js';
-import { broadcastAndConfirm } from '../broadcaster.js';
+import { broadcastWithRetry } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { BuyResult } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
@@ -53,11 +53,11 @@ export async function jupiterBuy(
     wrapAndUnwrapSol: true,
   });
 
-  // Step 3: Deserialize — base64 JSON field (NOT raw bytes)
+  // Step 3: Deserialize -- base64 JSON field (NOT raw bytes)
   const txBytes = Buffer.from(swapResponse.swapTransaction, 'base64');
   const tx = VersionedTransaction.deserialize(txBytes);
 
-  const result = await broadcastAndConfirm(tx, wallet, connections);
+  const result = await broadcastWithRetry(tx, wallet, connections);
 
   // Estimate token amount from quoteResponse.outAmount if present
   const qr = quoteResponse as Record<string, unknown>;

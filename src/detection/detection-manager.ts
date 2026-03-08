@@ -41,7 +41,7 @@ export class DetectionManager extends EventEmitter<DetectorEvents> {
   private pumpPortalListener: PumpPortalListener | null = null;
   private raydiumListener: RaydiumListener | null = null;
 
-  // Dedup: Map<mint, timestampMs> — entries evicted after dedupWindowMs
+  // Dedup: Map<mint, timestampMs> -- entries evicted after dedupWindowMs
   private readonly seenMints = new Map<string, number>();
 
   private statsTimer: ReturnType<typeof setInterval> | null = null;
@@ -196,7 +196,7 @@ export class DetectionManager extends EventEmitter<DetectorEvents> {
     );
 
     // Dedup eviction: prune entries older than dedupWindowMs (research Pitfall 5)
-    // Prevents unbounded memory growth — pump.fun creates thousands of tokens daily
+    // Prevents unbounded memory growth -- pump.fun creates thousands of tokens daily
     const now = Date.now();
     const cutoffMs = now - this.tradingConfig.detection.dedupWindowMs;
     let evicted = 0;

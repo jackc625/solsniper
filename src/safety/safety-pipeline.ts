@@ -16,15 +16,15 @@ import { botEventBus } from '../dashboard/bot-event-bus.js';
  * Orchestrates the three-tier safety pipeline:
  *
  * Tier 1 (hard blocks, parallel via Promise.all):
- *   - checkAuthorities() — mint + freeze authority revocation (SAF-01, SAF-02)
- *   - checkSellRoute()  — Jupiter sell route existence (SAF-03)
+ *   - checkAuthorities() -- mint + freeze authority revocation (SAF-01, SAF-02)
+ *   - checkSellRoute()  -- Jupiter sell route existence (SAF-03)
  *
  * Tier 2 (scoring signals, parallel via Promise.allSettled with timeout):
- *   - checkRugCheck()            — RugCheck API risk score inversion (SAF-05)
- *   - checkHolderConcentration() — whale dominance soft block (SAF-06)
+ *   - checkRugCheck()            -- RugCheck API risk score inversion (SAF-05)
+ *   - checkHolderConcentration() -- whale dominance soft block (SAF-06)
  *
  * Tier 3 (scoring signals, parallel with Tier 2 via Promise.allSettled):
- *   - checkCreatorHistory() — serial deployer detection (SAF-07)
+ *   - checkCreatorHistory() -- serial deployer detection (SAF-07)
  *
  * Aggregate score (SAF-08): weighted average of Tier 2+3 scores.
  * Threshold rejection (SAF-09): tokens below minSafetyScore rejected.
@@ -53,10 +53,10 @@ export class SafetyPipeline {
    * Returns a SafetyResult with pass/fail decision, aggregate score, and detailed logging.
    */
   async evaluate(event: TokenEvent): Promise<SafetyResult> {
-    // 1. Cache check — skip all checks for recently evaluated mints
+    // 1. Cache check -- skip all checks for recently evaluated mints
     const cached = this.cache.get(event.mint);
     if (cached !== null) {
-      this.log.debug({ mint: event.mint }, 'Cache hit — returning cached safety result');
+      this.log.debug({ mint: event.mint }, 'Cache hit -- returning cached safety result');
       return cached;
     }
 
@@ -65,7 +65,7 @@ export class SafetyPipeline {
     try {
 
     // 2. Tier 1: Hard blocks in parallel via Promise.all (SAF-04)
-    // checkAuthorities returns [CheckResult, CheckResult, PublicKey] — third element is detected programId
+    // checkAuthorities returns [CheckResult, CheckResult, PublicKey] -- third element is detected programId
     // checkSellRoute receives event.source so pumpportal tokens skip the Jupiter indexing check
     const [authResults, sellRouteResult] = await Promise.all([
       checkAuthorities(event.mint, this.connection),
@@ -106,7 +106,7 @@ export class SafetyPipeline {
       checkCreatorHistory(event.creator, this.env.HELIUS_API_KEY, this.blocklist, tier3Signal),
     ]);
 
-    // Resolve settled results — pessimistic on rejection (score=0, pass=true to not incorrectly hard-block)
+    // Resolve settled results -- pessimistic on rejection (score=0, pass=true to not incorrectly hard-block)
     const rugCheckResult = this.resolveSettled(rugCheckSettled, 'rugcheck');
     const holderResult = this.resolveSettled(holderSettled, 'holder_concentration');
     const creatorResult = this.resolveSettled(creatorSettled, 'creator_history');
@@ -190,7 +190,7 @@ export class SafetyPipeline {
     return result;
 
     } catch (err) {
-      // Unexpected error in safety pipeline — emit ERROR event for dashboard visibility
+      // Unexpected error in safety pipeline -- emit ERROR event for dashboard visibility
       botEventBus.emit('event', {
         type: 'ERROR',
         mint: event.mint,
@@ -213,7 +213,7 @@ export class SafetyPipeline {
     if (settled.status === 'fulfilled') {
       return settled.value;
     }
-    // Rejected: timeout or unexpected error — pessimistic score=0
+    // Rejected: timeout or unexpected error -- pessimistic score=0
     return {
       pass: true,
       score: 0,

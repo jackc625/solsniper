@@ -19,7 +19,7 @@ interface HeliusTx {
  * - 0-1 mints: score=80 (new creator, moderate trust)
  * - 2-3 mints: score=50 (some history)
  * - 4-9 mints: score=20 (likely serial deployer, suspicious)
- * - 10+ mints: score=0, pass=false (confirmed serial deployer — hard reject)
+ * - 10+ mints: score=0, pass=false (confirmed serial deployer -- hard reject)
  */
 function analyzeCreatorHistory(
   mintCount: number,
@@ -57,8 +57,8 @@ function analyzeCreatorHistory(
 /**
  * Checks creator wallet history for serial token deployment.
  *
- * Fast path — blocklist check first (no API call needed for known-bad creators).
- * API path — requires HELIUS_API_KEY; skips if not configured.
+ * Fast path -- blocklist check first (no API call needed for known-bad creators).
+ * API path -- requires HELIUS_API_KEY; skips if not configured.
  *
  * Behavior:
  * - creator === undefined: neutral (Raydium events don't include creator address)
@@ -109,7 +109,7 @@ export async function checkCreatorHistory(
     };
   }
 
-  const url = `${HELIUS_TX_URL}/${creator}/transactions?api-key=${heliusApiKey}&type=TOKEN_MINT&limit=50`;
+  const url = `${HELIUS_TX_URL}/${creator}/transactions?api-key=${heliusApiKey}&type=TOKEN_MINT&limit=10`;
 
   try {
     const response = await fetch(url, { signal });
@@ -131,7 +131,7 @@ export async function checkCreatorHistory(
     const analysis = analyzeCreatorHistory(mintTxs.length, timestamps, creator);
 
     if (analysis.shouldBlocklist) {
-      log.warn({ creator, mintCount: mintTxs.length }, 'Serial deployer detected — adding to blocklist');
+      log.warn({ creator, mintCount: mintTxs.length }, 'Serial deployer detected -- adding to blocklist');
       blocklist.add(creator);
     }
 

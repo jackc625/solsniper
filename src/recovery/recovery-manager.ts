@@ -1,5 +1,5 @@
 /**
- * recovery-manager.ts — Crash recovery on bot startup (PER-03, PER-05).
+ * recovery-manager.ts -- Crash recovery on bot startup (PER-03, PER-05).
  *
  * Reconciles in-flight trades against on-chain wallet state after a crash or
  * restart. Must complete before DetectionManager starts so no duplicate buys
@@ -24,7 +24,7 @@ import { createModuleLogger } from '../core/logger.js';
 
 const log = createModuleLogger('recovery-manager');
 
-/** Per-trade RPC timeout — one slow/unavailable RPC does not block others. */
+/** Per-trade RPC timeout -- one slow/unavailable RPC does not block others. */
 const RPC_TIMEOUT_MS = 5000;
 
 export interface RecoverySummary {
@@ -75,7 +75,7 @@ export class RecoveryManager {
     let detectedDiscarded = 0;
 
     // -------------------------------------------------------------------------
-    // Step 1: Discard DETECTED trades — no capital at risk
+    // Step 1: Discard DETECTED trades -- no capital at risk
     // -------------------------------------------------------------------------
     const detectedTrades = this.tradeStore.getDetectedTrades();
     for (const trade of detectedTrades) {
@@ -102,7 +102,7 @@ export class RecoveryManager {
     const currentSellingTrades: typeof sellingTrades = [];
     for (const [mint, group] of sellingByMint) {
       if (group.length > 1) {
-        log.error({ mint, count: group.length }, 'Multiple SELLING records for mint — keeping most recent');
+        log.error({ mint, count: group.length }, 'Multiple SELLING records for mint -- keeping most recent');
         for (const stale of group.slice(1)) {
           this.tradeStore.transitionById(stale.id, stale.mint, 'SELLING', 'FAILED', {
             errorMessage: 'RECOVERY: duplicate SELLING record',
@@ -117,7 +117,7 @@ export class RecoveryManager {
     // Step 3: Process SELLING trades (one per mint after dedup)
     // -------------------------------------------------------------------------
     for (const trade of currentSellingTrades) {
-      // Skip dry-run SELLING trades — no real tokens exist
+      // Skip dry-run SELLING trades -- no real tokens exist
       if (trade.dryRun) {
         this.tradeStore.transition(trade.mint, 'SELLING', 'ABANDONED', {
           errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
@@ -137,24 +137,24 @@ export class RecoveryManager {
           // Fire-and-forget: SellLadder handles its own error logging internally
           void this.sellLadder.sell(trade.mint, balance);
           log.info({ mint: trade.mint, tradeId: trade.id, balance: balance.toString() },
-            'SELLING trade resumed — tokens found in wallet, sell re-initiated');
+            'SELLING trade resumed -- tokens found in wallet, sell re-initiated');
           sellingResumed++;
         } else {
-          // Wallet empty — sell likely landed before crash
+          // Wallet empty -- sell likely landed before crash
           this.tradeStore.transition(trade.mint, 'SELLING', 'COMPLETED', {
-            errorMessage: 'RECOVERY: sell may have landed — wallet empty',
+            errorMessage: 'RECOVERY: sell may have landed -- wallet empty',
           });
           log.info({ mint: trade.mint, tradeId: trade.id },
-            'SELLING trade completed — wallet empty, sell assumed landed');
+            'SELLING trade completed -- wallet empty, sell assumed landed');
           sellingCompleted++;
         }
       } catch (err) {
-        // RPC unavailable or timeout — fail-safe closed
+        // RPC unavailable or timeout -- fail-safe closed
         this.tradeStore.transition(trade.mint, 'SELLING', 'FAILED', {
           errorMessage: 'RECOVERY: RPC unavailable',
         });
         log.warn({ mint: trade.mint, tradeId: trade.id, err },
-          'SELLING trade recovery failed — RPC unavailable');
+          'SELLING trade recovery failed -- RPC unavailable');
         sellingCompleted++;
       }
     }
@@ -164,12 +164,12 @@ export class RecoveryManager {
     // -------------------------------------------------------------------------
     const buyingTrades = this.tradeStore.getBuyingTrades();
     for (const trade of buyingTrades) {
-      // Skip dry-run BUYING trades — no real tokens were purchased
+      // Skip dry-run BUYING trades -- no real tokens were purchased
       if (trade.dryRun) {
         this.tradeStore.transition(trade.mint, 'BUYING', 'ABANDONED', {
           errorMessage: 'RECOVERY: dry-run trade abandoned on restart',
         });
-        // Don't count as buyingUnrecovered — expected behavior for dry-run
+        // Don't count as buyingUnrecovered -- expected behavior for dry-run
         continue;
       }
 
@@ -182,14 +182,14 @@ export class RecoveryManager {
         if (balance > 0n) {
           this.tradeStore.transition(trade.mint, 'BUYING', 'MONITORING');
           log.info({ mint: trade.mint, tradeId: trade.id, balance: balance.toString() },
-            'BUYING trade recovered — tokens found in wallet');
+            'BUYING trade recovered -- tokens found in wallet');
           buyingRecovered++;
         } else {
           this.tradeStore.transition(trade.mint, 'BUYING', 'FAILED', {
-            errorMessage: 'RECOVERY: balance=0 — buy did not land',
+            errorMessage: 'RECOVERY: balance=0 -- buy did not land',
           });
           log.warn({ mint: trade.mint, tradeId: trade.id },
-            'BUYING trade unrecovered — wallet balance zero');
+            'BUYING trade unrecovered -- wallet balance zero');
           buyingUnrecovered++;
         }
       } catch (err) {
@@ -197,13 +197,13 @@ export class RecoveryManager {
           errorMessage: 'RECOVERY: RPC unavailable',
         });
         log.warn({ mint: trade.mint, tradeId: trade.id, err },
-          'BUYING trade recovery failed — RPC unavailable');
+          'BUYING trade recovery failed -- RPC unavailable');
         buyingUnrecovered++;
       }
     }
 
     // -------------------------------------------------------------------------
-    // Step 5: Count MONITORING trades — abandon dry-run trades (shadow tracking is ephemeral)
+    // Step 5: Count MONITORING trades -- abandon dry-run trades (shadow tracking is ephemeral)
     // -------------------------------------------------------------------------
     const monitoringTrades = this.tradeStore.getMonitoringTrades();
     let dryRunAbandoned = 0;
@@ -239,7 +239,7 @@ export class RecoveryManager {
    * (legacy SPL) and TOKEN_2022_PROGRAM_ID (pump.fun create_v2, Nov 2025+).
    * Returns total balance as bigint (sum of all token accounts).
    *
-   * Uses getParsedTokenAccountsByOwner for both programs — it returns
+   * Uses getParsedTokenAccountsByOwner for both programs -- it returns
    * ParsedAccountData where .data.parsed is typed as `any`, allowing direct
    * field access without casts. Token-2022 accounts are filtered client-side
    * by mint since the programId filter returns all Token-2022 accounts.

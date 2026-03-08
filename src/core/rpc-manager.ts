@@ -109,9 +109,9 @@ export class RpcManager extends EventEmitter<RpcManagerEvents> {
         this.consecutiveFailures = 0;
         this.stopRecoveryPolling();
         this.emit('recovered', { endpoint: 'primary' });
-        log.info('RPC primary recovered — switched back to primary');
+        log.info('RPC primary recovered -- switched back to primary');
       } catch {
-        // Primary still down — keep polling
+        // Primary still down -- keep polling
       }
     }, this.RECOVERY_INTERVAL_MS);
   }

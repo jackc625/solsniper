@@ -14,7 +14,7 @@ const SYSTEM_ACCOUNTS = new Set([
   '1nc1nerator11111111111111111111111111111111',   // Incinerator
 ]);
 
-// Pump.fun program ID — used to derive per-mint bonding curve PDAs, not a static account.
+// Pump.fun program ID -- used to derive per-mint bonding curve PDAs, not a static account.
 // The bonding curve PDA is NOT a fixed address; it must be derived per-mint via findProgramAddressSync.
 const PUMP_FUN_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
 
@@ -54,7 +54,7 @@ export async function checkHolderConcentration(
     const mintPubkey = new PublicKey(mint);
     const isToken2022 = programId?.equals(TOKEN_2022_PROGRAM_ID) ?? false;
 
-    // Derive per-mint bonding curve PDA — CPU-only, zero RPC cost.
+    // Derive per-mint bonding curve PDA -- CPU-only, zero RPC cost.
     // Universal exclusion: applies regardless of source, handles migration edge cases.
     const [bondingCurvePda] = PublicKey.findProgramAddressSync(
       [Buffer.from('bonding-curve'), mintPubkey.toBuffer()],
@@ -156,7 +156,7 @@ export async function checkHolderConcentration(
 
     if (userHolders.length === 0) {
       if (source === 'pumpportal' && config.minUserHolders === 0) {
-        // Config allows zero holders — pump.fun bonding curve phase tokens pass with neutral score
+        // Config allows zero holders -- pump.fun bonding curve phase tokens pass with neutral score
         return {
           pass: true,
           score: 50,

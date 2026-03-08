@@ -5,12 +5,12 @@ import { createModuleLogger } from '../core/logger.js';
 
 const log = createModuleLogger('wallet');
 
-// Private cached keypair — never exposed directly
+// Private cached keypair -- never exposed directly
 let _keypair: Keypair | null = null;
 
 /**
  * Loads and caches the wallet keypair from SOLSNIPER_PRIVATE_KEY env var.
- * Only the public key is ever logged — the secret key is never exposed.
+ * Only the public key is ever logged -- the secret key is never exposed.
  * Throws if the private key is invalid, without including the key value in the error.
  */
 export function getWallet(): Keypair {
@@ -29,7 +29,7 @@ export function getWallet(): Keypair {
 
 /**
  * Returns the wallet public key as a base58 string.
- * Safe to log — only exposes the public key.
+ * Safe to log -- only exposes the public key.
  */
 export function getWalletPublicKey(): string {
   return getWallet().publicKey.toBase58();

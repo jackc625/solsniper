@@ -1,9 +1,9 @@
 /**
- * broadcaster.ts — Blockhash-last signing + multi-RPC parallel broadcast + confirmation.
+ * broadcaster.ts -- Blockhash-last signing + multi-RPC parallel broadcast + confirmation.
  *
  * EXE-04: Blockhash fetched as absolute last step before tx.sign().
  * EXE-05: Fire to all RPC connections simultaneously via Promise.allSettled.
- * EXE-08: Caller always passes a freshly-deserialized tx — blockhash overwritten here.
+ * EXE-08: Caller always passes a freshly-deserialized tx -- blockhash overwritten here.
  *
  * Anti-patterns avoided:
  * - NO pre-fetched blockhash passed in (would violate EXE-04)
@@ -18,8 +18,8 @@ const log = createModuleLogger('broadcaster');
 
 /**
  * Error class with metadata indicating whether the transaction landed on-chain.
- * - landed: true  → tx confirmed but failed (slippage, etc.) — do NOT retry
- * - landed: false → tx never confirmed (timeout/expiry) — safe to retry
+ * - landed: true  → tx confirmed but failed (slippage, etc.) -- do NOT retry
+ * - landed: false → tx never confirmed (timeout/expiry) -- safe to retry
  */
 export class BroadcastError extends Error {
   public readonly signature: string | undefined;
@@ -36,7 +36,7 @@ export class BroadcastError extends Error {
 export interface BroadcastOptions {
   /** Override maxRetries passed to sendRawTransaction (default: 0). */
   sendMaxRetries?: number;
-  /** Timeout (ms) for confirmTransaction — resolves with timeout error if exceeded. */
+  /** Timeout (ms) for confirmTransaction -- resolves with timeout error if exceeded. */
   confirmTimeoutMs?: number;
 }
 
@@ -62,7 +62,7 @@ export async function broadcastAndConfirm(
     const signature = `DRY_RUN_${Date.now()}`;
     log.info(
       { dryRun: true, signature, blockhash },
-      '[DRY RUN] broadcastAndConfirm intercepted — tx NOT signed or broadcast'
+      '[DRY RUN] broadcastAndConfirm intercepted -- tx NOT signed or broadcast'
     );
     return { signature, blockhash, lastValidBlockHeight };
   }
@@ -78,7 +78,7 @@ export async function broadcastAndConfirm(
   const serialized = tx.serialize();
 
   // EXE-05: Send to ALL connections simultaneously.
-  // skipPreflight: true — Jupiter has already simulated; skip for speed.
+  // skipPreflight: true -- Jupiter has already simulated; skip for speed.
   const results = await Promise.allSettled(
     connections.map((conn) =>
       conn.sendRawTransaction(serialized, {
@@ -100,7 +100,7 @@ export async function broadcastAndConfirm(
   const signature = success.value;
   log.debug({ signature, blockhash }, 'Transaction broadcast to all RPCs');
 
-  // Confirm using the first connection (all sigs are identical — any connection works).
+  // Confirm using the first connection (all sigs are identical -- any connection works).
   const confirmPromise = connections[0].confirmTransaction(
     { signature, blockhash, lastValidBlockHeight },
     'confirmed'
@@ -150,6 +150,13 @@ async function checkPriorSignatures(
   for (let i = 0; i < signatures.length; i++) {
     const status = statuses.value[i];
     if (status != null && status.confirmationStatus != null) {
+      if (status.err != null) {
+        throw new BroadcastError(
+          `Prior attempt confirmed but failed on-chain: ${JSON.stringify(status.err)}`,
+          signatures[i],
+          true
+        );
+      }
       return signatures[i];
     }
   }
@@ -192,7 +199,7 @@ export async function broadcastWithRetry(
     } catch (err) {
       lastError = err as Error;
 
-      // On-chain failure (slippage, etc.) — do NOT retry
+      // On-chain failure (slippage, etc.) -- do NOT retry
       if (err instanceof BroadcastError && err.landed) {
         throw err;
       }

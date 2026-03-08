@@ -8,7 +8,7 @@ import { jupiterClient } from '../../execution/jupiter-client.js';
  *
  * Source-aware behavior:
  * - source='pumpportal': Skip the check (pump.fun tokens newly created via create_v2 are not
- *   yet indexed by Jupiter at detection time — checking would cause false rejections).
+ *   yet indexed by Jupiter at detection time -- checking would cause false rejections).
  *   Sell route is verified post-buy instead.
  * - source='raydium' | 'pumpswap' | undefined: Run the Jupiter quote check as normal.
  *
@@ -24,7 +24,7 @@ export async function checkSellRoute(
   source?: DetectionSource,
 ): Promise<CheckResult> {
   // Pump.fun tokens (pumpportal source) are checked post-buy, not at detection time.
-  // Jupiter hasn't indexed the new mint yet — checking would cause false rejections.
+  // Jupiter hasn't indexed the new mint yet -- checking would cause false rejections.
   if (source === 'pumpportal') {
     return {
       pass: true,

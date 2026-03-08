@@ -1,19 +1,19 @@
 /**
- * execution-engine.ts — Routes buy to PumpPortal or Jupiter based on TokenEvent.source.
+ * execution-engine.ts -- Routes buy to PumpPortal or Jupiter based on TokenEvent.source.
  *
  * EXE-03: Automatic path selection.
  * - source === 'pumpportal' → PumpPortal trade-local (bonding curve)
  * - source === 'raydium' | 'pumpswap' → Jupiter Swap API (migrated)
  *
  * Buy failure behavior (locked decision):
- * - No retry — single attempt, speed over resilience
+ * - No retry -- single attempt, speed over resilience
  * - On failure: transition BUYING → FAILED (terminal), activeMints.delete() auto-called
  * - BUY_FAILED in errorMessage distinguishes from sell failures in DB
  *
  * Post-buy sell-route verification:
  * - For pumpportal tokens, Jupiter may not have indexed the new mint yet.
  * - We schedule a deferred check (fire-and-forget) to verify a sell route exists.
- * - 3 retries at 10s, 15s, 20s delays. Logs warning if all fail — does NOT force-sell.
+ * - 3 retries at 10s, 15s, 20s delays. Logs warning if all fail -- does NOT force-sell.
  */
 import type { Keypair, Connection } from '@solana/web3.js';
 import { pumpPortalBuy } from './buy/pump-portal-buyer.js';
@@ -58,7 +58,7 @@ export class ExecutionEngine {
     log.info({ mint, source }, 'Executing buy');
 
     try {
-      // Emit BUY_SENT before dispatching — write-ahead record already created by index.ts
+      // Emit BUY_SENT before dispatching -- write-ahead record already created by index.ts
       botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: getRuntimeConfig().dryRun, source, buyAmountSol: this.config.buyAmountSol });
 
       const result = source === 'pumpportal'
@@ -90,10 +90,10 @@ export class ExecutionEngine {
           buyPriceSol: result.amountTokens ? buyPriceSol : undefined,
         });
         botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8), isDryRun: getRuntimeConfig().dryRun, source, buyAmountSol: this.config.buyAmountSol });
-        log.info({ mint, signature: result.signature }, 'Buy confirmed — trade in MONITORING');
+        log.info({ mint, signature: result.signature }, 'Buy confirmed -- trade in MONITORING');
 
         // For pumpportal tokens: schedule deferred sell-route verification (fire-and-forget).
-        // Jupiter may not have indexed the new mint yet — we verify without blocking buy().
+        // Jupiter may not have indexed the new mint yet -- we verify without blocking buy().
         if (source === 'pumpportal') {
           void this.schedulePostBuySellRouteVerification(mint);
         }
@@ -102,7 +102,7 @@ export class ExecutionEngine {
           errorMessage: `BUY_FAILED: ${result.errorMessage ?? 'unknown error'}`,
         });
         botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: result.errorMessage, isDryRun: getRuntimeConfig().dryRun });
-        log.warn({ mint, errorMessage: result.errorMessage }, 'Buy failed — trade marked FAILED');
+        log.warn({ mint, errorMessage: result.errorMessage }, 'Buy failed -- trade marked FAILED');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -110,7 +110,7 @@ export class ExecutionEngine {
         errorMessage: `BUY_FAILED: ${message}`,
       });
       botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message, isDryRun: getRuntimeConfig().dryRun });
-      log.error({ mint, err }, 'Buy threw unexpectedly — trade marked FAILED');
+      log.error({ mint, err }, 'Buy threw unexpectedly -- trade marked FAILED');
     }
   }
 
@@ -119,7 +119,7 @@ export class ExecutionEngine {
    *
    * Jupiter may not index the token immediately after launch. We retry at
    * increasing intervals to verify a sell route exists before needing it.
-   * This is informational only — we do NOT force-sell if all retries fail.
+   * This is informational only -- we do NOT force-sell if all retries fail.
    *
    * Retry schedule: 10s, 15s, 20s (3 attempts)
    */
@@ -136,12 +136,12 @@ export class ExecutionEngine {
         });
         await jupiterClient.quote(params);
         log.info({ mint, attempt: i + 1 }, 'Post-buy sell-route verified');
-        return;  // Route found — done
+        return;  // Route found -- done
       } catch (err) {
         log.debug({ mint, attempt: i + 1, err }, 'Post-buy sell-route check failed');
       }
     }
-    // All retries failed — log warning, keep monitoring (do NOT force-sell)
-    log.warn({ mint }, 'Post-buy sell-route verification failed after all retries — monitoring continues');
+    // All retries failed -- log warning, keep monitoring (do NOT force-sell)
+    log.warn({ mint }, 'Post-buy sell-route verification failed after all retries -- monitoring continues');
   }
 }

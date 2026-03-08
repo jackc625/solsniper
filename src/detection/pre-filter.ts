@@ -8,7 +8,7 @@ export interface PreFilterResult {
 // Well-known token names that scammers impersonate (case-insensitive exact match against name/symbol)
 const IMPERSONATION_TARGETS = new Set(['SOL', 'USDC', 'USDT', 'BONK', 'WIF', 'JUP', 'RAY', 'PYTH', 'JTO', 'MSOLANA', 'MSOL']);
 
-// Spam/scam keywords that appear in names/symbols — checked as substring (case-insensitive)
+// Spam/scam keywords that appear in names/symbols -- checked as substring (case-insensitive)
 const SPAM_KEYWORDS = ['FREE', 'AIRDROP', 'GIVEAWAY', 'CLAIM', 'REWARD'];
 
 /**
@@ -16,15 +16,15 @@ const SPAM_KEYWORDS = ['FREE', 'AIRDROP', 'GIVEAWAY', 'CLAIM', 'REWARD'];
  * the full safety pipeline in Phase 3.
  *
  * Design decisions:
- * - Returns pass:true for events with no name/symbol — PumpPortal fields are medium-confidence
+ * - Returns pass:true for events with no name/symbol -- PumpPortal fields are medium-confidence
  *   and we should not filter tokens we can't evaluate (Phase 3 handles deep analysis).
- * - Minimal checks only — the safety pipeline in Phase 3 does comprehensive analysis.
+ * - Minimal checks only -- the safety pipeline in Phase 3 does comprehensive analysis.
  *   This is junk rejection only, not safety analysis.
  */
 export function preFilter(event: TokenEvent): PreFilterResult {
   const { name, symbol } = event;
 
-  // If neither name nor symbol is present, pass through — can't evaluate
+  // If neither name nor symbol is present, pass through -- can't evaluate
   if (!name && !symbol) {
     return { pass: true };
   }
@@ -48,7 +48,7 @@ export function preFilter(event: TokenEvent): PreFilterResult {
       }
     }
 
-    // Impersonation check (exact match against well-known names — case-insensitive)
+    // Impersonation check (exact match against well-known names -- case-insensitive)
     if (IMPERSONATION_TARGETS.has(nameUpper)) {
       return { pass: false, reason: `name impersonates well-known token "${nameUpper}"` };
     }

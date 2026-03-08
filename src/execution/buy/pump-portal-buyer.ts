@@ -1,13 +1,13 @@
 /**
- * pump-portal-buyer.ts — Executes buy transactions via PumpPortal trade-local API.
+ * pump-portal-buyer.ts -- Executes buy transactions via PumpPortal trade-local API.
  *
  * EXE-02: PumpPortal trade-local API for bonding curve tokens.
- * Response is raw bytes (arrayBuffer) — NOT base64 JSON.
+ * Response is raw bytes (arrayBuffer) -- NOT base64 JSON.
  * Slippage is PERCENT (e.g., 10 for 10%), NOT basis points.
  */
 import { VersionedTransaction } from '@solana/web3.js';
 import type { Connection, Keypair } from '@solana/web3.js';
-import { broadcastAndConfirm } from '../broadcaster.js';
+import { broadcastWithRetry } from '../broadcaster.js';
 import type { BuyResult } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { createModuleLogger } from '../../core/logger.js';
@@ -47,11 +47,11 @@ export async function pumpPortalBuy(
     return { success: false, errorMessage: `PumpPortal HTTP ${response.status}` };
   }
 
-  // Raw bytes response — NOT JSON. Use arrayBuffer().
+  // Raw bytes response -- NOT JSON. Use arrayBuffer().
   const txBytes = new Uint8Array(await response.arrayBuffer());
   const tx = VersionedTransaction.deserialize(txBytes);
 
-  const result = await broadcastAndConfirm(tx, wallet, connections);
+  const result = await broadcastWithRetry(tx, wallet, connections);
 
   log.info({ mint, signature: result.signature }, 'PumpPortal buy confirmed');
   return {

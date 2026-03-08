@@ -1,6 +1,6 @@
 {
   // SOL to spend on each buy. E.g. 0.01 = 0.01 SOL per token launch.
-  "buyAmountSol": 0.01,
+  "buyAmountSol": 0.005,
 
   // Maximum price slippage allowed in basis points (100 bps = 1%). Protects against sandwich attacks.
   "maxSlippageBps": 1000,
@@ -19,7 +19,7 @@
 
   // Enable dry-run mode: runs full pipeline against mainnet but intercepts before signing/broadcasting.
   // Dry-run trades are tracked with shadow P&L but no real SOL is spent.
-  "dryRun": true,
+  "dryRun": false,
 
   "detection": {
     // How often (ms) to send a ping to keep WebSocket connections alive. Default: 30 000 ms (30 s).
@@ -74,7 +74,7 @@
 
       // Minimum number of real user holders required for pumpportal tokens to pass.
       // Tokens with fewer user holders are rejected. 0 = accept tokens with no holders.
-      "minUserHolders": 2
+      "minUserHolders": 3
     },
 
     // Set true if the rug-check API returns risk scores (high = bad). The bot inverts them to safety scores (high = good).
@@ -98,7 +98,7 @@
 
     "sell": {
       // Slippage for normal sell attempts (basis points). 500 = 5%.
-      "standardSlippageBps": 500,
+      "standardSlippageBps": 1000,
 
       // Slippage for emergency sell escalation (basis points). 4900 = 49% -- used when all else fails.
       "emergencySlippageBps": 4900,
@@ -133,7 +133,7 @@
     // Price polling interval in milliseconds. Default: 5 seconds.
     // Rate limit note: at 5s intervals, max ~12 req/min per position.
     // Free-tier Jupiter limit is 60 req/min -- safe for up to 5 concurrent positions.
-    "pollIntervalMs": 5000,
+    "pollIntervalMs": 4000,
 
     // Stop-loss threshold as a percentage. Negative value.
     // -50 = sell when position drops 50% from entry value.

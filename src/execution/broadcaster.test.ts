@@ -293,7 +293,7 @@ describe('broadcastWithRetry', () => {
 
     // Between retries: getSignatureStatuses detects the prior signature
     (conn.getSignatureStatuses as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      value: [{ confirmationStatus: 'confirmed' }],
+      value: [{ confirmationStatus: 'confirmed', err: null }],
     });
 
     const resultPromise = broadcastWithRetry(tx, mockWallet, [conn]);
@@ -306,6 +306,35 @@ describe('broadcastWithRetry', () => {
     // Should have only called broadcastAndConfirm once (second attempt was skipped)
     expect(conn.getLatestBlockhash).toHaveBeenCalledOnce();
     expect(conn.getSignatureStatuses).toHaveBeenCalledWith(['sig-late-lander']);
+    vi.useRealTimers();
+  });
+
+  it('prior signature confirmed with on-chain error — throws BroadcastError(landed=true)', async () => {
+    vi.useFakeTimers();
+    const tx = makeMockTx();
+    const conn = makeMockConnection({ sendResult: 'sig-prior-fail' });
+
+    // First attempt: hang forever (timeout will fire)
+    (conn.confirmTransaction as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise(() => {})
+    );
+
+    // Between retries: getSignatureStatuses detects the prior signature confirmed WITH error
+    (conn.getSignatureStatuses as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      value: [{ confirmationStatus: 'confirmed', err: 'InstructionError' }],
+    });
+
+    const resultPromise = broadcastWithRetry(tx, mockWallet, [conn]).catch((e) => e);
+    // Advance past the 15s confirmation timeout
+    await vi.advanceTimersByTimeAsync(16_000);
+
+    const err = await resultPromise;
+
+    expect(err).toBeInstanceOf(BroadcastError);
+    expect(err.landed).toBe(true);
+    expect(err.signature).toBe('sig-prior-fail');
+    // Only one attempt — should not make a second broadcastAndConfirm call
+    expect(conn.getLatestBlockhash).toHaveBeenCalledOnce();
     vi.useRealTimers();
   });
 

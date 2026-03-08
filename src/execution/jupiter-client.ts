@@ -49,7 +49,7 @@ export class JupiterClient {
   private triggerCooldown(retryAfterMs?: number): void {
     const duration = retryAfterMs ?? DEFAULT_COOLDOWN_MS;
     this.cooldownUntil = Date.now() + duration;
-    log.warn({ cooldownMs: duration }, 'Jupiter rate limited — entering cooldown');
+    log.warn({ cooldownMs: duration }, 'Jupiter rate limited -- entering cooldown');
   }
 
   // ---------------------------------------------------------------------------
@@ -57,18 +57,18 @@ export class JupiterClient {
   // ---------------------------------------------------------------------------
 
   /**
-   * GET /swap/v1/quote — fetch a swap quote from Jupiter.
+   * GET /swap/v1/quote -- fetch a swap quote from Jupiter.
    *
    * @param params  URLSearchParams with inputMint, outputMint, amount, slippageBps, etc.
    * @param signal  Optional AbortSignal for safety pipeline timeout propagation.
    * @returns Parsed JSON response from Jupiter.
-   * @throws Error('Jupiter rate limited — cooldown active') if in cooldown.
+   * @throws Error('Jupiter rate limited -- cooldown active') if in cooldown.
    * @throws Error('Jupiter rate limited (429)') on a fresh 429 response.
    * @throws Error('Jupiter quote HTTP {status}') on any other non-2xx.
    */
   async quote(params: URLSearchParams, signal?: AbortSignal): Promise<unknown> {
     if (this.isCoolingDown()) {
-      throw new Error('Jupiter rate limited — cooldown active');
+      throw new Error('Jupiter rate limited -- cooldown active');
     }
 
     const url = `${JUPITER_BASE_URL}/quote?${params.toString()}`;
@@ -105,17 +105,17 @@ export class JupiterClient {
   }
 
   /**
-   * POST /swap/v1/swap — submit a swap transaction request to Jupiter.
+   * POST /swap/v1/swap -- submit a swap transaction request to Jupiter.
    *
    * @param body  Request body (must include quoteResponse from quote()).
    * @returns Parsed JSON response containing { swapTransaction: string } (base64-encoded tx).
-   * @throws Error('Jupiter rate limited — cooldown active') if in cooldown.
+   * @throws Error('Jupiter rate limited -- cooldown active') if in cooldown.
    * @throws Error('Jupiter rate limited (429)') on a fresh 429 response.
    * @throws Error('Jupiter swap HTTP {status}') on any other non-2xx.
    */
   async swap(body: Record<string, unknown>): Promise<{ swapTransaction: string }> {
     if (this.isCoolingDown()) {
-      throw new Error('Jupiter rate limited — cooldown active');
+      throw new Error('Jupiter rate limited -- cooldown active');
     }
 
     const response = await fetch(`${JUPITER_BASE_URL}/swap`, {
@@ -173,7 +173,7 @@ export class JupiterClient {
 }
 
 /**
- * Module-level singleton — use this in all production callers.
+ * Module-level singleton -- use this in all production callers.
  * Tests should instantiate `new JupiterClient()` directly for isolation.
  */
 export const jupiterClient = new JupiterClient();

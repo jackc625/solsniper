@@ -1,4 +1,4 @@
-// IMPORTANT: env.ts must be imported first — it loads dotenv and validates all
+// IMPORTANT: env.ts must be imported first -- it loads dotenv and validates all
 // required environment variables. If validation fails, process.exit(1) is called
 // before any other code runs.
 import { env } from './config/env.js';
@@ -37,14 +37,14 @@ async function shutdown(
   log.info({ signal }, 'Shutdown signal received');
 
   const timeout = setTimeout(() => {
-    log.warn('Graceful shutdown timed out after 5s — forcing exit');
+    log.warn('Graceful shutdown timed out after 5s -- forcing exit');
     process.exit(1);
   }, 5000);
   timeout.unref();
 
   try {
     // 0. Stop position manager polling (synchronous, clears setTimeout)
-    // Must stop first — prevents new sell triggers during teardown while connections are still open
+    // Must stop first -- prevents new sell triggers during teardown while connections are still open
     positionManager.stop();
 
     // 0.5. Close dashboard HTTP server (SSE clients get 503; drains in-flight API requests)
@@ -56,7 +56,7 @@ async function shutdown(
     // 2. Close detection listeners (WebSocket + onLogs subscriptions)
     await detectionManager.stop();
 
-    // 3. Flush SQLite writes (TradeStore.close() is synchronous — flushes and closes)
+    // 3. Flush SQLite writes (TradeStore.close() is synchronous -- flushes and closes)
     tradeStore.close();
 
     // 4. Flush pino logger (ensures buffered logs written)
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   rpcManager.on('recovered', (data) => log.info(data, 'RPC primary recovered'));
   rpcManager.on('degraded', (data) => log.debug(data, 'RPC degraded'));
 
-  // 4. Log trading config (safe — no secrets)
+  // 4. Log trading config (safe -- no secrets)
   log.info({ tradingConfig }, 'Trading configuration loaded');
 
   // 5. Initialize safety pipeline
@@ -117,7 +117,7 @@ async function main(): Promise<void> {
   );
   log.info({ sellLadderReady: true }, 'ExecutionEngine and SellLadder initialized');
 
-  // 10. Initialize position manager (started after recovery completes — see step 12)
+  // 10. Initialize position manager (started after recovery completes -- see step 12)
   const positionManager = new PositionManager(
     tradeStore,
     sellLadder,
@@ -127,8 +127,8 @@ async function main(): Promise<void> {
     jupiterClient,
   );
 
-  // 11. Run crash recovery — BLOCKS until complete (PER-03, PER-05)
-  // Detection must not start until recovery is fully done — no racing with live events.
+  // 11. Run crash recovery -- BLOCKS until complete (PER-03, PER-05)
+  // Detection must not start until recovery is fully done -- no racing with live events.
   const recoveryManager = new RecoveryManager(
     tradeStore,
     rpcManager.getConnection(),
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
     detectedDiscarded: recoverySummary.detectedDiscarded,
   }, 'Recovery complete');
 
-  // 12. Start position manager — monitors MONITORING trades for exit triggers
+  // 12. Start position manager -- monitors MONITORING trades for exit triggers
   // Starts after recovery so recovered MONITORING trades are already in the store
   positionManager.start();
   log.info('PositionManager started');
@@ -167,7 +167,7 @@ async function main(): Promise<void> {
       const activePositions = tradeStore.getMonitoringTrades().length;
       if (activePositions >= tradingConfig.maxConcurrentPositions) {
         log.info({ mint: event.mint, activePositions, limit: tradingConfig.maxConcurrentPositions },
-          'Max concurrent positions reached — skipping safety checks');
+          'Max concurrent positions reached -- skipping safety checks');
         return;
       }
 
@@ -183,7 +183,7 @@ async function main(): Promise<void> {
         // Pass source and detected token program so SQLite trade record is complete from creation time.
         // This ensures crash recovery, chunked-seller ATA lookup, and sell ladder source checks all work.
         tradeStore.createBuyingRecord(event.mint, event.source, result.programId, getRuntimeConfig().dryRun);
-        // Execute buy — routes to PumpPortal (bonding curve) or Jupiter (migrated) based on event.source
+        // Execute buy -- routes to PumpPortal (bonding curve) or Jupiter (migrated) based on event.source
         void executionEngine.buy(event);
       }
       // Rejections already logged by SafetyPipeline with full detail
@@ -192,7 +192,7 @@ async function main(): Promise<void> {
     }
   });
 
-  // 15. Register shutdown handlers (WebSocket and onLogs keep event loop alive — no keepalive needed)
+  // 15. Register shutdown handlers (WebSocket and onLogs keep event loop alive -- no keepalive needed)
   const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore, positionManager, dashboardServer); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));

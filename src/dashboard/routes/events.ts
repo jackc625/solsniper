@@ -25,7 +25,7 @@ export async function eventsRoute(fastify: FastifyInstance): Promise<void> {
 
     botEventBus.on('event', sendEvent);
 
-    // Clean up when client disconnects — prevents listener leak
+    // Clean up when client disconnects -- prevents listener leak
     reply.sse.onClose(() => {
       botEventBus.off('event', sendEvent);
     });

@@ -26,7 +26,7 @@ export class Blocklist {
         this.entries.add(address);
       }
     } catch {
-      // File doesn't exist yet — start empty
+      // File doesn't exist yet -- start empty
     }
   }
 

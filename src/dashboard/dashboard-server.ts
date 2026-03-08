@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import { createRequire } from 'node:module';
 const _require = createRequire(import.meta.url);
-// @fastify/sse CJS module — use createRequire for reliable ESM interop with Fastify 5
+// @fastify/sse CJS module -- use createRequire for reliable ESM interop with Fastify 5
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
 const fastifySSE = _require('@fastify/sse') as any;
 import fastifyStatic from '@fastify/static';
@@ -21,7 +21,7 @@ const log = createModuleLogger('dashboard');
 
 export async function createDashboardServer(tradeStore: TradeStore): Promise<FastifyInstance> {
   const fastify = Fastify({
-    logger: false,                  // Use bot's pino logger — avoid duplicate log streams
+    logger: false,                  // Use bot's pino logger -- avoid duplicate log streams
     forceCloseConnections: 'idle',  // Close idle keep-alive on shutdown
     return503OnClosing: true,       // Return 503 to new requests during drain
   });
@@ -34,7 +34,7 @@ export async function createDashboardServer(tradeStore: TradeStore): Promise<Fas
     methods: ['GET', 'POST'],
   });
 
-  // SSE plugin — must register before SSE routes
+  // SSE plugin -- must register before SSE routes
   await fastify.register(fastifySSE);
 
   // Serve pre-built SPA from dashboard/dist/
@@ -54,15 +54,15 @@ export async function createDashboardServer(tradeStore: TradeStore): Promise<Fas
   await fastify.register(tradesRoute, { tradeStore, prefix: '/api' });
   await fastify.register(configRoute, { prefix: '/api' });
 
-  // SPA fallback — serve index.html for all non-asset, non-API GET requests
+  // SPA fallback -- serve index.html for all non-asset, non-API GET requests
   // Required because tab-based UI uses only '/' but direct URL access still needs fallback
   fastify.setNotFoundHandler(async (request, reply) => {
     if (request.method === 'GET' && !request.url.startsWith('/api') && !request.url.startsWith('/events')) {
       try {
         return reply.sendFile('index.html');
       } catch {
-        // dist/ not built yet (dev mode without frontend build) — return helpful error
-        return reply.code(404).send({ error: 'Dashboard not built — run: pnpm build:dashboard' });
+        // dist/ not built yet (dev mode without frontend build) -- return helpful error
+        return reply.code(404).send({ error: 'Dashboard not built -- run: pnpm build:dashboard' });
       }
     }
     return reply.code(404).send({ error: 'Not found' });

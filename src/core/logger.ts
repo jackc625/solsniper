@@ -61,7 +61,7 @@ export function createTradeLogger(tradeId: string, module?: string): pino.Logger
 /**
  * Wraps an async operation with latency logging.
  * Logs latencyMs on both success (debug) and failure (error).
- * Always logs — no threshold gate — so latency data is complete.
+ * Always logs -- no threshold gate -- so latency data is complete.
  *
  * Usage: await withLatency(log, 'safety_check', () => runSafetyChecks(mint));
  */

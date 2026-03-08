@@ -172,7 +172,7 @@ export abstract class ResilientWebSocket {
           windowMs: this.config.excessiveReconnectWindowMs,
           threshold: this.config.excessiveReconnectThreshold,
         },
-        'Excessive reconnections detected — WebSocket may be unstable'
+        'Excessive reconnections detected -- WebSocket may be unstable'
       );
     }
   }
@@ -200,7 +200,7 @@ export abstract class ResilientWebSocket {
       if (silenceMs >= maxSilenceMs) {
         this.log.warn(
           { silenceMs, maxSilenceMs },
-          'Heartbeat: no message received — terminating stale connection'
+          'Heartbeat: no message received -- terminating stale connection'
         );
         // terminate() forces close without the WebSocket closing handshake,
         // ensuring the close event fires and triggers reconnect

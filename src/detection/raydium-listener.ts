@@ -8,7 +8,7 @@ const log = createModuleLogger('raydium-listener');
 const RAYDIUM_V4_PROGRAM = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 const PUMPSWAP_PROGRAM = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA';
 
-// Wrapped SOL mint — not a real token
+// Wrapped SOL mint -- not a real token
 const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Default silence threshold: 2 minutes without any log event triggers health check
@@ -71,7 +71,7 @@ export class RaydiumListener {
     this.startHealthCheck();
     log.info(
       { raydiumProgram: RAYDIUM_V4_PROGRAM, pumpSwapProgram: PUMPSWAP_PROGRAM },
-      'RaydiumListener started — monitoring Raydium V4 and PumpSwap pool creation'
+      'RaydiumListener started -- monitoring Raydium V4 and PumpSwap pool creation'
     );
   }
 
@@ -95,14 +95,14 @@ export class RaydiumListener {
       (logs, ctx) => {
         this.lastEventAt = Date.now();
 
-        if (logs.err) return; // Failed transaction — skip
+        if (logs.err) return; // Failed transaction -- skip
 
         const hasInitialize2 = logs.logs.some((l) => l.includes('initialize2'));
         if (!hasInitialize2) return;
 
         if (!this.firstRaydiumDetected) {
           this.firstRaydiumDetected = true;
-          log.debug({ signature: logs.signature, logs: logs.logs }, 'First Raydium V4 pool creation detected — validating filter');
+          log.debug({ signature: logs.signature, logs: logs.logs }, 'First Raydium V4 pool creation detected -- validating filter');
         }
 
         void this.handleRaydiumPool(logs.signature, ctx.slot);
@@ -116,7 +116,7 @@ export class RaydiumListener {
       (logs, ctx) => {
         this.lastEventAt = Date.now();
 
-        if (logs.err) return; // Failed transaction — skip
+        if (logs.err) return; // Failed transaction -- skip
 
         const hasCreatePool = logs.logs.some(
           (l) => l.includes('CreatePool') || l.includes('Instruction: CreatePool')
@@ -125,7 +125,7 @@ export class RaydiumListener {
 
         if (!this.firstPumpSwapDetected) {
           this.firstPumpSwapDetected = true;
-          log.debug({ signature: logs.signature, logs: logs.logs }, 'First PumpSwap pool creation detected — validating filter');
+          log.debug({ signature: logs.signature, logs: logs.logs }, 'First PumpSwap pool creation detected -- validating filter');
         }
 
         void this.handlePumpSwapPool(logs.signature, ctx.slot);
@@ -266,7 +266,7 @@ export class RaydiumListener {
       // Log accounts on first detection to identify correct indices (research Open Question 1)
       log.debug(
         { signature, accounts: accounts.map((a: { toBase58: () => string }) => a.toBase58()), accountCount: accounts.length },
-        'PumpSwap CreatePool instruction accounts — identifying token mint index'
+        'PumpSwap CreatePool instruction accounts -- identifying token mint index'
       );
 
       if (accounts.length < 3) {
@@ -311,7 +311,7 @@ export class RaydiumListener {
       if (silenceMs > this.silenceThresholdMs) {
         log.warn(
           { silenceMs, silenceThresholdMs: this.silenceThresholdMs },
-          'RaydiumListener: no log events received — subscription may have died, recreating'
+          'RaydiumListener: no log events received -- subscription may have died, recreating'
         );
 
         // Remove stale subscriptions and recreate

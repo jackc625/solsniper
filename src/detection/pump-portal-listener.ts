@@ -14,10 +14,10 @@ const log = createModuleLogger('pump-portal-listener');
  *
  * Emits TokenEvent for each subscribeNewToken message with txType === 'create'.
  * Latency stamping (detectedAt = Date.now()) is the very first operation in onMessage
- * per research Pitfall 4 — measurement must precede any parsing.
+ * per research Pitfall 4 -- measurement must precede any parsing.
  *
  * One connection, one subscription: never open multiple connections to PumpPortal.
- * subscribeMigration is intentionally omitted — migration events are duplicate mints
+ * subscribeMigration is intentionally omitted -- migration events are duplicate mints
  * that the dedup layer would drop anyway, and opening a second subscription would
  * violate PumpPortal's connection policies.
  */
@@ -49,17 +49,17 @@ export class PumpPortalListener extends ResilientWebSocket {
     // Log first message at debug level to validate PumpPortal field presence (research Open Question 2)
     if (!this.firstMessageReceived) {
       this.firstMessageReceived = true;
-      log.debug({ raw }, 'First PumpPortal message received — validating field structure');
+      log.debug({ raw }, 'First PumpPortal message received -- validating field structure');
     }
 
     if (raw['txType'] !== 'create') {
-      // Non-create messages (trades, etc.) — ignore silently
+      // Non-create messages (trades, etc.) -- ignore silently
       return;
     }
 
     const mint = raw['mint'];
     if (typeof mint !== 'string' || !mint) {
-      log.warn({ raw }, 'PumpPortal create event missing mint field — skipping');
+      log.warn({ raw }, 'PumpPortal create event missing mint field -- skipping');
       return;
     }
 

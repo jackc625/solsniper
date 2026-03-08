@@ -15,7 +15,7 @@ interface RugCheckResponse {
  * to a safety scale (higher = safer) by inverting: safetyScore = 100 - score_normalised.
  *
  * RugCheck scores are risk-oriented (higher = riskier), so we invert them.
- * This is a scoring signal (pass is always true) — soft blocks are applied by the orchestrator.
+ * This is a scoring signal (pass is always true) -- soft blocks are applied by the orchestrator.
  *
  * Pessimistic failure:
  * - Non-200 response: score = 0, detail = 'HTTP {status}'
