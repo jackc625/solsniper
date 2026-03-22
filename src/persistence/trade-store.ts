@@ -97,7 +97,7 @@ export class TradeStore {
     );
 
     this.stmtGetNonTerminal = this.db.prepare(
-      `SELECT mint FROM trades WHERE state IN (${NON_TERMINAL_STATES.map(() => '?').join(',')})`
+      `SELECT mint FROM trades WHERE state IN (${NON_TERMINAL_STATES.map(() => '?').join(',')})` // ship-safe-ignore: generates ? placeholders, not user input
     );
 
     this.stmtGetBuying = this.db.prepare(
