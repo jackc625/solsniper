@@ -924,4 +924,71 @@ describe('PositionManager', () => {
       vi.useRealTimers();
     });
   });
+
+  // -------------------------------------------------------------------------
+  describe('Map cleanup after sell (BUG 6 memory leak fix)', () => {
+    it('cleans up highWatermarks, tierIndices, and lastKnownQuoteSol after full sell completes', async () => {
+      // Set up a position that will trigger stop-loss (full sell)
+      mockJupiterQuote(0.4 * 1e9); // ratio=0.4 < 0.5 SL threshold
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      // Make sell resolve immediately
+      mockSellLadder.sell.mockResolvedValue({ success: true, step: 'STANDARD' });
+
+      const pm = makePositionManager();
+      // Pre-populate the Maps to simulate existing tracking state
+      (pm as any).highWatermarks.set(MINT_A, 1.5);
+      (pm as any).tierIndices.set(MINT_A, 1);
+      (pm as any).lastKnownQuoteSol.set(MINT_A, 0.8);
+
+      await pm.tick();
+
+      // Sell should have been called with partial=false (stop-loss is full sell)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 1_000_000n, 0.4, false);
+
+      // Wait for the .finally() to fire (sell promise resolved above)
+      // Use a microtask flush -- the sell promise is already resolved so .finally runs on next tick
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Maps should be cleaned up after full sell
+      expect((pm as any).highWatermarks.has(MINT_A)).toBe(false);
+      expect((pm as any).tierIndices.has(MINT_A)).toBe(false);
+      expect((pm as any).lastKnownQuoteSol.has(MINT_A)).toBe(false);
+      // sellsInFlight should also be cleaned up
+      expect((pm as any).sellsInFlight.has(MINT_A)).toBe(false);
+    });
+
+    it('preserves highWatermarks, tierIndices, and lastKnownQuoteSol after partial sell completes', async () => {
+      // Set up a position that will trigger tiered TP tier 0 (partial sell)
+      mockJupiterQuote(2.1 * 1e9); // ratio=2.1 >= 2x tier 0
+      mockTradeStore.getMonitoringTrades.mockReturnValue([
+        makeTrade({ mint: MINT_A, amountSol: 1.0, amountTokens: 1_000_000 }),
+      ]);
+
+      // Make sell resolve immediately
+      mockSellLadder.sell.mockResolvedValue({ success: true, step: 'STANDARD' });
+
+      const pm = makePositionManager();
+      // Pre-populate Maps
+      (pm as any).highWatermarks.set(MINT_A, 1.5);
+      (pm as any).lastKnownQuoteSol.set(MINT_A, 0.8);
+
+      await pm.tick();
+
+      // Sell should have been called with partial=true (tier 0 of 3 -- more tiers remain)
+      expect(mockSellLadder.sell).toHaveBeenCalledWith(MINT_A, 330_000n, 2.1, true);
+
+      // Wait for the .finally() to fire
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Maps should be PRESERVED after partial sell (needed for subsequent tiers)
+      expect((pm as any).highWatermarks.has(MINT_A)).toBe(true);
+      expect((pm as any).tierIndices.has(MINT_A)).toBe(true);
+      expect((pm as any).lastKnownQuoteSol.has(MINT_A)).toBe(true);
+      // sellsInFlight should still be cleaned up
+      expect((pm as any).sellsInFlight.has(MINT_A)).toBe(false);
+    });
+  });
 });

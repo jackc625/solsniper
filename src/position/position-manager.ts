@@ -401,6 +401,14 @@ export class PositionManager {
     void p;
     p.finally(() => {
       this.sellsInFlight.delete(mint);
+      // Clean up per-mint tracking Maps to prevent memory leak (BUG 6 fix).
+      // Only on full sells -- partial sells return to MONITORING and need state intact
+      // for subsequent tier evaluations (high watermark, tier index, last known quote).
+      if (!partial) {
+        this.highWatermarks.delete(mint);
+        this.tierIndices.delete(mint);
+        this.lastKnownQuoteSol.delete(mint);
+      }
     });
   }
 

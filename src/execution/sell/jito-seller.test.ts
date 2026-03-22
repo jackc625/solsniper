@@ -1,9 +1,10 @@
 /**
- * Unit tests for jitoSell dry-run gate.
+ * Unit tests for jitoSell dry-run gate and pollBundleStatus polling loop.
  *
  * Tests that dry-run mode intercepts before Jupiter API calls and Jito bundle submission.
+ * Tests that pollBundleStatus polls with backoff until terminal status.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Connection, Keypair } from '@solana/web3.js';
 
 // ---------------------------------------------------------------------------
@@ -40,7 +41,7 @@ vi.mock('../jupiter-client.js', () => ({
 // ---------------------------------------------------------------------------
 // Imports
 // ---------------------------------------------------------------------------
-import { jitoSell } from './jito-seller.js';
+import { jitoSell, pollBundleStatus } from './jito-seller.js';
 import { getRuntimeConfig } from '../../config/trading.js';
 import type { TradingConfig } from '../../config/trading.js';
 
@@ -192,5 +193,145 @@ describe('jitoSell dry-run gate', () => {
 
     // Jupiter was called (dry-run=false proceeds normally)
     expect(mockJupiterQuote).toHaveBeenCalledOnce();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pollBundleStatus polling loop tests (BUG 1 fix)
+// ---------------------------------------------------------------------------
+
+describe('pollBundleStatus polling loop', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('polls multiple times returning Pending, then returns Landed on terminal status', async () => {
+    let pollCount = 0;
+    const mockFetch = vi.fn().mockImplementation(() => {
+      pollCount++;
+      // First 2 polls return Pending, 3rd returns Landed
+      const status = pollCount >= 3 ? 'Landed' : 'Pending';
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          result: { value: [{ confirmation_status: status }] },
+        }),
+      });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const resultPromise = pollBundleStatus('test-bundle-id');
+
+    // Advance past first delay (1000ms)
+    await vi.advanceTimersByTimeAsync(1001);
+    // Advance past second delay (2000ms backoff)
+    await vi.advanceTimersByTimeAsync(2001);
+    // Advance past third delay (4000ms backoff)
+    await vi.advanceTimersByTimeAsync(4001);
+
+    const result = await resultPromise;
+
+    expect(result).toBe('Landed');
+    // Should have been called 3 times (Pending, Pending, Landed)
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns Failed immediately when bundle status is Failed', async () => {
+    const mockFetch = vi.fn().mockImplementation(() => {
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          result: { value: [{ confirmation_status: 'Failed' }] },
+        }),
+      });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const resultPromise = pollBundleStatus('test-bundle-id');
+
+    // Advance past first delay (1000ms)
+    await vi.advanceTimersByTimeAsync(1001);
+
+    const result = await resultPromise;
+
+    expect(result).toBe('Failed');
+    // Should have been called exactly once (immediate terminal status)
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses exponential backoff: 1s, 2s, 4s, 5s (capped)', async () => {
+    let pollCount = 0;
+    const pollTimestamps: number[] = [];
+
+    const mockFetch = vi.fn().mockImplementation(() => {
+      pollCount++;
+      pollTimestamps.push(Date.now());
+      // Return Landed on 5th poll to verify backoff pattern
+      const status = pollCount >= 5 ? 'Landed' : 'Pending';
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          result: { value: [{ confirmation_status: status }] },
+        }),
+      });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const resultPromise = pollBundleStatus('test-bundle-id');
+
+    // Advance through all delays: 1s + 2s + 4s + 5s + 5s (capped at 5s)
+    await vi.advanceTimersByTimeAsync(1001); // poll 1
+    await vi.advanceTimersByTimeAsync(2001); // poll 2
+    await vi.advanceTimersByTimeAsync(4001); // poll 3
+    await vi.advanceTimersByTimeAsync(5001); // poll 4
+    await vi.advanceTimersByTimeAsync(5001); // poll 5
+
+    const result = await resultPromise;
+
+    expect(result).toBe('Landed');
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+
+    // Verify backoff timing by checking intervals between timestamps
+    if (pollTimestamps.length >= 4) {
+      const intervals = pollTimestamps.slice(1).map((t, i) => t - pollTimestamps[i]!);
+      // 1st interval ~1000ms, 2nd ~2000ms, 3rd ~4000ms, 4th ~5000ms (capped)
+      expect(intervals[0]).toBeGreaterThanOrEqual(1000);
+      expect(intervals[1]).toBeGreaterThanOrEqual(2000);
+      expect(intervals[2]).toBeGreaterThanOrEqual(4000);
+      expect(intervals[3]).toBeGreaterThanOrEqual(5000);
+    }
+  });
+
+  it('treats missing confirmation_status as Pending and continues polling', async () => {
+    let pollCount = 0;
+    const mockFetch = vi.fn().mockImplementation(() => {
+      pollCount++;
+      if (pollCount === 1) {
+        // First poll: no result value (status defaults to Pending)
+        return Promise.resolve({
+          json: () => Promise.resolve({ result: { value: [] } }),
+        });
+      }
+      // Second poll: Landed
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          result: { value: [{ confirmation_status: 'Landed' }] },
+        }),
+      });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const resultPromise = pollBundleStatus('test-bundle-id');
+
+    await vi.advanceTimersByTimeAsync(1001); // poll 1 (empty result -> Pending)
+    await vi.advanceTimersByTimeAsync(2001); // poll 2 (Landed)
+
+    const result = await resultPromise;
+
+    expect(result).toBe('Landed');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });

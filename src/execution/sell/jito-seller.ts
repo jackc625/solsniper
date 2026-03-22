@@ -149,17 +149,35 @@ export async function jitoSell(
   return { signature: swapSignature, solReceived };
 }
 
-async function pollBundleStatus(bundleId: string): Promise<'Landed' | 'Failed' | 'Pending'> {
-  const response = await fetch(JITO_BUNDLE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'getBundleStatuses',
-      params: [[bundleId]],
-    }),
-  });
-  const json = await response.json();
-  return (json?.result?.value?.[0]?.confirmation_status as 'Landed' | 'Failed' | 'Pending') ?? 'Pending';
+/** @internal Exported for testing only. */
+export async function pollBundleStatus(bundleId: string): Promise<'Landed' | 'Failed' | 'Pending'> {
+  const INITIAL_DELAY_MS = 1000;
+  const MAX_DELAY_MS = 5000;
+  let delay = INITIAL_DELAY_MS;
+
+  // Loop indefinitely -- SellLadder's Promise.race timeout is the outer bound.
+  // The while(true) is safe because the SellLadder timeout (jitoTimeoutMs) will always fire.
+  while (true) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    const response = await fetch(JITO_BUNDLE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getBundleStatuses',
+        params: [[bundleId]],
+      }),
+    });
+    const json = await response.json();
+    const status = (json?.result?.value?.[0]?.confirmation_status as string) ?? 'Pending';
+
+    if (status === 'Landed' || status === 'Failed') {
+      return status as 'Landed' | 'Failed';
+    }
+
+    // Backoff: 1s -> 2s -> 4s -> 5s (capped)
+    delay = Math.min(delay * 2, MAX_DELAY_MS);
+  }
 }
