@@ -308,7 +308,8 @@ describe('RecoveryManager', () => {
       expect(store.transition).toHaveBeenCalledWith(SELLING_MINT_1, 'SELLING', 'FAILED', {
         errorMessage: 'RECOVERY: RPC unavailable',
       });
-      expect(summary.sellingCompleted).toBe(1); // RPC failure on SELLING counts as sellingCompleted
+      // BUG 2 fix: RPC failure on SELLING does NOT increment sellingCompleted
+      expect(summary.sellingCompleted).toBe(0);
     });
 
     it('deduplicates multiple SELLING rows for same mint: keeps most recent, marks stale as FAILED', async () => {

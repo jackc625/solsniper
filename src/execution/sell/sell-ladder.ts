@@ -64,9 +64,6 @@ export class SellLadder {
   async sell(mint: string, tokenAmount: bigint, fallbackSolReceived?: number, partial = false): Promise<SellResult> {
     const { sell } = this.config.execution;
 
-    // Emit SELL_TRIGGERED at entry -- dashboard sees all sell attempts regardless of outcome
-    botEventBus.emit('event', { type: 'SELL_TRIGGERED', mint, ts: Date.now(), detail: `${tokenAmount} tokens`, isDryRun: getRuntimeConfig().dryRun });
-
     // Transition to SELLING before starting the ladder
     this.tradeStore.transition(mint, 'MONITORING', 'SELLING');
 
@@ -91,6 +88,10 @@ export class SellLadder {
       this.tradeStore.transition(mint, 'SELLING', 'COMPLETED', { sellSignature: undefined });
       return { success: true, step: 'STANDARD', signature: undefined };
     }
+
+    // Emit SELL_TRIGGERED only after zero-balance check passes -- dashboard only sees
+    // this event for sells that actually proceed (BUG 4 fix: was emitted before the check)
+    botEventBus.emit('event', { type: 'SELL_TRIGGERED', mint, ts: Date.now(), detail: `${freshBalance} tokens`, isDryRun: getRuntimeConfig().dryRun });
 
     if (freshBalance < tokenAmount) {
       log.warn(
@@ -265,7 +266,9 @@ export class SellLadder {
 
         // Emit SELL_PARTIAL for accumulated tiers context (if this is the final tier after prior partials)
         if (hasPriorSellPrice && solReceived != null) {
-          const runningTotal = priorTrade.sellPriceSol! + solReceived;
+          // BUG 5 fix: priorTrade.sellPriceSol already includes the just-added solReceived
+          // (via addSellPrice at line above). Don't add solReceived again.
+          const runningTotal = priorTrade.sellPriceSol!;
           botEventBus.emit('event', {
             type: 'SELL_PARTIAL',
             mint,

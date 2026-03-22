@@ -142,7 +142,9 @@ export async function checkCreatorHistory(
       detail: analysis.detail,
     };
   } catch (err: unknown) {
-    log.warn({ creator, err }, 'Helius API fetch error or timeout');
+    // S1 fix: mask API key in URL before logging to prevent key leakage in error traces
+    const safeUrl = url.replace(/api-key=[^&]*/gi, 'api-key=***');
+    log.warn({ creator, url: safeUrl, err }, 'Helius API fetch error or timeout');
     return {
       pass: true,
       score: 0,

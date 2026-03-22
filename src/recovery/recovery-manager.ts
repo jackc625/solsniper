@@ -150,12 +150,13 @@ export class RecoveryManager {
         }
       } catch (err) {
         // RPC unavailable or timeout -- fail-safe closed
+        // BUG FIX: removed sellingCompleted++ -- RPC failure is NOT a completed sell.
+        // The trade transitions to FAILED; no counter should increment.
         this.tradeStore.transition(trade.mint, 'SELLING', 'FAILED', {
           errorMessage: 'RECOVERY: RPC unavailable',
         });
         log.warn({ mint: trade.mint, tradeId: trade.id, err },
           'SELLING trade recovery failed -- RPC unavailable');
-        sellingCompleted++;
       }
     }
 

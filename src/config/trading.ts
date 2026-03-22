@@ -132,6 +132,47 @@ export function getRuntimeConfig(): TradingConfig {
 }
 
 export function patchRuntimeConfig(updates: Partial<TradingConfig>): TradingConfig {
-  _runtimeConfig = { ..._runtimeConfig, ...updates };
+  const merged = { ..._runtimeConfig };
+
+  for (const key of Object.keys(updates) as Array<keyof TradingConfig>) {
+    const updateVal = updates[key];
+    const currentVal = _runtimeConfig[key];
+
+    // Deep merge plain objects (up to 2 levels); primitives and arrays overwrite directly
+    if (
+      updateVal != null &&
+      typeof updateVal === 'object' &&
+      !Array.isArray(updateVal) &&
+      currentVal != null &&
+      typeof currentVal === 'object' &&
+      !Array.isArray(currentVal)
+    ) {
+      // Level 1 merge
+      const mergedObj = { ...currentVal } as Record<string, unknown>;
+      for (const subKey of Object.keys(updateVal as Record<string, unknown>)) {
+        const subUpdate = (updateVal as Record<string, unknown>)[subKey];
+        const subCurrent = (currentVal as Record<string, unknown>)[subKey];
+
+        // Level 2 merge (safety.weights, safety.holder, execution.buy, execution.sell)
+        if (
+          subUpdate != null &&
+          typeof subUpdate === 'object' &&
+          !Array.isArray(subUpdate) &&
+          subCurrent != null &&
+          typeof subCurrent === 'object' &&
+          !Array.isArray(subCurrent)
+        ) {
+          mergedObj[subKey] = { ...subCurrent, ...subUpdate };
+        } else {
+          mergedObj[subKey] = subUpdate;
+        }
+      }
+      (merged as Record<string, unknown>)[key] = mergedObj;
+    } else {
+      (merged as Record<string, unknown>)[key] = updateVal;
+    }
+  }
+
+  _runtimeConfig = merged as TradingConfig;
   return _runtimeConfig;
 }
