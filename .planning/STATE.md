@@ -226,20 +226,21 @@ None.
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 1 | document config.json values with inline comments | 2026-02-27 | 94a3749 | [1-document-config-json-values-with-inline-](./quick/1-document-config-json-values-with-inline-/) |
-| 2 | move maxConcurrentPositions check before safety pipeline | 2026-03-03 | fe068fb | [2-move-maxconcurrentpositions-check-before](./quick/2-move-maxconcurrentpositions-check-before/) |
-| 3 | add configurable minimum holder threshold | 2026-03-04 | 235224b | [3-add-configurable-minimum-holder-threshol](./quick/3-add-configurable-minimum-holder-threshol/) |
-| 4 | add maxHoldTimeMs config to auto-sell position | 2026-03-03 | 74c25e4 | [4-add-maxholdtimems-config-to-auto-sell-po](./quick/4-add-maxholdtimems-config-to-auto-sell-po/) |
-| 5 | fix tiered take-profit partial sells | 2026-03-04 | 175cf42 | [5-fix-tiered-take-profit-partial-sells-mus](./quick/5-fix-tiered-take-profit-partial-sells-mus/) |
-| 6 | fix sell failure double-counting in getWalletTokenBalance | 2026-03-08 | 9e18473 | [6-fix-sell-failure-double-counting-in-getw](./quick/6-fix-sell-failure-double-counting-in-getw/) |
-| 7 | fix validated bugs from codebase audit (7 bugs) | 2026-03-22 | e7556e9 | [260322-q4u-fix-validated-bugs-from-codebase-audit](./quick/260322-q4u-fix-validated-bugs-from-codebase-audit/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 1 | document config.json values with inline comments | 2026-02-27 | 94a3749 | | [1-document-config-json-values-with-inline-](./quick/1-document-config-json-values-with-inline-/) |
+| 2 | move maxConcurrentPositions check before safety pipeline | 2026-03-03 | fe068fb | | [2-move-maxconcurrentpositions-check-before](./quick/2-move-maxconcurrentpositions-check-before/) |
+| 3 | add configurable minimum holder threshold | 2026-03-04 | 235224b | | [3-add-configurable-minimum-holder-threshol](./quick/3-add-configurable-minimum-holder-threshol/) |
+| 4 | add maxHoldTimeMs config to auto-sell position | 2026-03-03 | 74c25e4 | | [4-add-maxholdtimems-config-to-auto-sell-po](./quick/4-add-maxholdtimems-config-to-auto-sell-po/) |
+| 5 | fix tiered take-profit partial sells | 2026-03-04 | 175cf42 | | [5-fix-tiered-take-profit-partial-sells-mus](./quick/5-fix-tiered-take-profit-partial-sells-mus/) |
+| 6 | fix sell failure double-counting in getWalletTokenBalance | 2026-03-08 | 9e18473 | | [6-fix-sell-failure-double-counting-in-getw](./quick/6-fix-sell-failure-double-counting-in-getw/) |
+| 7 | fix validated bugs from codebase audit (7 bugs) | 2026-03-22 | e7556e9 | Verified | [260322-q4u-fix-validated-bugs-from-codebase-audit](./quick/260322-q4u-fix-validated-bugs-from-codebase-audit/) |
+| 8 | fix validated security audit findings (fastify CVE-2026-3419, rollup arbitrary file write) | 2026-03-22 | 5b9c012 | Verified | [260322-qvl-fix-validated-security-audit-findings-de](./quick/260322-qvl-fix-validated-security-audit-findings-de/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-22 - Quick task 7 complete (fix 7 validated bugs: Jito polling, recovery counter, deep merge config, orphaned event, double-count display, memory leak, API key masking)
+Last activity: 2026-03-22 - Quick task 8 complete (fix 2 security vulns: fastify 5.8.2, rollup 4.60.0; ship-safe scan clean)
 
-Last session: 2026-03-22T23:07:00.000Z
-Stopped at: Completed quick task 260322-q4u
+Last session: 2026-03-22T23:14:00.000Z
+Stopped at: Completed quick task 260322-qvl
 Resume file: None
