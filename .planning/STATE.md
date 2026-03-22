@@ -234,11 +234,12 @@ None.
 | 4 | add maxHoldTimeMs config to auto-sell position | 2026-03-03 | 74c25e4 | [4-add-maxholdtimems-config-to-auto-sell-po](./quick/4-add-maxholdtimems-config-to-auto-sell-po/) |
 | 5 | fix tiered take-profit partial sells | 2026-03-04 | 175cf42 | [5-fix-tiered-take-profit-partial-sells-mus](./quick/5-fix-tiered-take-profit-partial-sells-mus/) |
 | 6 | fix sell failure double-counting in getWalletTokenBalance | 2026-03-08 | 9e18473 | [6-fix-sell-failure-double-counting-in-getw](./quick/6-fix-sell-failure-double-counting-in-getw/) |
+| 7 | fix validated bugs from codebase audit (7 bugs) | 2026-03-22 | e7556e9 | [260322-q4u-fix-validated-bugs-from-codebase-audit](./quick/260322-q4u-fix-validated-bugs-from-codebase-audit/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-08 - Quick task 6 complete (fix Token-2022 double-counting in getWalletTokenBalance, fresh balance re-query in sell-ladder)
+Last activity: 2026-03-22 - Quick task 7 complete (fix 7 validated bugs: Jito polling, recovery counter, deep merge config, orphaned event, double-count display, memory leak, API key masking)
 
-Last session: 2026-03-08T16:36:00.000Z
-Stopped at: Completed quick task 6
+Last session: 2026-03-22T23:07:00.000Z
+Stopped at: Completed quick task 260322-q4u
 Resume file: None
