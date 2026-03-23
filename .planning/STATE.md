@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-23T02:08:20.118Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-23T21:40:38.100Z"
 last_activity: 2026-03-23
 progress:
   total_phases: 16
-  completed_phases: 15
-  total_plans: 40
-  completed_plans: 40
+  completed_phases: 16
+  total_plans: 42
+  completed_plans: 42
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 15 — live-config-hotreload
+**Current focus:** Phase 16 — sell-partial-traceability
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
+Phase: 16 (sell-partial-traceability) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Plan: Not started
 | Phase 14-sell-price-bug-fixes P02 | 14 | 2 tasks | 8 files |
 | Phase 15 P01 | 16 | 2 tasks | 11 files |
 | Phase 15 P02 | 3 | 2 tasks | 3 files |
+| Phase 16 P01 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -217,6 +218,7 @@ Recent decisions affecting current work:
 - [Phase 15]: cfg = getRuntimeConfig() pattern: read live config once at method entry, use cfg throughout; constructor-time values remain static per D-06
 - [Phase 15]: SELL_PARTIAL added to eventTypes, BADGE_COLORS, EVENT_LABELS as gap closure -- was missing despite backend emitting it
 - [Phase 15]: exec/execBuy helper variables for reading 3-level nested execution.buy config in Settings draft state
+- [Phase 16]: Footer text uses descriptive wording instead of requirement ID ranges to avoid false grep matches in verification
 
 ### Pending Todos
 
@@ -244,6 +246,6 @@ None.
 
 Last activity: 2026-03-23
 
-Last session: 2026-03-23T02:03:17.300Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-03-23T21:40:38.094Z
+Stopped at: Completed 16-01-PLAN.md
 Resume file: None

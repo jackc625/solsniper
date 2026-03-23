@@ -168,8 +168,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 7. Position Management | 3/3 | Complete   | 2015-02-27 |
 | 8. Web Dashboard | 5/5 | Complete   | 2015-02-27 |
 | 9. Fix Broken Jupiter API | 2/2 | Complete   | 2015-03-02 |
-| 15. Live Config Hot-Reload Fix | 2/3 | Gap Closure | |
-| 16. SELL_PARTIAL + Traceability | 0/? | Not Started | |
+| 15. Live Config Hot-Reload Fix | 3/3 | Complete    | 2026-03-23 |
+| 16. SELL_PARTIAL + Traceability | 1/1 | Complete   | 2026-03-23 |
 
 ### Phase 9: Fix broken Jupiter API
 
@@ -246,17 +246,20 @@ Plans:
 **Requirements**: DASH-04, DASH-05
 **Depends on:** Phase 14
 **Gap Closure:** Closes integration gaps and "Settings Hot Reload" flow from v1.0 milestone audit
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 15-01-PLAN.md — Backend hot-reload: CONFIG_CHANGED event type, ConfigPatchSchema extension, getRuntimeConfig() refactor across SafetyPipeline, ExecutionEngine, SellLadder, PositionManager, index.ts
 - [x] 15-02-PLAN.md — Dashboard frontend: CONFIG_CHANGED feed card rendering, SSE listener, Poll Interval and Buy Slippage Settings fields
-- [ ] 15-03-PLAN.md — Gap closure: hoist SSE connectFeed() from LiveFeed to App so EventSource survives tab navigation
+- [x] 15-03-PLAN.md — Gap closure: hoist SSE connectFeed() from LiveFeed to App so EventSource survives tab navigation
 
 ### Phase 16: SELL_PARTIAL Dashboard Visibility & Requirements Traceability
 
-**Goal:** Make tiered TP partial sell events visible in the dashboard live feed by subscribing to SELL_PARTIAL in the frontend SSE client, and backfill DRY-01–08 and UI-01–06 into the REQUIREMENTS.md traceability table
+**Goal:** Make tiered TP partial sell events visible in the dashboard live feed by subscribing to SELL_PARTIAL in the frontend SSE client, and backfill DRY-01--08 and UI-01--06 into the REQUIREMENTS.md traceability table
 **Requirements**: None (integration fix + documentation)
 **Depends on:** Phase 14
 **Gap Closure:** Closes SELL_PARTIAL integration gap and "Dry Run" flow gap from v1.0 milestone audit
-**Plans:** TBD
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 16-01-PLAN.md — Backfill DRY-01--08 and UI-01--06 requirement definitions into REQUIREMENTS.md, verify SELL_PARTIAL frontend wiring complete
