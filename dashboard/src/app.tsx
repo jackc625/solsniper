@@ -1,13 +1,20 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Sidebar } from './components/Sidebar.js';
 import type { View } from './components/Sidebar.js';
 import { LiveFeed } from './components/LiveFeed.js';
 import { Performance } from './components/Performance.js';
 import { Settings } from './components/Settings.js';
 import { configSignal } from './store/config.js';
+import { connectFeed } from './store/feed.js';
 
 export function App() {
   const [view, setView] = useState<View>('feed');
+
+  // SSE connection lives at App level so it persists across tab navigation
+  useEffect(() => {
+    const disconnect = connectFeed();
+    return disconnect;
+  }, []);
 
   const isDryRun = Boolean(configSignal.value?.dryRun);
 
@@ -23,8 +30,7 @@ export function App() {
             <span style={{ opacity: 0.6 }}>&#9670;</span>
           </div>
         )}
-        {/* key forces re-mount animation on view change */}
-        <main key={view} style={MAIN}>
+        <main style={MAIN}>
           {view === 'feed'        && <LiveFeed />}
           {view === 'performance' && <Performance />}
           {view === 'settings'    && <Settings />}

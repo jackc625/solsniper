@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { feedEvents, connectFeed } from '../store/feed.js';
+import { feedEvents } from '../store/feed.js';
 import { FeedCard } from './FeedCard.js';
 
 export function LiveFeed() {
   const listRef = useRef<HTMLDivElement>(null);
   const [isLive, setIsLive] = useState(true);
-
-  // Connect SSE on mount
-  useEffect(() => {
-    const disconnect = connectFeed();
-    return disconnect;
-  }, []);
 
   // Auto-scroll to bottom when new events arrive and user hasn't manually scrolled.
   // Depends only on feedEvents.value — card expansion must NOT trigger this effect.

@@ -168,7 +168,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 7. Position Management | 3/3 | Complete   | 2015-02-27 |
 | 8. Web Dashboard | 5/5 | Complete   | 2015-02-27 |
 | 9. Fix Broken Jupiter API | 2/2 | Complete   | 2015-03-02 |
-| 15. Live Config Hot-Reload Fix | 2/2 | Complete   | 2026-03-23 |
+| 15. Live Config Hot-Reload Fix | 2/3 | Gap Closure | |
 | 16. SELL_PARTIAL + Traceability | 0/? | Not Started | |
 
 ### Phase 9: Fix broken Jupiter API
@@ -246,11 +246,12 @@ Plans:
 **Requirements**: DASH-04, DASH-05
 **Depends on:** Phase 14
 **Gap Closure:** Closes integration gaps and "Settings Hot Reload" flow from v1.0 milestone audit
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans
 
 Plans:
 - [x] 15-01-PLAN.md — Backend hot-reload: CONFIG_CHANGED event type, ConfigPatchSchema extension, getRuntimeConfig() refactor across SafetyPipeline, ExecutionEngine, SellLadder, PositionManager, index.ts
 - [x] 15-02-PLAN.md — Dashboard frontend: CONFIG_CHANGED feed card rendering, SSE listener, Poll Interval and Buy Slippage Settings fields
+- [ ] 15-03-PLAN.md — Gap closure: hoist SSE connectFeed() from LiveFeed to App so EventSource survives tab navigation
 
 ### Phase 16: SELL_PARTIAL Dashboard Visibility & Requirements Traceability
 
