@@ -1,6 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getRuntimeConfig, patchRuntimeConfig } from '../../config/trading.js';
+import { botEventBus } from '../bot-event-bus.js';
+import { createModuleLogger } from '../../core/logger.js';
+
+const log = createModuleLogger('config-route');
 
 // Partial update schema -- only fields the dashboard Settings tab can change.
 // Uses .optional() so the POST body may include any subset.
@@ -16,6 +20,7 @@ const ConfigPatchSchema = z.object({
     stopLossPct:       z.number().negative().optional(),
     trailingStopPct:   z.number().min(0).max(100).optional(),
     maxHoldTimeMs:     z.number().int().min(0).optional(),
+    pollIntervalMs:    z.number().int().positive().min(1000).max(60000).optional(),
     tieredTp: z.array(z.object({
       at:  z.number().positive(),
       pct: z.number().int().min(1).max(100),
@@ -26,6 +31,11 @@ const ConfigPatchSchema = z.object({
       rugCheck: z.number().int().min(0).max(100).optional(),
       holder:   z.number().int().min(0).max(100).optional(),
       creator:  z.number().int().min(0).max(100).optional(),
+    }).optional(),
+  }).optional(),
+  execution: z.object({
+    buy: z.object({
+      slippageBps: z.number().int().min(50).max(4900).optional(),
     }).optional(),
   }).optional(),
 });
@@ -47,6 +57,14 @@ export async function configRoute(fastify: FastifyInstance): Promise<void> {
       });
     }
     const updated = patchRuntimeConfig(result.data as Parameters<typeof patchRuntimeConfig>[0]);
+    const changedKeys = Object.keys(result.data);
+    botEventBus.emit('event', {
+      type: 'CONFIG_CHANGED',
+      mint: '',
+      ts: Date.now(),
+      detail: `Settings updated: ${changedKeys.join(', ')}`,
+    });
+    log.info({ changedKeys }, 'Runtime config patched via dashboard');
     return reply.send({ ok: true, config: updated });
   });
 }

@@ -9,7 +9,8 @@ export type BotEventType =
   | 'SELL_PARTIAL'      // Emitted per tiered TP tier fire
   | 'SELL_CONFIRMED'
   | 'SELL_FAILED'
-  | 'ERROR';
+  | 'ERROR'
+  | 'CONFIG_CHANGED';
 
 export interface BotEvent {
   type: BotEventType;
