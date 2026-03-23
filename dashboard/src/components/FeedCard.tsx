@@ -8,9 +8,11 @@ const BADGE_COLORS: Record<string, string> = {
   BUY_CONFIRMED:  'var(--green)',
   BUY_FAILED:     'var(--red)',
   SELL_TRIGGERED: 'var(--yellow)',
+  SELL_PARTIAL:    'var(--green)',
   SELL_CONFIRMED: 'var(--green)',
   SELL_FAILED:    'var(--red)',
   ERROR:          'var(--red)',
+  CONFIG_CHANGED:  'var(--amber)',
 };
 
 // More readable event type labels
@@ -20,9 +22,11 @@ const EVENT_LABELS: Record<string, string> = {
   BUY_CONFIRMED:  'BUY OK',
   BUY_FAILED:     'BUY FAIL',
   SELL_TRIGGERED: 'SELL TRIG',
+  SELL_PARTIAL:    'PARTIAL',
   SELL_CONFIRMED: 'SELL OK',
   SELL_FAILED:    'SELL FAIL',
   ERROR:          'ERROR',
+  CONFIG_CHANGED:  'CFG',
 };
 
 function formatTs(ts: number): string {

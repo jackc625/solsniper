@@ -33,7 +33,8 @@ export function connectFeed(): () => void {
 
   // Also handle typed events (SSE event field matches BotEventType)
   const eventTypes = ['TOKEN_DETECTED','BUY_SENT','BUY_CONFIRMED','BUY_FAILED',
-                      'SELL_TRIGGERED','SELL_CONFIRMED','SELL_FAILED','ERROR'] as const;
+                      'SELL_TRIGGERED','SELL_PARTIAL','SELL_CONFIRMED','SELL_FAILED','ERROR',
+                      'CONFIG_CHANGED'] as const;
   eventTypes.forEach((type) => {
     es.addEventListener(type, (e) => {
       try {
