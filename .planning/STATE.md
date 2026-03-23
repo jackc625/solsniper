@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed quick task 5
-last_updated: "2026-03-05T01:25:02.816Z"
-last_activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
+status: Phase complete — ready for verification
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-03-23T02:03:17.307Z"
+last_activity: 2026-03-23
 progress:
-  total_phases: 14
-  completed_phases: 14
-  total_plans: 38
-  completed_plans: 38
-  percent: 100
+  total_phases: 16
+  completed_phases: 15
+  total_plans: 40
+  completed_plans: 40
 ---
 
 # Project State
@@ -21,20 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 11: Fix Bonding Curve Issue
+**Current focus:** Phase 15 — live-config-hotreload
 
 ## Current Position
 
-Phase: 11 of 10 (Fix Bonding Curve Issue) - COMPLETE
-Plan: 1 of 1 in current phase - COMPLETE
-Status: Phase 11 Plan 01 complete — bonding curve PDA exclusion from holder concentration (standard + Token-2022 paths), source-aware zero-holder logic for pumpportal; 235 tests green
-Last activity: 2026-03-02 -- Plan 11-01 complete (all 28 plans complete)
-
-Progress: [██████████] 100% (28/28 plans complete)
+Phase: 15 (live-config-hotreload) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 10
 - Average duration: 8.8 min
 - Total execution time: 1.47 hours
@@ -50,6 +46,7 @@ Progress: [██████████] 100% (28/28 plans complete)
 | 05-execution-engine | 4/4 | 18 min | 4.5 min |
 
 **Recent Trend:**
+
 - Last 5 plans: 4 min, 4 min, 6 min, 6 min, 6 min
 - Trend: fast (implementation tasks with clear specs)
 
@@ -78,6 +75,8 @@ Progress: [██████████] 100% (28/28 plans complete)
 | Phase 14-sell-price-bug-fixes P03 | 4 | 2 tasks | 2 files |
 | Phase 14-sell-price-bug-fixes P01 | 9 | 2 tasks | 11 files |
 | Phase 14-sell-price-bug-fixes P02 | 14 | 2 tasks | 8 files |
+| Phase 15 P01 | 16 | 2 tasks | 11 files |
+| Phase 15 P02 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -214,6 +213,10 @@ Recent decisions affecting current work:
 - [Quick-6]: sell-ladder re-queries fresh on-chain balance at entry before any sell step -- prevents stale DB tokenAmount from causing InsufficientFunds errors
 - [Quick-6]: Early-return COMPLETED (not FAILED) in sell-ladder when fresh balance is 0 -- wallet empty means sell previously landed
 - [Phase 14-sell-price-bug-fixes]: TradeStore.addSellPrice uses COALESCE SQL increment pattern -- crash-safe, no in-memory accumulation between restarts
+- [Phase 15]: BotEventType lives in bot-event-bus.ts (not separate events file) -- matches existing codebase structure
+- [Phase 15]: cfg = getRuntimeConfig() pattern: read live config once at method entry, use cfg throughout; constructor-time values remain static per D-06
+- [Phase 15]: SELL_PARTIAL added to eventTypes, BADGE_COLORS, EVENT_LABELS as gap closure -- was missing despite backend emitting it
+- [Phase 15]: exec/execBuy helper variables for reading 3-level nested execution.buy config in Settings draft state
 
 ### Pending Todos
 
@@ -239,8 +242,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-22 - Quick task 8 complete (fix 2 security vulns: fastify 5.8.2, rollup 4.60.0; ship-safe scan clean)
+Last activity: 2026-03-23
 
-Last session: 2026-03-22T23:14:00.000Z
-Stopped at: Completed quick task 260322-qvl
+Last session: 2026-03-23T02:03:17.300Z
+Stopped at: Completed 15-02-PLAN.md
 Resume file: None
