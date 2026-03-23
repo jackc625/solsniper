@@ -39,6 +39,12 @@ export function Settings() {
       positionManagement: {
         stopLossPct:     Number((draft['positionManagement'] as Record<string, unknown>)?.['stopLossPct'] ?? -50),
         trailingStopPct: Number((draft['positionManagement'] as Record<string, unknown>)?.['trailingStopPct'] ?? 0),
+        pollIntervalMs:  Number((draft['positionManagement'] as Record<string, unknown>)?.['pollIntervalMs'] ?? 5000),
+      },
+      execution: {
+        buy: {
+          slippageBps: Number(((draft['execution'] as Record<string, unknown>)?.['buy'] as Record<string, unknown>)?.['slippageBps'] ?? 1000),
+        },
       },
     };
     const result = await saveConfig(patch);
@@ -52,6 +58,8 @@ export function Settings() {
   };
 
   const pm = (draft['positionManagement'] as Record<string, unknown>) ?? {};
+  const exec = (draft['execution'] as Record<string, unknown>) ?? {};
+  const execBuy = (exec['buy'] as Record<string, unknown>) ?? {};
 
   return (
     <div style={PAGE}>
@@ -158,6 +166,17 @@ export function Settings() {
               onChange={(e) => set(['maxConcurrentPositions'], (e.target as HTMLInputElement).value)}
             />
           </FieldRow>
+          <FieldRow label="Buy Slippage" desc="Basis points for buy transactions (100 = 1%)">
+            <input
+              style={INPUT}
+              type="number"
+              min="50"
+              max="4900"
+              step="50"
+              value={String(execBuy['slippageBps'] ?? '')}
+              onChange={(e) => set(['execution', 'buy', 'slippageBps'], (e.target as HTMLInputElement).value)}
+            />
+          </FieldRow>
         </section>
 
         {/* ---- Position Management ---- */}
@@ -184,6 +203,17 @@ export function Settings() {
               step="1"
               value={String(pm['trailingStopPct'] ?? '')}
               onChange={(e) => set(['positionManagement', 'trailingStopPct'], (e.target as HTMLInputElement).value)}
+            />
+          </FieldRow>
+          <FieldRow label="Poll Interval (ms)" desc="Price check interval in milliseconds">
+            <input
+              style={INPUT}
+              type="number"
+              min="1000"
+              max="60000"
+              step="1000"
+              value={String(pm['pollIntervalMs'] ?? '')}
+              onChange={(e) => set(['positionManagement', 'pollIntervalMs'], (e.target as HTMLInputElement).value)}
             />
           </FieldRow>
         </section>
