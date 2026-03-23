@@ -32,3 +32,6 @@ Thumbs.db
 
 # Planning docs
 .planning/
+
+# Ship-safe
+.ship-safe/
