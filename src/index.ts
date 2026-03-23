@@ -165,8 +165,9 @@ async function main(): Promise<void> {
     try {
       // POS-06: Enforce max concurrent position limit (before safety pipeline to avoid wasted RPC calls)
       const activePositions = tradeStore.getMonitoringTrades().length;
-      if (activePositions >= tradingConfig.maxConcurrentPositions) {
-        log.info({ mint: event.mint, activePositions, limit: tradingConfig.maxConcurrentPositions },
+      const maxPositions = getRuntimeConfig().maxConcurrentPositions;
+      if (activePositions >= maxPositions) {
+        log.info({ mint: event.mint, activePositions, limit: maxPositions },
           'Max concurrent positions reached -- skipping safety checks');
         return;
       }

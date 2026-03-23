@@ -11,6 +11,7 @@ const mockCacheSet = vi.hoisted(() => vi.fn());
 const mockBlocklistLoad = vi.hoisted(() => vi.fn());
 const mockBlocklistHas = vi.hoisted(() => vi.fn().mockReturnValue(false));
 const mockBlocklistAdd = vi.hoisted(() => vi.fn());
+const mockGetRuntimeConfig = vi.hoisted(() => vi.fn());
 
 // --- Module mocks ---
 
@@ -44,6 +45,10 @@ vi.mock('./checks/tier2-holder.js', () => ({
 
 vi.mock('./checks/tier3-creator.js', () => ({
   checkCreatorHistory: vi.fn(),
+}));
+
+vi.mock('../config/trading.js', () => ({
+  getRuntimeConfig: mockGetRuntimeConfig,
 }));
 
 // --- Import module under test AFTER mocks ---
@@ -155,6 +160,7 @@ describe('SafetyPipeline', () => {
     // Reset defaults after clearAllMocks
     mockCacheGet.mockReturnValue(null);
     mockBlocklistHas.mockReturnValue(false);
+    mockGetRuntimeConfig.mockReturnValue(mockTradingConfig);
   });
 
   it('returns cached result on cache hit (second call for same mint)', async () => {

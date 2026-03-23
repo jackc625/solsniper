@@ -14,12 +14,18 @@ import { PublicKey } from '@solana/web3.js';
 // env.ts calls process.exit(1) on validation failure if SOLSNIPER_JUPITER_API_KEY
 // is not set. Mock prevents that during tests.
 // ---------------------------------------------------------------------------
+const mockGetRuntimeConfig = vi.hoisted(() => vi.fn());
+
 vi.mock('../config/env.js', () => ({
   env: {
     SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
     LOG_LEVEL: 'error',
     NODE_ENV: 'development',
   },
+}));
+
+vi.mock('../config/trading.js', () => ({
+  getRuntimeConfig: mockGetRuntimeConfig,
 }));
 
 import { PositionManager } from './position-manager.js';
@@ -166,6 +172,9 @@ function makeTrade(overrides: Partial<Trade> = {}): Trade {
  * Exposes tick() via type cast for direct testing.
  */
 function makePositionManager(config: TradingConfig = makeConfig()) {
+  // Sync getRuntimeConfig mock with the config passed to the constructor
+  // so that evaluatePosition() and scheduleTick() read live values consistently.
+  mockGetRuntimeConfig.mockReturnValue(config);
   const pm = new PositionManager(
     mockTradeStore as any,
     mockSellLadder as any,
@@ -190,6 +199,7 @@ describe('PositionManager', () => {
     mockSellLadder.sell.mockResolvedValue({ success: true, step: 'STANDARD' });
     mockTradeStore.updateMonitoringAmount.mockReturnValue(1);
     mockConnection.getParsedTokenAccountsByOwner.mockResolvedValue({ value: [] });
+    mockGetRuntimeConfig.mockReturnValue(makeConfig());
   });
 
   // -------------------------------------------------------------------------
@@ -874,6 +884,7 @@ describe('PositionManager', () => {
       mockTradeStore.getMonitoringTrades.mockReturnValue([]);
 
       const config = makeConfig({ pollIntervalMs: 3000 }); // normal interval = 3s
+      mockGetRuntimeConfig.mockReturnValue(config);
       const pm = new PositionManager(
         mockTradeStore as any,
         mockSellLadder as any,
@@ -905,6 +916,7 @@ describe('PositionManager', () => {
       mockTradeStore.getMonitoringTrades.mockReturnValue([]);
 
       const config = makeConfig({ pollIntervalMs: 3000 });
+      mockGetRuntimeConfig.mockReturnValue(config);
       const pm = new PositionManager(
         mockTradeStore as any,
         mockSellLadder as any,

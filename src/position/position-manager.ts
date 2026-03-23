@@ -26,6 +26,7 @@ import type { TradeStore } from '../persistence/trade-store.js';
 import type { SellLadder } from '../execution/sell/sell-ladder.js';
 import type { JupiterClient } from '../execution/jupiter-client.js';
 import type { TradingConfig } from '../config/trading.js';
+import { getRuntimeConfig } from '../config/trading.js';
 import type { Trade } from '../types/index.js';
 import { createModuleLogger } from '../core/logger.js';
 import { JupiterRouteError } from '../execution/jupiter-client.js';
@@ -120,9 +121,10 @@ export class PositionManager {
    */
   private scheduleTick(): void {
     const cooldownMs = this.jupiterClient.cooldownRemainingMs();
+    const pollIntervalMs = getRuntimeConfig().positionManagement.pollIntervalMs;
     const intervalMs = cooldownMs > 0
-      ? cooldownMs + this.config.positionManagement.pollIntervalMs
-      : this.config.positionManagement.pollIntervalMs;
+      ? cooldownMs + pollIntervalMs
+      : pollIntervalMs;
 
     this.timer = setTimeout(async () => {
       try {
@@ -257,7 +259,7 @@ export class PositionManager {
 
     // 4. Exit evaluation -- TP takes priority over SL per locked decision
 
-    const { tieredTp, stopLossPct, trailingStopPct } = this.config.positionManagement;
+    const { tieredTp, stopLossPct, trailingStopPct } = getRuntimeConfig().positionManagement;
 
     // --- Tiered take-profit ---
     const tierIndex = this.tierIndices.get(mint) ?? 0;
@@ -355,7 +357,7 @@ export class PositionManager {
     }
 
     // --- Max hold time ---
-    const { maxHoldTimeMs } = this.config.positionManagement;
+    const { maxHoldTimeMs } = getRuntimeConfig().positionManagement;
     if (maxHoldTimeMs > 0) {
       const holdDurationMs = Date.now() - trade.createdAt;
       if (holdDurationMs >= maxHoldTimeMs) {

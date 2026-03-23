@@ -62,7 +62,8 @@ export class SellLadder {
    *   subsequent tiers must still fire. Defaults to false (full sell -> COMPLETED).
    */
   async sell(mint: string, tokenAmount: bigint, fallbackSolReceived?: number, partial = false): Promise<SellResult> {
-    const { sell } = this.config.execution;
+    const cfg = getRuntimeConfig();
+    const { sell } = cfg.execution;
 
     // Transition to SELLING before starting the ladder
     this.tradeStore.transition(mint, 'MONITORING', 'SELLING');
@@ -117,7 +118,7 @@ export class SellLadder {
         fn: () => standardSell(
           mint, verifiedAmount,
           { slippageBps: sell.standardSlippageBps, feeMultiplier: 1 },
-          this.config, this.wallet, this.connections
+          cfg, this.wallet, this.connections
         ),
       },
       {
@@ -126,18 +127,18 @@ export class SellLadder {
         fn: () => standardSell(
           mint, verifiedAmount,
           { slippageBps: sell.standardSlippageBps, feeMultiplier: sell.highFeeMultiplier },
-          this.config, this.wallet, this.connections
+          cfg, this.wallet, this.connections
         ),
       },
       {
         name: 'JITO_BUNDLE',
         timeoutMs: sell.jitoTimeoutMs,
-        fn: () => jitoSell(mint, verifiedAmount, this.config, this.wallet, this.connections),
+        fn: () => jitoSell(mint, verifiedAmount, cfg, this.wallet, this.connections),
       },
       {
         name: 'CHUNKED',
         timeoutMs: sell.chunkedTimeoutMs,
-        fn: () => chunkedSell(mint, this.config, this.wallet, this.connections, this.tradeStore),
+        fn: () => chunkedSell(mint, cfg, this.wallet, this.connections, this.tradeStore),
       },
       {
         name: 'PUMPPORTAL',
@@ -155,7 +156,7 @@ export class SellLadder {
           ) {
             throw new Error('PumpPortal sell: last error not a route failure -- skipping');
           }
-          return pumpPortalSell(mint, verifiedAmount, this.config, this.wallet, this.connections);
+          return pumpPortalSell(mint, verifiedAmount, cfg, this.wallet, this.connections);
         },
       },
       {
@@ -165,7 +166,7 @@ export class SellLadder {
           mint, verifiedAmount,
           // EXE-09: 49% slippage = 4900 bps, emergencyPriorityMultiplier for max fee
           { slippageBps: sell.emergencySlippageBps, feeMultiplier: sell.emergencyPriorityMultiplier },
-          this.config, this.wallet, this.connections
+          cfg, this.wallet, this.connections
         ),
       },
     ];

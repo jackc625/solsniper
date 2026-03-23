@@ -55,23 +55,24 @@ export class ExecutionEngine {
    */
   async buy(event: TokenEvent): Promise<void> {
     const { mint, source } = event;
+    const cfg = getRuntimeConfig();
     log.info({ mint, source }, 'Executing buy');
 
     try {
       // Emit BUY_SENT before dispatching -- write-ahead record already created by index.ts
-      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: getRuntimeConfig().dryRun, source, buyAmountSol: this.config.buyAmountSol });
+      botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: cfg.dryRun, source, buyAmountSol: cfg.buyAmountSol });
 
       const result = source === 'pumpportal'
-        ? await pumpPortalBuy(mint, this.config, this.wallet, this.connections)
-        : await jupiterBuy(mint, this.config, this.wallet, this.connections);
+        ? await pumpPortalBuy(mint, cfg, this.wallet, this.connections)
+        : await jupiterBuy(mint, cfg, this.wallet, this.connections);
 
       if (result.success && result.signature) {
         // Dry-run PumpPortal: estimate amountTokens from bonding curve state
-        if (result.amountTokens == null && getRuntimeConfig().dryRun
+        if (result.amountTokens == null && cfg.dryRun
             && event.vSolInBondingCurve != null && event.vTokensInBondingCurve != null) {
           // Constant-product AMM: tokensOut = vTokens * solIn / (vSol + solIn)
           // 1.25% pump.fun fee deducted from SOL input before curve calculation
-          const solAfterFees = this.config.buyAmountSol * 0.9875;
+          const solAfterFees = cfg.buyAmountSol * 0.9875;
           const tokensHuman = event.vTokensInBondingCurve * solAfterFees
             / (event.vSolInBondingCurve + solAfterFees);
           result.amountTokens = Math.round(tokensHuman * 1e6); // pump.fun tokens = 6 decimals
@@ -82,14 +83,14 @@ export class ExecutionEngine {
         }
 
         // Estimate buy price from config (actual price from Phase 7 price polling)
-        const buyPriceSol = this.config.buyAmountSol / (result.amountTokens ?? 1);
+        const buyPriceSol = cfg.buyAmountSol / (result.amountTokens ?? 1);
         this.tradeStore.transition(mint, 'BUYING', 'MONITORING', {
           buySignature: result.signature,
-          amountSol: this.config.buyAmountSol,
+          amountSol: cfg.buyAmountSol,
           amountTokens: result.amountTokens,
           buyPriceSol: result.amountTokens ? buyPriceSol : undefined,
         });
-        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8), isDryRun: getRuntimeConfig().dryRun, source, buyAmountSol: this.config.buyAmountSol });
+        botEventBus.emit('event', { type: 'BUY_CONFIRMED', mint, ts: Date.now(), detail: result.signature.slice(0, 8), isDryRun: cfg.dryRun, source, buyAmountSol: cfg.buyAmountSol });
         log.info({ mint, signature: result.signature }, 'Buy confirmed -- trade in MONITORING');
 
         // For pumpportal tokens: schedule deferred sell-route verification (fire-and-forget).
@@ -101,7 +102,7 @@ export class ExecutionEngine {
         this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
           errorMessage: `BUY_FAILED: ${result.errorMessage ?? 'unknown error'}`,
         });
-        botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: result.errorMessage, isDryRun: getRuntimeConfig().dryRun });
+        botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: result.errorMessage, isDryRun: cfg.dryRun });
         log.warn({ mint, errorMessage: result.errorMessage }, 'Buy failed -- trade marked FAILED');
       }
     } catch (err) {
@@ -109,7 +110,7 @@ export class ExecutionEngine {
       this.tradeStore.transition(mint, 'BUYING', 'FAILED', {
         errorMessage: `BUY_FAILED: ${message}`,
       });
-      botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message, isDryRun: getRuntimeConfig().dryRun });
+      botEventBus.emit('event', { type: 'BUY_FAILED', mint, ts: Date.now(), detail: message, isDryRun: cfg.dryRun });
       log.error({ mint, err }, 'Buy threw unexpectedly -- trade marked FAILED');
     }
   }

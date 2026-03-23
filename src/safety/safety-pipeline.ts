@@ -1,5 +1,6 @@
 import type { Connection } from '@solana/web3.js';
 import type { TradingConfig } from '../config/trading.js';
+import { getRuntimeConfig } from '../config/trading.js';
 import type { Env } from '../config/env.js';
 import type { TokenEvent, CheckResult, SafetyResult } from '../types/index.js';
 import { SafetyCache } from './safety-cache.js';
@@ -61,6 +62,7 @@ export class SafetyPipeline {
     }
 
     const startTime = Date.now();
+    const cfg = getRuntimeConfig();
 
     try {
 
@@ -85,7 +87,7 @@ export class SafetyPipeline {
         source: event.source,
         decision: 'REJECTED',
         aggregateScore: 0,
-        minSafetyScore: this.tradingConfig.minSafetyScore,
+        minSafetyScore: cfg.minSafetyScore,
         rejectionReasons,
         tier1: tier1Results.map(r => ({ source: r.source, pass: r.pass, detail: r.detail })),
         tier2: [],
@@ -97,12 +99,12 @@ export class SafetyPipeline {
     }
 
     // 4. Tier 2 + Tier 3: Scoring signals in parallel via Promise.allSettled with timeouts
-    const tier2Signal = AbortSignal.timeout(this.tradingConfig.safety.tier2TimeoutMs);
-    const tier3Signal = AbortSignal.timeout(this.tradingConfig.safety.tier3TimeoutMs);
+    const tier2Signal = AbortSignal.timeout(cfg.safety.tier2TimeoutMs);
+    const tier3Signal = AbortSignal.timeout(cfg.safety.tier3TimeoutMs);
 
     const [rugCheckSettled, holderSettled, creatorSettled] = await Promise.allSettled([
       checkRugCheck(event.mint, this.env.RUGCHECK_API_KEY, tier2Signal),
-      checkHolderConcentration(event.mint, this.connection, this.tradingConfig.safety.holder, detectedProgramId, event.source),
+      checkHolderConcentration(event.mint, this.connection, cfg.safety.holder, detectedProgramId, event.source),
       checkCreatorHistory(event.creator, this.env.HELIUS_API_KEY, this.blocklist, tier3Signal),
     ]);
 
@@ -127,7 +129,7 @@ export class SafetyPipeline {
         source: event.source,
         decision: 'REJECTED',
         aggregateScore: 0,
-        minSafetyScore: this.tradingConfig.minSafetyScore,
+        minSafetyScore: cfg.minSafetyScore,
         rejectionReasons,
         tier1: tier1Results.map(r => ({ source: r.source, pass: r.pass, detail: r.detail })),
         tier2: tier2Results.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
@@ -139,7 +141,7 @@ export class SafetyPipeline {
     }
 
     // 6. Aggregate score computation (SAF-08): weighted average of Tier 2/3 scores
-    const weights = this.tradingConfig.safety.weights;
+    const weights = cfg.safety.weights;
     const rugScore = rugCheckResult.score ?? 0;
     const holderScore = holderResult.score ?? 0;
     const creatorScore = creatorResult.score ?? 0;
@@ -151,9 +153,9 @@ export class SafetyPipeline {
     );
 
     // 7. Threshold check: reject tokens below minSafetyScore (SAF-09)
-    if (aggregateScore < this.tradingConfig.minSafetyScore) {
+    if (aggregateScore < cfg.minSafetyScore) {
       const rejectionReasons = [
-        `aggregate_score=${aggregateScore} below threshold=${this.tradingConfig.minSafetyScore}`,
+        `aggregate_score=${aggregateScore} below threshold=${cfg.minSafetyScore}`,
       ];
       const result = this.buildSafetyResult(false, event.mint, aggregateScore, tier1Results, tier2Results, tier3Results, rejectionReasons, startTime, detectedProgramId?.toBase58());
       this.log.info({
@@ -161,7 +163,7 @@ export class SafetyPipeline {
         source: event.source,
         decision: 'REJECTED',
         aggregateScore,
-        minSafetyScore: this.tradingConfig.minSafetyScore,
+        minSafetyScore: cfg.minSafetyScore,
         rejectionReasons,
         tier1: tier1Results.map(r => ({ source: r.source, pass: r.pass, detail: r.detail })),
         tier2: tier2Results.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
@@ -179,7 +181,7 @@ export class SafetyPipeline {
       source: event.source,
       decision: 'PASSED',
       aggregateScore,
-      minSafetyScore: this.tradingConfig.minSafetyScore,
+      minSafetyScore: cfg.minSafetyScore,
       rejectionReasons: [],
       tier1: tier1Results.map(r => ({ source: r.source, pass: r.pass, detail: r.detail })),
       tier2: tier2Results.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),

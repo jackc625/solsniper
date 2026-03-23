@@ -6,12 +6,46 @@ import type { TradingConfig } from '../config/trading.js';
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig } = vi.hoisted(() => {
+const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig, defaultRuntimeConfig } = vi.hoisted(() => {
   const mockPumpPortalBuy = vi.fn();
   const mockJupiterBuy = vi.fn();
   const mockJupiterClientQuote = vi.fn();
-  const mockGetRuntimeConfig = vi.fn().mockReturnValue({ dryRun: false });
-  return { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig };
+  const defaultRuntimeConfig = {
+    dryRun: false,
+    buyAmountSol: 0.1,
+    maxSlippageBps: 1000,
+    maxConcurrentPositions: 3,
+    stopLossPct: -50,
+    takeProfitPct: 300,
+    minSafetyScore: 60,
+    detection: {
+      wsHeartbeatIntervalMs: 30000, wsBaseBackoffMs: 3000, wsMaxBackoffMs: 60000,
+      wsExcessiveReconnectThreshold: 5, wsExcessiveReconnectWindowMs: 600000,
+      statsIntervalMs: 900000, dedupWindowMs: 3600000,
+    },
+    safety: {
+      tier2TimeoutMs: 2000, tier3TimeoutMs: 5000, cacheTtlMs: 300000,
+      weights: { rugCheck: 40, holder: 30, creator: 30 },
+      holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
+      rugCheckScoreInverted: true, blocklistPath: './data/creator-blocklist.json',
+    },
+    execution: {
+      buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1 },
+      sell: {
+        standardSlippageBps: 500, emergencySlippageBps: 4900, standardTimeoutMs: 30000,
+        highFeeTimeoutMs: 20000, highFeeMultiplier: 3, jitoTimeoutMs: 30000,
+        jitoTipLamports: 100000, chunkedTimeoutMs: 60000, emergencyTimeoutMs: 30000,
+        emergencyPriorityMultiplier: 10,
+      },
+    },
+    positionManagement: {
+      pollIntervalMs: 5000, stopLossPct: -50,
+      tieredTp: [{ at: 2, pct: 33 }, { at: 5, pct: 33 }, { at: 10, pct: 34 }],
+      trailingStopPct: 0, maxHoldTimeMs: 120000,
+    },
+  };
+  const mockGetRuntimeConfig = vi.fn().mockReturnValue(defaultRuntimeConfig);
+  return { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig, defaultRuntimeConfig };
 });
 
 vi.mock('./buy/pump-portal-buyer.js', () => ({
@@ -120,7 +154,7 @@ describe('ExecutionEngine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    mockGetRuntimeConfig.mockReturnValue({ dryRun: false });
+    mockGetRuntimeConfig.mockReturnValue(defaultRuntimeConfig);
   });
 
   afterEach(() => {
@@ -310,7 +344,7 @@ describe('ExecutionEngine', () => {
   // ---------------------------------------------------------------------------
 
   it('dry-run PumpPortal buy with bonding curve data — estimates amountTokens', async () => {
-    mockGetRuntimeConfig.mockReturnValue({ dryRun: true });
+    mockGetRuntimeConfig.mockReturnValue({ ...defaultRuntimeConfig, dryRun: true, buyAmountSol: 0.01 });
     mockPumpPortalBuy.mockResolvedValue({
       success: true,
       signature: 'dry-run-sig',
@@ -355,7 +389,7 @@ describe('ExecutionEngine', () => {
   });
 
   it('dry-run PumpPortal buy without bonding curve data — amountTokens stays undefined', async () => {
-    mockGetRuntimeConfig.mockReturnValue({ dryRun: true });
+    mockGetRuntimeConfig.mockReturnValue({ ...defaultRuntimeConfig, dryRun: true });
     mockPumpPortalBuy.mockResolvedValue({
       success: true,
       signature: 'dry-run-sig',

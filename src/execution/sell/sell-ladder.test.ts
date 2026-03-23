@@ -7,12 +7,13 @@ import { PublicKey } from '@solana/web3.js';
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockStandardSell, mockJitoSell, mockChunkedSell, mockPumpPortalSell } = vi.hoisted(() => {
+const { mockStandardSell, mockJitoSell, mockChunkedSell, mockPumpPortalSell, mockGetRuntimeConfig } = vi.hoisted(() => {
   const mockStandardSell = vi.fn();
   const mockJitoSell = vi.fn();
   const mockChunkedSell = vi.fn();
   const mockPumpPortalSell = vi.fn();
-  return { mockStandardSell, mockJitoSell, mockChunkedSell, mockPumpPortalSell };
+  const mockGetRuntimeConfig = vi.fn();
+  return { mockStandardSell, mockJitoSell, mockChunkedSell, mockPumpPortalSell, mockGetRuntimeConfig };
 });
 
 vi.mock('./standard-seller.js', () => ({
@@ -33,6 +34,10 @@ vi.mock('./pump-portal-seller.js', () => ({
 
 vi.mock('../../utils/parse-sol-received.js', () => ({
   parseSolReceived: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../config/trading.js', () => ({
+  getRuntimeConfig: mockGetRuntimeConfig,
 }));
 
 // ---------------------------------------------------------------------------
@@ -138,6 +143,7 @@ describe('SellLadder', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockGetRuntimeConfig.mockReturnValue(makeTradingConfig());
     // Default: wallet has TOKEN_AMOUNT tokens on-chain (matches passed amount -- no stale mismatch)
     mockGetParsedTokenAccountsByOwner.mockResolvedValue({
       value: [{
