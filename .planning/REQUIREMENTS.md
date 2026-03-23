@@ -74,6 +74,26 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DASH-05**: Web dashboard provides UI to adjust buy amount and position limits without bot restart
 - [x] **DASH-06**: Dashboard runs as in-process HTTP server (Express/Fastify), not a separate service
 
+### Dry Run
+
+- [x] **DRY-01**: Bot supports a `dryRun` config flag that runs the full mainnet pipeline (detection, safety, transaction building) but intercepts before signing/broadcasting
+- [x] **DRY-02**: Dry-run buy interception occurs at `broadcastAndConfirm()` (Gate 1), returning a synthetic BroadcastResult with placeholder signature
+- [x] **DRY-03**: Dry-run sell interception occurs at `jitoSell()` (Gate 2), preventing Jito bundle submission
+- [x] **DRY-04**: Dry-run trades persist to SQLite with `dry_run=1` column and follow the full state machine (BUYING -> MONITORING -> SELLING -> COMPLETED)
+- [x] **DRY-05**: Dry-run trades enter PositionManager for shadow price tracking via Jupiter quote polling, showing what P&L would have been
+- [x] **DRY-06**: Crash recovery skips dry-run trades on restart (shadow tracking is ephemeral within a session)
+- [x] **DRY-07**: Dashboard displays dry-run trades inline in Live Feed with a DRY RUN badge and shows a prominent mode banner when dry-run is enabled
+- [x] **DRY-08**: Dashboard header stats (total P&L, win rate, trade count) exclude dry-run trades; `dryRun` is toggleable from Settings
+
+### UI
+
+- [x] **UI-01**: Dashboard uses sidebar + content layout (replacing horizontal tabs) with fixed sidebar navigation for Feed, Performance, and Settings views
+- [x] **UI-02**: Live Feed displays rich expandable cards with token mint (clickable Solscan/pump.fun links), safety score, source badge, buy amount, P&L, event type badge, and timestamp
+- [x] **UI-03**: Performance view includes P&L chart over time (lightweight-charts), win rate visualization, and sortable completed trade history table
+- [x] **UI-04**: Trade history table shows per-trade breakdown: entry price, exit price, duration held, P&L in SOL
+- [x] **UI-05**: Dashboard uses an industrial/utilitarian trading terminal aesthetic (amber primary, Share Tech Mono + Rajdhani fonts, dark theme)
+- [x] **UI-06**: Sidebar collapses responsively at 1024px breakpoint via CSS custom property override
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -185,8 +205,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 - v1 requirements: 60 total (46 original + 8 DRY + 6 UI)
 - Mapped to phases: 60
 - Unmapped: 0
-- Pending: 2 (DASH-04, DASH-05 → Phase 15)
+- Pending: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-27 after 05-01 execution (EXE-04, EXE-05, EXE-08 complete)*
+*Last updated: 2026-03-23 after Phase 16 (Dry Run and UI definitions backfilled)*
