@@ -56,14 +56,20 @@ export async function configRoute(fastify: FastifyInstance): Promise<void> {
         details: result.error.flatten(),
       });
     }
+    const before = getRuntimeConfig();
     const updated = patchRuntimeConfig(result.data as Parameters<typeof patchRuntimeConfig>[0]);
-    const changedKeys = Object.keys(result.data);
-    botEventBus.emit('event', {
-      type: 'CONFIG_CHANGED',
-      mint: '',
-      ts: Date.now(),
-      detail: `Settings updated: ${changedKeys.join(', ')}`,
-    });
+    // Only report keys whose values actually changed (not just sent in the patch)
+    const changedKeys = Object.keys(result.data).filter(
+      (k) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify((updated as Record<string, unknown>)[k]),
+    );
+    if (changedKeys.length > 0) {
+      botEventBus.emit('event', {
+        type: 'CONFIG_CHANGED',
+        mint: '',
+        ts: Date.now(),
+        detail: `Settings updated: ${changedKeys.join(', ')}`,
+      });
+    }
     log.info({ changedKeys }, 'Runtime config patched via dashboard');
     return reply.send({ ok: true, config: updated });
   });

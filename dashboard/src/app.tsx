@@ -4,7 +4,7 @@ import type { View } from './components/Sidebar.js';
 import { LiveFeed } from './components/LiveFeed.js';
 import { Performance } from './components/Performance.js';
 import { Settings } from './components/Settings.js';
-import { configSignal } from './store/config.js';
+import { configSignal, fetchConfig } from './store/config.js';
 import { connectFeed } from './store/feed.js';
 
 export function App() {
@@ -13,6 +13,7 @@ export function App() {
   // SSE connection lives at App level so it persists across tab navigation
   useEffect(() => {
     const disconnect = connectFeed();
+    void fetchConfig();
     return disconnect;
   }, []);
 

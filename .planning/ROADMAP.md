@@ -169,7 +169,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 8. Web Dashboard | 5/5 | Complete   | 2015-02-27 |
 | 9. Fix Broken Jupiter API | 2/2 | Complete   | 2015-03-02 |
 | 15. Live Config Hot-Reload Fix | 3/3 | Complete    | 2026-03-23 |
-| 16. SELL_PARTIAL + Traceability | 1/1 | Complete   | 2026-03-23 |
+| 16. SELL_PARTIAL + Traceability | 1/1 | Complete    | 2026-03-23 |
 
 ### Phase 9: Fix broken Jupiter API
 
