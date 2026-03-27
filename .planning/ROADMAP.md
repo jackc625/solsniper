@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### v1.1 Hardening & Polish
 
-- [ ] **Phase 17: Security Fixes** - Resolve all BUGS.md security findings before adding new attack surface
+- [x] **Phase 17: Security Fixes** - Resolve all BUGS.md security findings before adding new attack surface (completed 2026-03-27)
 - [ ] **Phase 18: Safety Pipeline Audit & Enhancement** - Validate and improve safety filtering accuracy with new rug detection checks
 - [ ] **Phase 19: Execution Performance** - Dynamic fees, compute optimization, and balance guards for better trade outcomes
 - [ ] **Phase 20: Reliability & Monitoring** - Health endpoints, system alerts, RPC tracking, and log rotation
@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Helius API key never appears in URL query parameters, access logs, or error traces — passed exclusively via Authorization header
   3. Dashboard PATCH /api/config rejects any payload that would produce an invalid TradingConfig after merge — validated against full TradingConfigSchema
   4. `pnpm audit` reports zero high/critical vulnerabilities, and any remaining moderate findings are documented with justification
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 17-01-PLAN.md — ESLint setup with custom security rules + Helius API key migration (SEC-01, SEC-02)
 - [ ] 17-02-PLAN.md — Config PATCH endpoint merged validation and cross-field semantic checks (SEC-03)
@@ -106,7 +106,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
 | 14. Sell price bug fixes | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 15. Live Config Hot-Reload Fix | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
-| 17. Security Fixes | v1.1 | 3/3 | In Progress | - |
+| 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
 | 18. Safety Pipeline Audit & Enhancement | v1.1 | 0/? | Not started | - |
 | 19. Execution Performance | v1.1 | 0/? | Not started | - |
 | 20. Reliability & Monitoring | v1.1 | 0/? | Not started | - |
