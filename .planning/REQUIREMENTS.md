@@ -11,8 +11,8 @@ Requirements for the hardening & polish milestone. Each maps to roadmap phases.
 
 - [x] **SEC-01**: SQL injection risk in trade-store.ts audited and either fixed or documented as safe
 - [x] **SEC-02**: Helius API key passed via Authorization header instead of URL query parameter
-- [ ] **SEC-03**: Dashboard config PATCH endpoint validates merged result against full TradingConfigSchema before applying
-- [ ] **SEC-04**: All high/moderate dependency vulnerabilities resolved or documented with justification
+- [x] **SEC-03**: Dashboard config PATCH endpoint validates merged result against full TradingConfigSchema before applying
+- [x] **SEC-04**: All high/moderate dependency vulnerabilities resolved or documented with justification
 
 ### Safety Pipeline
 
@@ -84,8 +84,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | SEC-01 | Phase 17 | Complete |
 | SEC-02 | Phase 17 | Complete |
-| SEC-03 | Phase 17 | Pending |
-| SEC-04 | Phase 17 | Pending |
+| SEC-03 | Phase 17 | Complete |
+| SEC-04 | Phase 17 | Complete |
 | SAF-10 | Phase 18 | Pending |
 | SAF-11 | Phase 18 | Pending |
 | SAF-12 | Phase 18 | Pending |
