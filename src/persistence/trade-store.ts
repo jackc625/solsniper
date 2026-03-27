@@ -97,6 +97,7 @@ export class TradeStore {
     );
 
     this.stmtGetNonTerminal = this.db.prepare(
+      // eslint-disable-next-line security/no-sql-template-literals -- Safe: generates ? placeholders from hardcoded array, no user input
       `SELECT mint FROM trades WHERE state IN (${NON_TERMINAL_STATES.map(() => '?').join(',')})` // ship-safe-ignore: generates ? placeholders, not user input
     );
 
