@@ -82,7 +82,7 @@ const PositionManagementConfigSchema = z.object({
 
 export type PositionManagementConfig = z.infer<typeof PositionManagementConfigSchema>;
 
-const TradingConfigSchema = z.object({
+export const TradingConfigSchema = z.object({
   buyAmountSol: z.number().positive().max(10),
   maxSlippageBps: z.number().int().min(50).max(4900),
   maxConcurrentPositions: z.number().int().min(1).max(50),
@@ -129,6 +129,10 @@ let _runtimeConfig: TradingConfig = configResult.data;
 
 export function getRuntimeConfig(): TradingConfig {
   return _runtimeConfig;
+}
+
+export function restoreRuntimeConfig(config: TradingConfig): void {
+  _runtimeConfig = config;
 }
 
 export function patchRuntimeConfig(updates: Partial<TradingConfig>): TradingConfig {

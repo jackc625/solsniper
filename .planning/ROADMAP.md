@@ -24,4 +24,4 @@
 | 14. Sell price bug fixes | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 15. Live Config Hot-Reload Fix | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
-| 17. Security Fixes | post-v1.0 | 1/3 | In Progress | - |
+| 17. Security Fixes | post-v1.0 | 2/3 | In Progress | - |
