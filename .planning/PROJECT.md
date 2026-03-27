@@ -24,7 +24,19 @@ Land buy transactions in the first block on new token launches while filtering o
 
 ### Active
 
-(None — define with `/gsd:new-milestone`)
+(Defined in REQUIREMENTS.md for v1.1)
+
+## Current Milestone: v1.1 Hardening & Polish
+
+**Goal:** Harden the bot across security, safety accuracy, trading performance, dashboard UX, and operational reliability — make everything production-grade.
+
+**Target features:**
+- Fix all 4 BUGS.md security findings (SQL injection risk, API key in URL, unvalidated config endpoint, dependency vulns)
+- Safety pipeline audit — validate current checks are accurate, identify gaps in rug pattern detection, improve coverage and scoring calibration
+- Improve buy execution success rate (faster landing, fewer missed buys)
+- Improve sell execution (smarter timing, better price outcomes, reduced slippage losses)
+- Dashboard overhaul — better analytics, live pipeline visibility, operational controls
+- Reliability improvements — RPC failover hardening, better crash recovery, surfacing silent failures
 
 ### Out of Scope
 
@@ -72,5 +84,22 @@ Shipped v1.0 with 13,653 LOC TypeScript/TSX/CSS across 243 commits in 31 days.
 | getRuntimeConfig() hot-reload | Live config changes without restart | ✓ Good — dashboard Settings work immediately |
 | Dual-gate dry-run interception | Full mainnet pipeline minus real transactions | ✓ Good — safe validation |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-24 after v1.0 milestone*
+*Last updated: 2026-03-27 after v1.1 milestone start*
