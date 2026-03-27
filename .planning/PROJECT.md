@@ -26,12 +26,14 @@ Land buy transactions in the first block on new token launches while filtering o
 
 (Defined in REQUIREMENTS.md for v1.1)
 
+- ✓ SEC-01 to SEC-04: Security hardening — SQL audit, API key migration, config validation, dependency fixes — v1.1 Phase 17
+
 ## Current Milestone: v1.1 Hardening & Polish
 
 **Goal:** Harden the bot across security, safety accuracy, trading performance, dashboard UX, and operational reliability — make everything production-grade.
 
 **Target features:**
-- Fix all 4 BUGS.md security findings (SQL injection risk, API key in URL, unvalidated config endpoint, dependency vulns)
+- ~~Fix all 4 BUGS.md security findings~~ (Phase 17 complete — SQL confirmed safe, API key in header, config validated, deps patched)
 - Safety pipeline audit — validate current checks are accurate, identify gaps in rug pattern detection, improve coverage and scoring calibration
 - Improve buy execution success rate (faster landing, fewer missed buys)
 - Improve sell execution (smarter timing, better price outcomes, reduced slippage losses)
@@ -102,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after v1.1 milestone start*
+*Last updated: 2026-03-27 after Phase 17 completion*
