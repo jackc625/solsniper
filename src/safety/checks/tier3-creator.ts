@@ -109,10 +109,13 @@ export async function checkCreatorHistory(
     };
   }
 
-  const url = `${HELIUS_TX_URL}/${creator}/transactions?api-key=${heliusApiKey}&type=TOKEN_MINT&limit=10`;
+  const url = `${HELIUS_TX_URL}/${creator}/transactions?type=TOKEN_MINT&limit=10`;
 
   try {
-    const response = await fetch(url, { signal });
+    const response = await fetch(url, {
+      signal,
+      headers: { 'X-Api-Key': heliusApiKey },
+    });
 
     if (!response.ok) {
       log.warn({ creator, status: response.status }, 'Helius API returned non-200 status');
@@ -142,9 +145,7 @@ export async function checkCreatorHistory(
       detail: analysis.detail,
     };
   } catch (err: unknown) {
-    // S1 fix: mask API key in URL before logging to prevent key leakage in error traces
-    const safeUrl = url.replace(/api-key=[^&]*/gi, 'api-key=***');
-    log.warn({ creator, url: safeUrl, err }, 'Helius API fetch error or timeout');
+    log.warn({ creator, url, err }, 'Helius API fetch error or timeout');
     return {
       pass: true,
       score: 0,

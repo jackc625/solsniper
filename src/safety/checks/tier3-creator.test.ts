@@ -180,4 +180,25 @@ describe('checkCreatorHistory', () => {
     expect(result.detail).toBe('helius_key_not_configured');
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('passes API key via X-Api-Key header, not in URL query parameter (SEC-02)', async () => {
+    const blocklist = makeMockBlocklist(false);
+    const signal = new AbortController().signal;
+
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(200, []));
+
+    await checkCreatorHistory(MOCK_CREATOR, MOCK_HELIUS_KEY, blocklist, signal);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [fetchUrl, fetchOptions] = mockFetch.mock.calls[0];
+
+    // Key must NOT be in URL
+    expect(fetchUrl).not.toContain('api-key=');
+    expect(fetchUrl).not.toContain('api_key=');
+    expect(fetchUrl).not.toContain(MOCK_HELIUS_KEY);
+
+    // Key must be in X-Api-Key header
+    expect(fetchOptions.headers).toBeDefined();
+    expect(fetchOptions.headers['X-Api-Key']).toBe(MOCK_HELIUS_KEY);
+  });
 });

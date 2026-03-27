@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: v1.0 milestone complete
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-24T02:10:55.401Z"
-last_activity: 2026-03-24
+status: executing phase 17
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-27T16:10:53Z"
+last_activity: 2026-03-27
 progress:
   total_phases: 16
   completed_phases: 16
@@ -20,11 +20,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 17 security fixes
 
 ## Current Position
 
-Milestone v1.0 shipped. No active phase.
+Phase 17: Security Fixes -- Plan 01 of 03 complete.
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Milestone v1.0 shipped. No active phase.
 | Phase 15 P01 | 16 | 2 tasks | 11 files |
 | Phase 15 P02 | 3 | 2 tasks | 3 files |
 | Phase 16 P01 | 2 | 2 tasks | 1 files |
+| Phase 17 P01 | 8 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,7 @@ Milestone v1.0 shipped. No active phase.
 - Phase 13 added: UI rework
 - Phase 14 added: sell price bug fixes
 - Phase 15 added: tiered take profit fix
+- Phase 17 added: security fixes
 
 ### Decisions
 
@@ -218,6 +220,9 @@ Recent decisions affecting current work:
 - [Phase 15]: SELL_PARTIAL added to eventTypes, BADGE_COLORS, EVENT_LABELS as gap closure -- was missing despite backend emitting it
 - [Phase 15]: exec/execBuy helper variables for reading 3-level nested execution.buy config in Settings draft state
 - [Phase 16]: Footer text uses descriptive wording instead of requirement ID ranges to avoid false grep matches in verification
+- [Phase 17-01]: X-Api-Key header format used for Helius API instead of Authorization: Bearer -- Helius actually supports X-Api-Key, not Bearer format as D-05 stated
+- [Phase 17-01]: reportUnusedDisableDirectives set to off in ESLint config -- existing @typescript-eslint disable comments cause errors with security-only config
+- [Phase 17-01]: @typescript-eslint plugin registered but no rules enforced -- prevents 'Definition for rule not found' errors from existing disable comments
 
 ### Pending Todos
 
@@ -243,8 +248,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-24
+Last activity: 2026-03-27
 
-Last session: 2026-03-23T21:40:38.094Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-03-27T16:10:53Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None
