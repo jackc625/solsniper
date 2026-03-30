@@ -3,11 +3,15 @@
 ## Milestones
 
 - **v1.0 MVP** — Phases 1-16 (shipped 2026-03-24) | [Archive](milestones/v1.0-ROADMAP.md)
+- **v1.1 Hardening & Polish** — Phases 17-21 (in progress)
 
 ## Progress
 
-| Phase | Milestone | Plans | Status | Completed |
-|-------|-----------|-------|--------|-----------|
+**Execution Order:**
+Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
 | 1. Foundation & Operations | v1.0 | 2/2 | Complete | 2026-02-20 |
 | 2. Token Detection | v1.0 | 2/2 | Complete | 2026-02-22 |
 | 3. Safety Pipeline | v1.0 | 3/3 | Complete | 2026-02-27 |
@@ -24,3 +28,8 @@
 | 14. Sell price bug fixes | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 15. Live Config Hot-Reload Fix | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
+| 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
+| 18. Safety Pipeline Audit & Enhancement | v1.1 | 4/5 | In progress | - |
+| 19. Execution Performance | v1.1 | 1/3 | In progress | - |
+| 20. Reliability & Monitoring | v1.1 | 0/? | Not started | - |
+| 21. Dashboard Overhaul | v1.1 | 0/? | Not started | - |

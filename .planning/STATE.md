@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: v1.0 milestone complete
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-24T02:10:55.401Z"
+stopped_at: Completed 19-01-PLAN.md
+last_updated: "2026-03-30T23:06:57.102Z"
 last_activity: 2026-03-24
 progress:
-  total_phases: 16
-  completed_phases: 16
-  total_plans: 42
-  completed_plans: 42
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 4
 ---
 
 # Project State
@@ -77,6 +77,7 @@ Milestone v1.0 shipped. No active phase.
 | Phase 15 P01 | 16 | 2 tasks | 11 files |
 | Phase 15 P02 | 3 | 2 tasks | 3 files |
 | Phase 16 P01 | 2 | 2 tasks | 1 files |
+| Phase 19 P01 | 6 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -218,6 +219,7 @@ Recent decisions affecting current work:
 - [Phase 15]: SELL_PARTIAL added to eventTypes, BADGE_COLORS, EVENT_LABELS as gap closure -- was missing despite backend emitting it
 - [Phase 15]: exec/execBuy helper variables for reading 3-level nested execution.buy config in Settings draft state
 - [Phase 16]: Footer text uses descriptive wording instead of requirement ID ranges to avoid false grep matches in verification
+- [Phase 19]: FeeEstimator caches raw microlamports/CU from Helius, converts on read -- avoids re-conversion on cached hits
 
 ### Pending Todos
 
@@ -245,6 +247,6 @@ None.
 
 Last activity: 2026-03-24
 
-Last session: 2026-03-23T21:40:38.094Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-03-30T23:06:57.096Z
+Stopped at: Completed 19-01-PLAN.md
 Resume file: None
