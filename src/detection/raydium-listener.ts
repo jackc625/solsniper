@@ -215,11 +215,19 @@ export class RaydiumListener {
         return;
       }
 
+      // Extract poolQuoteVault (accounts[11] = pcVault/quoteVault) for liquidity depth check
+      // Only set if quoteMint (accounts[9]) is WSOL -- confirms vault holds SOL
+      const quoteMint = accounts[9].toBase58();
+      const poolQuoteVault = accounts.length >= 12 && quoteMint === WRAPPED_SOL_MINT
+        ? accounts[11].toBase58()
+        : undefined;
+
       const event: TokenEvent = {
         mint,
         source: 'raydium',
         detectedAt,
         signature,
+        ...(poolQuoteVault ? { poolQuoteVault } : {}),
       };
 
       log.debug({ mint, signature, slot }, 'Raydium V4 pool creation parsed');

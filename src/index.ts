@@ -181,9 +181,22 @@ async function main(): Promise<void> {
           return;
         }
         // Write-ahead: record BUYING state before any on-chain action (PER-02)
-        // Pass source and detected token program so SQLite trade record is complete from creation time.
-        // This ensures crash recovery, chunked-seller ATA lookup, and sell ladder source checks all work.
-        tradeStore.createBuyingRecord(event.mint, event.source, result.programId, getRuntimeConfig().dryRun);
+        // Pass source, detected token program, and safety audit data so SQLite trade record is complete from creation time.
+        // This ensures crash recovery, chunked-seller ATA lookup, sell ladder source checks, and safety audit all work.
+        const checksDetail = JSON.stringify({
+          tier1: result.tier1.map(r => ({ source: r.source, pass: r.pass, detail: r.detail })),
+          tier2: result.tier2.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
+          tier3: result.tier3.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
+        });
+        tradeStore.createBuyingRecord(
+          event.mint,
+          event.source,
+          result.programId,
+          getRuntimeConfig().dryRun,
+          result.aggregateScore,
+          result.rejectionReasons,
+          checksDetail,
+        );
         // Execute buy -- routes to PumpPortal (bonding curve) or Jupiter (migrated) based on event.source
         void executionEngine.buy(event);
       }

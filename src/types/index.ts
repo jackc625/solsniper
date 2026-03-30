@@ -90,6 +90,9 @@ export interface Trade {
   source?: string;          // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
   tokenProgramId?: string;  // Detected token program: TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID base58
   dryRun?: boolean;         // True if trade was created in dry-run mode (no real SOL spent)
+  safetyScore?: number;             // Aggregate safety score at time of buy (0-100)
+  safetyRejectionReasons?: string;  // JSON array of rejection reasons (if any)
+  safetyChecksDetail?: string;      // JSON object with tier1/tier2/tier3 check details
 }
 
 // Phase 05: Execution engine types

@@ -75,8 +75,8 @@ export class TradeStore {
 
     // Compile prepared statements once at construction time for efficiency.
     this.stmtInsert = this.db.prepare(
-      `INSERT INTO trades (mint, state, created_at, updated_at, source, token_program_id, dry_run)
-       VALUES (@mint, @state, @now, @now, @source, @token_program_id, @dry_run)`
+      `INSERT INTO trades (mint, state, created_at, updated_at, source, token_program_id, dry_run, safety_score, safety_rejection_reasons, safety_checks_detail)
+       VALUES (@mint, @state, @now, @now, @source, @token_program_id, @dry_run, @safety_score, @safety_rejection_reasons, @safety_checks_detail)`
     );
 
     // COALESCE pattern: only overwrite a column if the caller supplies a non-null value.
@@ -150,7 +150,8 @@ export class TradeStore {
     this.stmtGetByMint = this.db.prepare(
       `SELECT id, mint, state, created_at, updated_at, buy_signature, sell_signature,
               amount_sol, amount_tokens, buy_price_sol, sell_price_sol, error_message,
-              source, token_program_id, dry_run
+              source, token_program_id, dry_run,
+              safety_score, safety_rejection_reasons, safety_checks_detail
        FROM trades WHERE mint = @mint ORDER BY updated_at DESC LIMIT 1`
     );
 
@@ -177,8 +178,19 @@ export class TradeStore {
    * @param source - Optional detection source ('pumpportal' | 'raydium' | 'pumpswap')
    * @param tokenProgramId - Optional detected token program ID (base58 pubkey)
    * @param dryRun - Whether this trade is a dry-run (no real SOL spent). Defaults to false.
+   * @param safetyScore - Optional aggregate safety score (0-100) from SafetyResult
+   * @param safetyRejectionReasons - Optional rejection reasons array from SafetyResult
+   * @param safetyChecksDetail - Optional JSON string with tier1/tier2/tier3 check details
    */
-  createBuyingRecord(mint: string, source?: string, tokenProgramId?: string, dryRun = false): void {
+  createBuyingRecord(
+    mint: string,
+    source?: string,
+    tokenProgramId?: string,
+    dryRun = false,
+    safetyScore?: number,
+    safetyRejectionReasons?: string[],
+    safetyChecksDetail?: string,
+  ): void {
     if (this.activeMints.has(mint)) {
       throw new Error(`Duplicate buy attempt blocked for mint: ${mint}`);
     }
@@ -191,6 +203,9 @@ export class TradeStore {
       source: source ?? null,
       token_program_id: tokenProgramId ?? null,
       dry_run: dryRun ? 1 : 0,
+      safety_score: safetyScore ?? null,
+      safety_rejection_reasons: safetyRejectionReasons ? JSON.stringify(safetyRejectionReasons) : null,
+      safety_checks_detail: safetyChecksDetail ?? null,
     });
     this.activeMints.add(mint);
 
@@ -400,6 +415,9 @@ export class TradeStore {
       source:         row['source']          != null ? (row['source']          as string) : undefined,
       tokenProgramId: row['token_program_id'] != null ? (row['token_program_id'] as string) : undefined,
       dryRun:         Boolean(row['dry_run']),
+      safetyScore:            row['safety_score']              != null ? (row['safety_score'] as number)              : undefined,
+      safetyRejectionReasons: row['safety_rejection_reasons']  != null ? (row['safety_rejection_reasons'] as string)  : undefined,
+      safetyChecksDetail:     row['safety_checks_detail']      != null ? (row['safety_checks_detail'] as string)      : undefined,
     };
   }
 

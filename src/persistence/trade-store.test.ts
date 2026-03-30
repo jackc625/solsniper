@@ -526,4 +526,41 @@ describe('TradeStore', () => {
       expect(store.isActive(currentMint)).toBe(true);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // createBuyingRecord() with safety data (Phase 18-01)
+  // ---------------------------------------------------------------------------
+  describe('createBuyingRecord() with safety data', () => {
+    it('stores safetyScore, safetyRejectionReasons, safetyChecksDetail when provided', () => {
+      const detail = JSON.stringify({
+        tier1: [{ source: 'authority', pass: true, detail: 'ok' }],
+        tier2: [{ source: 'rugcheck', pass: true, score: 85, detail: 'safe' }],
+        tier3: [],
+      });
+      store.createBuyingRecord('mint_safety', 'raydium', undefined, false, 85, ['low score'], detail);
+      const trade = store.getTradeByMint('mint_safety');
+      expect(trade).toBeDefined();
+      expect(trade!.safetyScore).toBe(85);
+      expect(trade!.safetyRejectionReasons).toBe(JSON.stringify(['low score']));
+      expect(trade!.safetyChecksDetail).toBe(detail);
+    });
+
+    it('stores null safety fields when not provided (backward compat)', () => {
+      store.createBuyingRecord('mint_nosafety');
+      const trade = store.getTradeByMint('mint_nosafety');
+      expect(trade).toBeDefined();
+      expect(trade!.safetyScore).toBeUndefined();
+      expect(trade!.safetyRejectionReasons).toBeUndefined();
+      expect(trade!.safetyChecksDetail).toBeUndefined();
+    });
+
+    it('stores safety data with empty rejection reasons array', () => {
+      store.createBuyingRecord('mint_safe_pass', 'pumpportal', undefined, false, 92, [], '{}');
+      const trade = store.getTradeByMint('mint_safe_pass');
+      expect(trade).toBeDefined();
+      expect(trade!.safetyScore).toBe(92);
+      expect(trade!.safetyRejectionReasons).toBe('[]');
+      expect(trade!.safetyChecksDetail).toBe('{}');
+    });
+  });
 });
