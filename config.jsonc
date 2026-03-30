@@ -21,6 +21,10 @@
   // Dry-run trades are tracked with shadow P&L but no real SOL is spent.
   "dryRun": false,
 
+  // Minimum SOL buffer to keep in wallet beyond the buy amount. Bot skips buys when
+  // wallet balance < buyAmountSol + minBalanceBufferSol. Covers tx fees and rent.
+  "minBalanceBufferSol": 0.01,
+
   "detection": {
     // How often (ms) to send a ping to keep WebSocket connections alive. Default: 30 000 ms (30 s).
     "wsHeartbeatIntervalMs": 30000,
@@ -93,7 +97,11 @@
       "priorityFeeBaseLamports": 100000,
 
       // Multiplier applied to the base priority fee. Set >1 to pay higher fees during congestion.
-      "priorityFeeMultiplier": 2
+      "priorityFeeMultiplier": 2,
+
+      // Absolute ceiling on priority fees in lamports. Even if Helius returns extreme estimates
+      // during congestion, never pay more than this per transaction. 500000 = 0.0005 SOL.
+      "maxPriorityFeeCapLamports": 500000
     },
 
     "sell": {
