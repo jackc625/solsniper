@@ -18,6 +18,7 @@ import { jupiterClient } from './execution/jupiter-client.js';
 import { FeeEstimator } from './core/fee-estimator.js';
 import { createDashboardServer } from './dashboard/dashboard-server.js';
 import { botEventBus } from './dashboard/bot-event-bus.js';
+import { BalanceGuard } from './core/balance-guard.js';
 import type { FastifyInstance } from 'fastify';
 
 const log = createModuleLogger('main');
@@ -123,6 +124,9 @@ async function main(): Promise<void> {
   );
   log.info({ sellLadderReady: true }, 'ExecutionEngine and SellLadder initialized');
 
+  // 9.5. Balance guard: checks wallet SOL before buying (EXE-12)
+  const balanceGuard = new BalanceGuard(5000); // 5s TTL per D-18
+
   // 10. Initialize position manager (started after recovery completes -- see step 12)
   const positionManager = new PositionManager(
     tradeStore,
@@ -176,6 +180,29 @@ async function main(): Promise<void> {
         log.info({ mint: event.mint, activePositions, limit: maxPositions },
           'Max concurrent positions reached -- skipping safety checks');
         return;
+      }
+
+      // EXE-12: Balance guard -- skip buy if wallet SOL is below threshold (D-14: before safety pipeline)
+      const cfg = getRuntimeConfig();
+      const balanceCheck = await balanceGuard.check(
+        rpcManager.getConnection(),
+        new PublicKey(walletPubKeyStr),
+        cfg.buyAmountSol,
+        cfg.minBalanceBufferSol,
+      );
+      if (!balanceCheck.sufficient) {
+        // D-15: Skip buy and emit LOW_BALANCE event for dashboard SSE
+        botEventBus.emit('event', {
+          type: 'LOW_BALANCE',
+          mint: event.mint,
+          ts: Date.now(),
+          detail: `balance ${balanceCheck.balanceSol.toFixed(4)} SOL < threshold ${balanceCheck.thresholdSol.toFixed(4)} SOL`,
+        });
+        log.warn(
+          { mint: event.mint, balanceSol: balanceCheck.balanceSol, thresholdSol: balanceCheck.thresholdSol },
+          'Balance below buy threshold -- skipping safety checks',
+        );
+        return; // D-19: buys only -- sells never blocked
       }
 
       const result = await safetyPipeline.evaluate(event);
