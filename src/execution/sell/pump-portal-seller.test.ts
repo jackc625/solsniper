@@ -16,9 +16,14 @@ vi.mock('../../config/env.js', () => ({
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockBroadcastAndConfirm } = vi.hoisted(() => {
+const { mockBroadcastAndConfirm, mockGetEstimate } = vi.hoisted(() => {
   const mockBroadcastAndConfirm = vi.fn();
-  return { mockBroadcastAndConfirm };
+  const mockGetEstimate = vi.fn().mockResolvedValue({
+    maxLamports: 150000,
+    priorityFeeSol: 0.00015,
+    source: 'helius' as const,
+  });
+  return { mockBroadcastAndConfirm, mockGetEstimate };
 });
 
 vi.mock('../broadcaster.js', () => ({
@@ -37,10 +42,16 @@ vi.mock('@solana/web3.js', async (importOriginal) => {
   };
 });
 
+// Mock FeeEstimator
+vi.mock('../../core/fee-estimator.js', () => ({
+  FeeEstimator: vi.fn().mockImplementation(() => ({ getEstimate: mockGetEstimate })),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks are registered)
 // ---------------------------------------------------------------------------
 import { pumpPortalSell } from './pump-portal-seller.js';
+const mockFeeEstimator = { getEstimate: mockGetEstimate };
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -90,6 +101,7 @@ function makeTradingConfig(): TradingConfig {
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
       },
       sell: {
         standardSlippageBps: 500,
@@ -134,7 +146,7 @@ describe('pumpPortalSell', () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse as unknown as Response);
     mockBroadcastAndConfirm.mockResolvedValue({ signature: 'pump-sell-sig' });
 
-    const result = await pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections);
+    const result = await pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections, mockFeeEstimator);
 
     // getTransaction returns null in unit test → solReceived is undefined
     expect(result).toEqual({ signature: 'pump-sell-sig', solReceived: undefined });
@@ -150,7 +162,7 @@ describe('pumpPortalSell', () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse as unknown as Response);
 
     await expect(
-      pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections)
+      pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections, mockFeeEstimator)
     ).rejects.toThrow('PumpPortal sell HTTP 500');
   });
 
@@ -164,7 +176,7 @@ describe('pumpPortalSell', () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse as unknown as Response);
     mockBroadcastAndConfirm.mockResolvedValue({ signature: 'sig-abc' });
 
-    await pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections);
+    await pumpPortalSell(MINT, TOKEN_AMOUNT, makeTradingConfig(), mockWallet, mockConnections, mockFeeEstimator);
 
     const [url, options] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
     expect(url).toContain('pumpportal.fun');
@@ -188,11 +200,38 @@ describe('pumpPortalSell', () => {
     const config = makeTradingConfig();
     config.execution.sell.standardSlippageBps = 1000;  // 1000 bps = 10%
 
-    await pumpPortalSell(MINT, TOKEN_AMOUNT, config, mockWallet, mockConnections);
+    await pumpPortalSell(MINT, TOKEN_AMOUNT, config, mockWallet, mockConnections, mockFeeEstimator);
 
     const [, options] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(options.body as string);
     // 1000 bps / 100 = 10 percent
     expect(body.slippage).toBe(10);
+  });
+
+  it('uses dynamic fee from FeeEstimator — priorityFeeSol passed to PumpPortal sell', async () => {
+    mockGetEstimate.mockResolvedValueOnce({
+      maxLamports: 250000,
+      priorityFeeSol: 0.00025,
+      source: 'helius',
+    });
+    const txBytes = new Uint8Array([1, 2, 3]);
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      arrayBuffer: vi.fn().mockResolvedValue(txBytes.buffer),
+    };
+    vi.mocked(fetch).mockResolvedValue(mockResponse as unknown as Response);
+    mockBroadcastAndConfirm.mockResolvedValue({ signature: 'sig-dynamic' });
+
+    const config = makeTradingConfig();
+    await pumpPortalSell(MINT, TOKEN_AMOUNT, config, mockWallet, mockConnections, mockFeeEstimator);
+
+    // Verify FeeEstimator was called
+    expect(mockGetEstimate).toHaveBeenCalledWith(config);
+
+    // Verify fetch body contains dynamic priorityFee from FeeEstimator
+    const [, options] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    expect(body.priorityFee).toBe(0.00025);
   });
 });

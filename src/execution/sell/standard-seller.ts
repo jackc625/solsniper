@@ -15,6 +15,7 @@ import type { Connection, Keypair } from '@solana/web3.js';
 import { broadcastAndConfirm } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import type { SellOutcome } from '../../types/index.js';
 import { createModuleLogger } from '../../core/logger.js';
 
@@ -37,12 +38,17 @@ export async function standardSell(
   options: StandardSellOptions,
   config: TradingConfig,
   wallet: Keypair,
-  connections: Connection[]
+  connections: Connection[],
+  feeEstimator: FeeEstimator
 ): Promise<SellOutcome> {  // returns SellOutcome { signature, solReceived } on success, throws on failure
   const { slippageBps, feeMultiplier } = options;
-  const maxPriorityFee = Math.floor(
-    config.execution.buy.priorityFeeBaseLamports * feeMultiplier
+  // Dynamic base from Helius, then apply escalation multiplier, then cap (D-05, D-22)
+  const feeEstimate = await feeEstimator.getEstimate(config);
+  const maxPriorityFee = Math.min(
+    Math.floor(feeEstimate.maxLamports * feeMultiplier),
+    config.execution.buy.maxPriorityFeeCapLamports,
   );
+  log.debug({ feeSource: feeEstimate.source, baseLamports: feeEstimate.maxLamports, feeMultiplier, cappedLamports: maxPriorityFee }, 'Dynamic fee for standard sell'); // D-07
 
   log.debug({ mint, tokenAmount: tokenAmount.toString(), slippageBps, feeMultiplier }, 'Standard sell');
 

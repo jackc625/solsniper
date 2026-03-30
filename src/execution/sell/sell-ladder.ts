@@ -22,6 +22,7 @@ import type { SellResult, SellStep, SellOutcome, ChunkedSellOutcome } from '../.
 import type { TradingConfig } from '../../config/trading.js';
 import { getRuntimeConfig } from '../../config/trading.js';
 import type { TradeStore } from '../../persistence/trade-store.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import { createModuleLogger } from '../../core/logger.js';
 import { botEventBus } from '../../dashboard/bot-event-bus.js';
 import { parseSolReceived } from '../../utils/parse-sol-received.js';
@@ -36,17 +37,20 @@ export class SellLadder {
   private readonly connections: Connection[];
   private readonly config: TradingConfig;
   private readonly tradeStore: TradeStore;
+  private readonly feeEstimator: FeeEstimator;
 
   constructor(
     wallet: Keypair,
     connections: Connection[],
     config: TradingConfig,
-    tradeStore: TradeStore
+    tradeStore: TradeStore,
+    feeEstimator: FeeEstimator
   ) {
     this.wallet = wallet;
     this.connections = connections;
     this.config = config;
     this.tradeStore = tradeStore;
+    this.feeEstimator = feeEstimator;
   }
 
   /**
@@ -118,7 +122,7 @@ export class SellLadder {
         fn: () => standardSell(
           mint, verifiedAmount,
           { slippageBps: sell.standardSlippageBps, feeMultiplier: 1 },
-          cfg, this.wallet, this.connections
+          cfg, this.wallet, this.connections, this.feeEstimator
         ),
       },
       {
@@ -127,13 +131,13 @@ export class SellLadder {
         fn: () => standardSell(
           mint, verifiedAmount,
           { slippageBps: sell.standardSlippageBps, feeMultiplier: sell.highFeeMultiplier },
-          cfg, this.wallet, this.connections
+          cfg, this.wallet, this.connections, this.feeEstimator
         ),
       },
       {
         name: 'JITO_BUNDLE',
         timeoutMs: sell.jitoTimeoutMs,
-        fn: () => jitoSell(mint, verifiedAmount, cfg, this.wallet, this.connections),
+        fn: () => jitoSell(mint, verifiedAmount, cfg, this.wallet, this.connections, this.feeEstimator),
       },
       {
         name: 'CHUNKED',
@@ -156,7 +160,7 @@ export class SellLadder {
           ) {
             throw new Error('PumpPortal sell: last error not a route failure -- skipping');
           }
-          return pumpPortalSell(mint, verifiedAmount, cfg, this.wallet, this.connections);
+          return pumpPortalSell(mint, verifiedAmount, cfg, this.wallet, this.connections, this.feeEstimator);
         },
       },
       {
@@ -166,7 +170,7 @@ export class SellLadder {
           mint, verifiedAmount,
           // EXE-09: 49% slippage = 4900 bps, emergencyPriorityMultiplier for max fee
           { slippageBps: sell.emergencySlippageBps, feeMultiplier: sell.emergencyPriorityMultiplier },
-          cfg, this.wallet, this.connections
+          cfg, this.wallet, this.connections, this.feeEstimator
         ),
       },
     ];

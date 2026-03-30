@@ -3,9 +3,20 @@ import type { Connection, Keypair } from '@solana/web3.js';
 import type { TradingConfig } from '../../config/trading.js';
 
 // ---------------------------------------------------------------------------
+// Mock env.js first — logger.ts imports env for LOG_LEVEL/NODE_ENV
+// ---------------------------------------------------------------------------
+vi.mock('../../config/env.js', () => ({
+  env: {
+    SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
+  },
+}));
+
+// ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockBroadcastWithRetry, mockDeserialize } = vi.hoisted(() => {
+const { mockBroadcastWithRetry, mockDeserialize, mockGetEstimate } = vi.hoisted(() => {
   const mockBroadcastWithRetry = vi.fn().mockResolvedValue({
     signature: 'test-sig-pump',
     blockhash: 'test-blockhash',
@@ -18,7 +29,13 @@ const { mockBroadcastWithRetry, mockDeserialize } = vi.hoisted(() => {
     serialize: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
   });
 
-  return { mockBroadcastWithRetry, mockDeserialize };
+  const mockGetEstimate = vi.fn().mockResolvedValue({
+    maxLamports: 150000,
+    priorityFeeSol: 0.00015,
+    source: 'helius' as const,
+  });
+
+  return { mockBroadcastWithRetry, mockDeserialize, mockGetEstimate };
 });
 
 vi.mock('../broadcaster.js', () => ({
@@ -36,10 +53,16 @@ vi.mock('@solana/web3.js', async (importOriginal) => {
   };
 });
 
+// Mock FeeEstimator
+vi.mock('../../core/fee-estimator.js', () => ({
+  FeeEstimator: vi.fn().mockImplementation(() => ({ getEstimate: mockGetEstimate })),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks are registered)
 // ---------------------------------------------------------------------------
 import { pumpPortalBuy } from './pump-portal-buyer.js';
+const mockFeeEstimator = { getEstimate: mockGetEstimate };
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -83,6 +106,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['execution']['buy']>
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
         ...overrides,
       },
       sell: {
@@ -141,7 +165,7 @@ describe('pumpPortalBuy', () => {
     vi.stubGlobal('fetch', makeMockFetch(200, txBytes));
 
     const config = makeTradingConfig();
-    const result = await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    const result = await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     expect(result.success).toBe(true);
     expect(result.signature).toBe('test-sig-pump');
@@ -155,7 +179,7 @@ describe('pumpPortalBuy', () => {
     vi.stubGlobal('fetch', makeMockFetch(400));
 
     const config = makeTradingConfig();
-    const result = await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    const result = await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     expect(result.success).toBe(false);
     expect(result.errorMessage).toBe('PumpPortal HTTP 400');
@@ -169,7 +193,7 @@ describe('pumpPortalBuy', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const config = makeTradingConfig({ slippageBps: 1000 });
-    await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     const callArgs = mockFetch.mock.calls[0];
     const body = JSON.parse(callArgs[1].body as string);
@@ -184,11 +208,34 @@ describe('pumpPortalBuy', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const config = makeTradingConfig();
-    await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     const callArgs = mockFetch.mock.calls[0];
     const body = JSON.parse(callArgs[1].body as string);
     expect(body.pool).toBe('pump');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('uses dynamic fee from FeeEstimator — priorityFeeSol passed to PumpPortal', async () => {
+    mockGetEstimate.mockResolvedValueOnce({
+      maxLamports: 200000,
+      priorityFeeSol: 0.0002,
+      source: 'helius',
+    });
+    const mockFetch = makeMockFetch(200);
+    vi.stubGlobal('fetch', mockFetch);
+
+    const config = makeTradingConfig();
+    await pumpPortalBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
+
+    // Verify FeeEstimator was called
+    expect(mockGetEstimate).toHaveBeenCalledWith(config);
+
+    // Verify fetch body contains the dynamic priorityFee from FeeEstimator
+    const callArgs = mockFetch.mock.calls[0];
+    const body = JSON.parse(callArgs[1].body as string);
+    expect(body.priorityFee).toBe(0.0002);
 
     vi.unstubAllGlobals();
   });

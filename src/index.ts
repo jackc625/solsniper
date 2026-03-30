@@ -15,6 +15,7 @@ import { PublicKey } from '@solana/web3.js';
 import { RecoveryManager } from './recovery/recovery-manager.js';
 import { PositionManager } from './position/position-manager.js';
 import { jupiterClient } from './execution/jupiter-client.js';
+import { FeeEstimator } from './core/fee-estimator.js';
 import { createDashboardServer } from './dashboard/dashboard-server.js';
 import { botEventBus } from './dashboard/bot-event-bus.js';
 import type { FastifyInstance } from 'fastify';
@@ -100,12 +101,16 @@ async function main(): Promise<void> {
   // 7. Load wallet keypair for execution
   const wallet = getWallet();
 
+  // 7.5. Initialize FeeEstimator (Helius dynamic priority fees)
+  const feeEstimator = new FeeEstimator(env.SOLSNIPER_RPC_URL);
+
   // 8. Initialize execution engine (buy routing: PumpPortal vs Jupiter)
   const executionEngine = new ExecutionEngine(
     wallet,
     rpcManager.getAllConnections(),
     tradingConfig,
-    tradeStore
+    tradeStore,
+    feeEstimator
   );
 
   // 9. Initialize sell ladder
@@ -113,7 +118,8 @@ async function main(): Promise<void> {
     wallet,
     rpcManager.getAllConnections(),
     tradingConfig,
-    tradeStore
+    tradeStore,
+    feeEstimator
   );
   log.info({ sellLadderReady: true }, 'ExecutionEngine and SellLadder initialized');
 

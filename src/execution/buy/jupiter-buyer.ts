@@ -11,6 +11,7 @@ import { broadcastWithRetry } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { BuyResult } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('jupiter-buyer');
@@ -20,11 +21,14 @@ export async function jupiterBuy(
   mint: string,
   config: TradingConfig,
   wallet: Keypair,
-  connections: Connection[]
+  connections: Connection[],
+  feeEstimator: FeeEstimator
 ): Promise<BuyResult> {
   const { buy } = config.execution;
   const lamports = Math.floor(config.buyAmountSol * 1e9);
-  const maxPriorityFeeLamports = Math.floor(buy.priorityFeeBaseLamports * buy.priorityFeeMultiplier);
+  const feeEstimate = await feeEstimator.getEstimate(config);
+  const maxPriorityFeeLamports = feeEstimate.maxLamports; // D-01: dynamic cap for Jupiter
+  log.debug({ feeSource: feeEstimate.source, maxLamports: maxPriorityFeeLamports }, 'Dynamic fee for Jupiter buy'); // D-07
 
   log.debug({ mint, lamports, slippageBps: buy.slippageBps }, 'Jupiter buy initiated');
 

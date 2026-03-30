@@ -10,6 +10,7 @@ import { VersionedTransaction } from '@solana/web3.js';
 import type { Connection, Keypair } from '@solana/web3.js';
 import { broadcastAndConfirm } from '../broadcaster.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import type { SellOutcome } from '../../types/index.js';
 import { parseSolReceived } from '../../utils/parse-sol-received.js';
 import { createModuleLogger } from '../../core/logger.js';
@@ -33,12 +34,15 @@ export async function pumpPortalSell(
   tokenAmount: bigint,
   config: TradingConfig,
   wallet: Keypair,
-  connections: Connection[]
+  connections: Connection[],
+  feeEstimator: FeeEstimator
 ): Promise<SellOutcome> {
   const { sell } = config.execution;
   // CRITICAL: PumpPortal slippage is PERCENT, not basis points (bps/100 = percent)
   const slippagePct = sell.standardSlippageBps / 100;
-  const priorityFeeSol = config.execution.buy.priorityFeeBaseLamports / 1e9;
+  const feeEstimate = await feeEstimator.getEstimate(config);
+  const priorityFeeSol = feeEstimate.priorityFeeSol; // D-20: same dynamic fee as buy path
+  log.debug({ feeSource: feeEstimate.source, priorityFeeSol }, 'Dynamic fee for PumpPortal sell'); // D-07
 
   log.debug({ mint, tokenAmount: tokenAmount.toString(), slippagePct }, 'PumpPortal sell initiated');
 

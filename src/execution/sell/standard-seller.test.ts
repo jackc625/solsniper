@@ -14,10 +14,15 @@ vi.mock('../../config/env.js', () => ({
 // ---------------------------------------------------------------------------
 // Hoisted mocks
 // ---------------------------------------------------------------------------
-const { mockQuote, mockSwap, mockBroadcast } = vi.hoisted(() => ({
+const { mockQuote, mockSwap, mockBroadcast, mockGetEstimate } = vi.hoisted(() => ({
   mockQuote: vi.fn(),
   mockSwap: vi.fn(),
   mockBroadcast: vi.fn(),
+  mockGetEstimate: vi.fn().mockResolvedValue({
+    maxLamports: 150000,
+    priorityFeeSol: 0.00015,
+    source: 'helius' as const,
+  }),
 }));
 
 vi.mock('../jupiter-client.js', () => ({
@@ -40,10 +45,16 @@ vi.mock('@solana/web3.js', async (importOriginal) => {
   };
 });
 
+// Mock FeeEstimator
+vi.mock('../../core/fee-estimator.js', () => ({
+  FeeEstimator: vi.fn().mockImplementation(() => ({ getEstimate: mockGetEstimate })),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 import { standardSell } from './standard-seller.js';
+const mockFeeEstimator = { getEstimate: mockGetEstimate };
 import type { TradingConfig } from '../../config/trading.js';
 import type { Keypair, Connection } from '@solana/web3.js';
 
@@ -93,6 +104,7 @@ function makeTradingConfig(): TradingConfig {
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
       },
       sell: {
         standardSlippageBps: 500,
@@ -137,7 +149,8 @@ describe('standardSell', () => {
       { slippageBps: 500, feeMultiplier: 1 },
       makeTradingConfig(),
       mockWallet,
-      mockConnections
+      mockConnections,
+      mockFeeEstimator
     );
 
     expect(result).toEqual({ signature: 'test-sig-1', solReceived: 0.5 });
@@ -154,7 +167,8 @@ describe('standardSell', () => {
       { slippageBps: 500, feeMultiplier: 1 },
       makeTradingConfig(),
       mockWallet,
-      mockConnections
+      mockConnections,
+      mockFeeEstimator
     );
 
     expect(result).toEqual({ signature: 'test-sig-2', solReceived: 1.0 });
@@ -166,7 +180,59 @@ describe('standardSell', () => {
     mockBroadcast.mockRejectedValue(new Error('RPC timeout'));
 
     await expect(
-      standardSell(MINT, TOKEN_AMOUNT, { slippageBps: 500, feeMultiplier: 1 }, makeTradingConfig(), mockWallet, mockConnections)
+      standardSell(MINT, TOKEN_AMOUNT, { slippageBps: 500, feeMultiplier: 1 }, makeTradingConfig(), mockWallet, mockConnections, mockFeeEstimator)
     ).rejects.toThrow('RPC timeout');
+  });
+
+  it('uses dynamic fee from FeeEstimator with feeMultiplier applied and cap enforced', async () => {
+    mockGetEstimate.mockResolvedValueOnce({
+      maxLamports: 100000,
+      priorityFeeSol: 0.0001,
+      source: 'helius',
+    });
+    mockQuote.mockResolvedValue({ outAmount: '500000000' });
+    mockSwap.mockResolvedValue({ swapTransaction: Buffer.from(new Uint8Array(200)).toString('base64') });
+    mockBroadcast.mockResolvedValue({ signature: 'test-sig-fee', blockhash: 'bh', lastValidBlockHeight: 100 });
+
+    const config = makeTradingConfig();
+    // Use feeMultiplier=3, so expected = Math.min(100000 * 3, 500000) = 300000
+    await standardSell(
+      MINT, TOKEN_AMOUNT,
+      { slippageBps: 500, feeMultiplier: 3 },
+      config, mockWallet, mockConnections,
+      mockFeeEstimator
+    );
+
+    expect(mockGetEstimate).toHaveBeenCalledWith(config);
+
+    const swapCallArgs = mockSwap.mock.calls[0];
+    const body = swapCallArgs[0] as Record<string, unknown>;
+    const feeLamports = body.prioritizationFeeLamports as { priorityLevelWithMaxLamports: { maxLamports: number } };
+    expect(feeLamports.priorityLevelWithMaxLamports.maxLamports).toBe(300000);
+  });
+
+  it('caps dynamic fee at maxPriorityFeeCapLamports when multiplied fee exceeds cap', async () => {
+    mockGetEstimate.mockResolvedValueOnce({
+      maxLamports: 200000,
+      priorityFeeSol: 0.0002,
+      source: 'helius',
+    });
+    mockQuote.mockResolvedValue({ outAmount: '500000000' });
+    mockSwap.mockResolvedValue({ swapTransaction: Buffer.from(new Uint8Array(200)).toString('base64') });
+    mockBroadcast.mockResolvedValue({ signature: 'test-sig-cap', blockhash: 'bh', lastValidBlockHeight: 100 });
+
+    const config = makeTradingConfig();
+    // Use feeMultiplier=10, so 200000 * 10 = 2000000, but cap is 500000
+    await standardSell(
+      MINT, TOKEN_AMOUNT,
+      { slippageBps: 500, feeMultiplier: 10 },
+      config, mockWallet, mockConnections,
+      mockFeeEstimator
+    );
+
+    const swapCallArgs = mockSwap.mock.calls[0];
+    const body = swapCallArgs[0] as Record<string, unknown>;
+    const feeLamports = body.prioritizationFeeLamports as { priorityLevelWithMaxLamports: { maxLamports: number } };
+    expect(feeLamports.priorityLevelWithMaxLamports.maxLamports).toBe(500000);
   });
 });

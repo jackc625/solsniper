@@ -18,7 +18,7 @@ vi.mock('../../config/env.js', () => ({
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
 // ---------------------------------------------------------------------------
-const { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSwap } = vi.hoisted(() => {
+const { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSwap, mockGetEstimate } = vi.hoisted(() => {
   const mockBroadcastWithRetry = vi.fn().mockResolvedValue({
     signature: 'test-sig-jupiter',
     blockhash: 'test-blockhash',
@@ -33,8 +33,13 @@ const { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSw
 
   const mockJupiterQuote = vi.fn();
   const mockJupiterSwap = vi.fn();
+  const mockGetEstimate = vi.fn().mockResolvedValue({
+    maxLamports: 150000,
+    priorityFeeSol: 0.00015,
+    source: 'helius' as const,
+  });
 
-  return { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSwap };
+  return { mockBroadcastWithRetry, mockDeserialize, mockJupiterQuote, mockJupiterSwap, mockGetEstimate };
 });
 
 vi.mock('../broadcaster.js', () => ({
@@ -57,10 +62,16 @@ vi.mock('../jupiter-client.js', () => ({
   jupiterClient: { quote: mockJupiterQuote, swap: mockJupiterSwap },
 }));
 
+// Mock FeeEstimator
+vi.mock('../../core/fee-estimator.js', () => ({
+  FeeEstimator: vi.fn().mockImplementation(() => ({ getEstimate: mockGetEstimate })),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks are registered)
 // ---------------------------------------------------------------------------
 import { jupiterBuy } from './jupiter-buyer.js';
+const mockFeeEstimator = { getEstimate: mockGetEstimate };
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -104,6 +115,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['execution']['buy']>
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
         ...overrides,
       },
       sell: {
@@ -157,7 +169,7 @@ describe('jupiterBuy', () => {
     mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
 
     const config = makeTradingConfig();
-    const result = await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    const result = await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     expect(result.success).toBe(true);
     expect(result.signature).toBe('test-sig-jupiter');
@@ -171,7 +183,7 @@ describe('jupiterBuy', () => {
 
     const config = makeTradingConfig();
     await expect(
-      jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections)
+      jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator)
     ).rejects.toThrow('Jupiter quote HTTP 400');
   });
 
@@ -181,7 +193,7 @@ describe('jupiterBuy', () => {
 
     const config = makeTradingConfig();
     await expect(
-      jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections)
+      jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator)
     ).rejects.toThrow('Jupiter swap HTTP 500');
   });
 
@@ -190,7 +202,7 @@ describe('jupiterBuy', () => {
     mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
 
     const config = makeTradingConfig();
-    await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     const swapCallArgs = mockJupiterSwap.mock.calls[0];
     const body = swapCallArgs[0] as Record<string, unknown>;
@@ -202,9 +214,31 @@ describe('jupiterBuy', () => {
     mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
 
     const config = makeTradingConfig();
-    const result = await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections);
+    const result = await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
 
     expect(result.success).toBe(true);
     expect(result.amountTokens).toBeUndefined();
+  });
+
+  it('uses dynamic fee from FeeEstimator — maxLamports passed to Jupiter swap', async () => {
+    mockGetEstimate.mockResolvedValueOnce({
+      maxLamports: 200000,
+      priorityFeeSol: 0.0002,
+      source: 'helius',
+    });
+    mockJupiterQuote.mockResolvedValueOnce({ outAmount: '1000000' });
+    mockJupiterSwap.mockResolvedValueOnce({ swapTransaction: FAKE_BASE64_TX });
+
+    const config = makeTradingConfig();
+    await jupiterBuy('TestMint111111111111111', config, mockWallet, mockConnections, mockFeeEstimator);
+
+    // Verify FeeEstimator was called
+    expect(mockGetEstimate).toHaveBeenCalledWith(config);
+
+    // Verify swap was called with the dynamic fee maxLamports
+    const swapCallArgs = mockJupiterSwap.mock.calls[0];
+    const body = swapCallArgs[0] as Record<string, unknown>;
+    const feeLamports = body.prioritizationFeeLamports as { priorityLevelWithMaxLamports: { maxLamports: number } };
+    expect(feeLamports.priorityLevelWithMaxLamports.maxLamports).toBe(200000);
   });
 });

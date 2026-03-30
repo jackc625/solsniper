@@ -23,6 +23,7 @@ import type { TokenEvent } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
 import { getRuntimeConfig } from '../config/trading.js';
 import type { TradeStore } from '../persistence/trade-store.js';
+import type { FeeEstimator } from '../core/fee-estimator.js';
 import { createModuleLogger } from '../core/logger.js';
 import { botEventBus } from '../dashboard/bot-event-bus.js';
 
@@ -33,17 +34,20 @@ export class ExecutionEngine {
   private readonly connections: Connection[];
   private readonly config: TradingConfig;
   private readonly tradeStore: TradeStore;
+  private readonly feeEstimator: FeeEstimator;
 
   constructor(
     wallet: Keypair,
     connections: Connection[],
     config: TradingConfig,
-    tradeStore: TradeStore
+    tradeStore: TradeStore,
+    feeEstimator: FeeEstimator
   ) {
     this.wallet = wallet;
     this.connections = connections;
     this.config = config;
     this.tradeStore = tradeStore;
+    this.feeEstimator = feeEstimator;
   }
 
   /**
@@ -63,8 +67,8 @@ export class ExecutionEngine {
       botEventBus.emit('event', { type: 'BUY_SENT', mint, ts: Date.now(), detail: `via ${source}`, isDryRun: cfg.dryRun, source, buyAmountSol: cfg.buyAmountSol });
 
       const result = source === 'pumpportal'
-        ? await pumpPortalBuy(mint, cfg, this.wallet, this.connections)
-        : await jupiterBuy(mint, cfg, this.wallet, this.connections);
+        ? await pumpPortalBuy(mint, cfg, this.wallet, this.connections, this.feeEstimator)
+        : await jupiterBuy(mint, cfg, this.wallet, this.connections, this.feeEstimator);
 
       if (result.success && result.signature) {
         // Dry-run PumpPortal: estimate amountTokens from bonding curve state
