@@ -51,8 +51,8 @@ Plans:
 **Plans:** 2/4 plans executed
 Plans:
 - [x] 18-01-PLAN.md — Foundation: types, config schema, DB migration, trade persistence, RaydiumListener vault extraction (SAF-10, SAF-11, SAF-12, SAF-13, SAF-14)
-- [ ] 18-02-PLAN.md — Three new safety checks: liquidity depth, LP lock/burn, metadata mutability (SAF-12, SAF-13, SAF-14)
-- [x] 18-03-PLAN.md — Audit script: log parsing, trade correlation, accuracy report generation (SAF-10, SAF-11)
+- [x] 18-02-PLAN.md — Three new safety checks: liquidity depth, LP lock/burn, metadata mutability (SAF-12, SAF-13, SAF-14)
+- [ ] 18-03-PLAN.md — Audit script: log parsing, trade correlation, accuracy report generation (SAF-10, SAF-11)
 - [ ] 18-04-PLAN.md — Pipeline wiring: new checks into tiers, penalty scoring, integration tests (SAF-12, SAF-13, SAF-14, SAF-11)
 
 ### Phase 19: Execution Performance

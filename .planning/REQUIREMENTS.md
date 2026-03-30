@@ -16,11 +16,11 @@ Requirements for the hardening & polish milestone. Each maps to roadmap phases.
 
 ### Safety Pipeline
 
-- [x] **SAF-10**: Current safety pipeline pass/fail rates audited against real trade outcomes to identify false positives and false negatives
-- [x] **SAF-11**: Safety scoring weights and thresholds calibrated based on audit findings
-- [ ] **SAF-12**: Bot checks liquidity depth before buying — rejects tokens with insufficient sell-side liquidity
-- [ ] **SAF-13**: Bot checks whether liquidity pool is locked or burned — unlocked LP scored as rug risk
-- [ ] **SAF-14**: Bot checks token metadata mutability — mutable metadata scored as soft rug signal
+- [ ] **SAF-10**: Current safety pipeline pass/fail rates audited against real trade outcomes to identify false positives and false negatives
+- [ ] **SAF-11**: Safety scoring weights and thresholds calibrated based on audit findings
+- [x] **SAF-12**: Bot checks liquidity depth before buying — rejects tokens with insufficient sell-side liquidity
+- [x] **SAF-13**: Bot checks whether liquidity pool is locked or burned — unlocked LP scored as rug risk
+- [x] **SAF-14**: Bot checks token metadata mutability — mutable metadata scored as soft rug signal
 
 ### Execution Performance
 
@@ -86,11 +86,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-02 | Phase 17 | Complete |
 | SEC-03 | Phase 17 | Complete |
 | SEC-04 | Phase 17 | Complete |
-| SAF-10 | Phase 18 | Complete |
-| SAF-11 | Phase 18 | Complete |
-| SAF-12 | Phase 18 | Pending |
-| SAF-13 | Phase 18 | Pending |
-| SAF-14 | Phase 18 | Pending |
+| SAF-10 | Phase 18 | Pending |
+| SAF-11 | Phase 18 | Pending |
+| SAF-12 | Phase 18 | Complete |
+| SAF-13 | Phase 18 | Complete |
+| SAF-14 | Phase 18 | Complete |
 | EXE-10 | Phase 19 | Pending |
 | EXE-11 | Phase 19 | Pending |
 | EXE-12 | Phase 19 | Pending |

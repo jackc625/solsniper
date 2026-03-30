@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Completed 18-03-PLAN.md
-last_updated: "2026-03-30T16:45:14.019Z"
+stopped_at: Completed 18-02-PLAN.md
+last_updated: "2026-03-30T16:44:52.659Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
@@ -56,7 +56,7 @@ Progress: [##........] 20%
 - Trend: fast (hardening tasks with clear specs)
 
 *Updated after each plan completion*
-| Phase 18 P03 | 4 | 2 tasks | 3 files |
+| Phase 18 P02 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -77,8 +77,11 @@ Recent decisions affecting current work:
 - [Phase 18-01]: poolQuoteVault only set when quoteMint (accounts[9]) is WSOL -- confirms vault holds SOL before passing to liquidity check
 - [Phase 18-01]: safetyRejectionReasons stored as JSON.stringify(array) in TEXT column -- simple serialization, no relational table needed
 - [Phase 18-01]: checksDetail built in index.ts caller (not inside TradeStore) -- keeps store generic, avoids coupling to SafetyResult shape
-- [Phase 18]: generateReport returns string (not writes file) for testability -- writeReport handles file I/O separately
-- [Phase 18]: isDirectExecution guard prevents main() from running during test imports
+- [Phase 18]: pumpswap neutral skip for liquidity depth -- vault layout unknown per RESEARCH Open Question 1
+- [Phase 18]: LP lock on-chain fallback via optional lpMint param -- Raydium LP mint PDA derivation too complex for fallback
+- [Phase 18]: Metadata mutability check applies to all sources including pumpportal -- mutable flag is valid rug signal
+- [Phase 18]: Bonding curve IDL signature validation before reading reserves -- prevents misinterpreting non-bonding-curve accounts
+- [Phase 18]: lpLockedPct=0 with no risks treated as neutral (score=50) not pessimistic (score=0) -- per Pitfall 4 distinguishing unavailable from confirmed unlocked
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-30
-Last session: 2026-03-30T16:45:14.014Z
-Stopped at: Completed 18-03-PLAN.md
+Last session: 2026-03-30T16:44:52.654Z
+Stopped at: Completed 18-02-PLAN.md
 Resume file: None
