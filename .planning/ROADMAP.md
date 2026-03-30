@@ -48,11 +48,11 @@ Plans:
   3. Bot rejects tokens with insufficient sell-side liquidity before buying — configurable minimum liquidity threshold enforced
   4. Bot scores LP lock/burn status as a rug risk factor — unlocked liquidity pools penalize the safety score
   5. Bot scores token metadata mutability — mutable metadata penalizes the safety score as a soft rug signal
-**Plans:** 4 plans
+**Plans:** 2/4 plans executed
 Plans:
-- [ ] 18-01-PLAN.md — Foundation: types, config schema, DB migration, trade persistence, RaydiumListener vault extraction (SAF-10, SAF-11, SAF-12, SAF-13, SAF-14)
+- [x] 18-01-PLAN.md — Foundation: types, config schema, DB migration, trade persistence, RaydiumListener vault extraction (SAF-10, SAF-11, SAF-12, SAF-13, SAF-14)
 - [ ] 18-02-PLAN.md — Three new safety checks: liquidity depth, LP lock/burn, metadata mutability (SAF-12, SAF-13, SAF-14)
-- [ ] 18-03-PLAN.md — Audit script: log parsing, trade correlation, accuracy report generation (SAF-10, SAF-11)
+- [x] 18-03-PLAN.md — Audit script: log parsing, trade correlation, accuracy report generation (SAF-10, SAF-11)
 - [ ] 18-04-PLAN.md — Pipeline wiring: new checks into tiers, penalty scoring, integration tests (SAF-12, SAF-13, SAF-14, SAF-11)
 
 ### Phase 19: Execution Performance
@@ -112,7 +112,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
 | 15. Live Config Hot-Reload Fix | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
-| 18. Safety Pipeline Audit & Enhancement | v1.1 | 1/4 | In progress | - |
+| 18. Safety Pipeline Audit & Enhancement | v1.1 | 2/4 | In Progress|  |
 | 19. Execution Performance | v1.1 | 0/? | Not started | - |
 | 20. Reliability & Monitoring | v1.1 | 0/? | Not started | - |
 | 21. Dashboard Overhaul | v1.1 | 0/? | Not started | - |

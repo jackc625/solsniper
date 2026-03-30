@@ -7,7 +7,7 @@ config();
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts', 'scripts/**/*.test.ts'],
     env: {
       // Override NODE_ENV to development so env.ts validation passes during tests
       NODE_ENV: 'development',
