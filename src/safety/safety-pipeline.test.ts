@@ -35,12 +35,24 @@ vi.mock('./checks/tier1-sell-route.js', () => ({
   checkSellRoute: vi.fn(),
 }));
 
+vi.mock('./checks/tier1-liquidity.js', () => ({
+  checkLiquidityDepth: vi.fn(),
+}));
+
 vi.mock('./checks/tier2-rugcheck.js', () => ({
   checkRugCheck: vi.fn(),
 }));
 
 vi.mock('./checks/tier2-holder.js', () => ({
   checkHolderConcentration: vi.fn(),
+}));
+
+vi.mock('./checks/tier2-lp-lock.js', () => ({
+  checkLpLock: vi.fn(),
+}));
+
+vi.mock('./checks/tier2-metadata.js', () => ({
+  checkMetadataMutability: vi.fn(),
 }));
 
 vi.mock('./checks/tier3-creator.js', () => ({
@@ -57,8 +69,11 @@ import { SafetyPipeline } from './safety-pipeline.js';
 // --- Import mocked check functions to get typed references ---
 import { checkAuthorities } from './checks/tier1-authority.js';
 import { checkSellRoute } from './checks/tier1-sell-route.js';
+import { checkLiquidityDepth } from './checks/tier1-liquidity.js';
 import { checkRugCheck } from './checks/tier2-rugcheck.js';
 import { checkHolderConcentration } from './checks/tier2-holder.js';
+import { checkLpLock } from './checks/tier2-lp-lock.js';
+import { checkMetadataMutability } from './checks/tier2-metadata.js';
 import { checkCreatorHistory } from './checks/tier3-creator.js';
 
 // --- Test fixtures ---
@@ -93,6 +108,9 @@ const mockTradingConfig: TradingConfig = {
     holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.5, minUserHolders: 2 },
     rugCheckScoreInverted: true,
     blocklistPath: './data/creator-blocklist.json',
+    minLiquiditySol: 1.0,
+    lpLockScorePenalty: 30,
+    metadataMutablePenalty: 15,
   },
   execution: {
     buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1 },
@@ -146,12 +164,35 @@ function makeTier1Pass(): [[CheckResult, CheckResult, PublicKey], CheckResult] {
   return [[mintAuthPass, freezeAuthPass, TOKEN_PROGRAM_ID_PK], sellRoutePass];
 }
 
-/** Tier 2/3 check results: all pass with high scores */
-function makeTier2Tier3Pass(): [CheckResult, CheckResult, CheckResult] {
+/** Tier 2/3 check results: all pass with high scores (tuple format for rugCheck) */
+function makeTier2Tier3Pass(): {
+  rugCheck: [CheckResult, { lpLockedPct: number; risks: Array<{ name: string }> }];
+  holder: CheckResult;
+  creator: CheckResult;
+} {
   const rugPass: CheckResult = { pass: true, score: 80, source: 'rugcheck', detail: 'score_normalised=20' };
   const holderPass: CheckResult = { pass: true, score: 65, source: 'holder_concentration', detail: 'top1=10.0% top10=35.0%' };
   const creatorPass: CheckResult = { pass: true, score: 80, source: 'creator_history', detail: '0 prior mints over 0h' };
-  return [rugPass, holderPass, creatorPass];
+  return {
+    rugCheck: [rugPass, { lpLockedPct: 95, risks: [] }],
+    holder: holderPass,
+    creator: creatorPass,
+  };
+}
+
+/** Set up all mocks for a fully-passing pipeline evaluation */
+function setupAllPassingMocks() {
+  const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
+  vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
+  vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+  vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
+
+  const tier2Tier3 = makeTier2Tier3Pass();
+  vi.mocked(checkRugCheck).mockResolvedValue(tier2Tier3.rugCheck);
+  vi.mocked(checkHolderConcentration).mockResolvedValue(tier2Tier3.holder);
+  vi.mocked(checkCreatorHistory).mockResolvedValue(tier2Tier3.creator);
+  vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 100, source: 'lp_lock', detail: 'locked' });
+  vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 100, source: 'metadata_mutability', detail: 'immutable' });
 }
 
 describe('SafetyPipeline', () => {
@@ -184,8 +225,11 @@ describe('SafetyPipeline', () => {
     // No checks should be called when cache hit
     expect(checkAuthorities).not.toHaveBeenCalled();
     expect(checkSellRoute).not.toHaveBeenCalled();
+    expect(checkLiquidityDepth).not.toHaveBeenCalled();
     expect(checkRugCheck).not.toHaveBeenCalled();
     expect(checkHolderConcentration).not.toHaveBeenCalled();
+    expect(checkLpLock).not.toHaveBeenCalled();
+    expect(checkMetadataMutability).not.toHaveBeenCalled();
     expect(checkCreatorHistory).not.toHaveBeenCalled();
   });
 
@@ -196,6 +240,7 @@ describe('SafetyPipeline', () => {
 
     vi.mocked(checkAuthorities).mockResolvedValue([mintAuthFail, freezeAuthPass, TOKEN_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+    vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
@@ -208,6 +253,8 @@ describe('SafetyPipeline', () => {
     expect(checkRugCheck).not.toHaveBeenCalled();
     expect(checkHolderConcentration).not.toHaveBeenCalled();
     expect(checkCreatorHistory).not.toHaveBeenCalled();
+    expect(checkLpLock).not.toHaveBeenCalled();
+    expect(checkMetadataMutability).not.toHaveBeenCalled();
     // Result must be cached
     expect(mockCacheSet).toHaveBeenCalledWith(MOCK_MINT, result);
   });
@@ -219,6 +266,7 @@ describe('SafetyPipeline', () => {
 
     vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthFail, TOKEN_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+    vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
@@ -236,6 +284,7 @@ describe('SafetyPipeline', () => {
 
     vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass, TOKEN_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRouteFail);
+    vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
@@ -247,18 +296,11 @@ describe('SafetyPipeline', () => {
   });
 
   it('rejects via soft block when holder concentration exceeds threshold (even if aggregate would pass)', async () => {
-    const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
-    vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
-    vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+    setupAllPassingMocks();
 
     // Holder soft block triggered
     const holderFail: CheckResult = { pass: false, score: 10, source: 'holder_concentration', detail: 'top1=35.0% exceeds threshold=25%' };
-    const rugPass: CheckResult = { pass: true, score: 90, source: 'rugcheck', detail: 'score_normalised=10' };
-    const creatorPass: CheckResult = { pass: true, score: 80, source: 'creator_history', detail: '0 prior mints over 0h' };
-
-    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
     vi.mocked(checkHolderConcentration).mockResolvedValue(holderFail);
-    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
@@ -269,17 +311,10 @@ describe('SafetyPipeline', () => {
   });
 
   it('rejects via soft block when creator is blocklisted', async () => {
-    const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
-    vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
-    vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+    setupAllPassingMocks();
 
     // Creator history soft block (blocklist hit in tier3)
     const creatorFail: CheckResult = { pass: false, score: 0, source: 'creator_history', detail: 'creator_blocklisted' };
-    const rugPass: CheckResult = { pass: true, score: 80, source: 'rugcheck', detail: 'score_normalised=20' };
-    const holderPass: CheckResult = { pass: true, score: 65, source: 'holder_concentration', detail: 'top1=10.0% top10=35.0%' };
-
-    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
-    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
     vi.mocked(checkCreatorHistory).mockResolvedValue(creatorFail);
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
@@ -291,14 +326,7 @@ describe('SafetyPipeline', () => {
   });
 
   it('passes with aggregate score above minSafetyScore threshold', async () => {
-    const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
-    vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
-    vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
-
-    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
-    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
-    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
-    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+    setupAllPassingMocks();
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
@@ -310,16 +338,14 @@ describe('SafetyPipeline', () => {
   });
 
   it('rejects with aggregate score below minSafetyScore threshold', async () => {
-    const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
-    vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
-    vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+    setupAllPassingMocks();
 
-    // Low scores — aggregate will be below 60
+    // Low scores -- aggregate will be below 60
     const rugLow: CheckResult = { pass: true, score: 20, source: 'rugcheck', detail: 'score_normalised=80' };
     const holderLow: CheckResult = { pass: true, score: 15, source: 'holder_concentration', detail: 'top1=22.0% top10=45.0%' };
     const creatorLow: CheckResult = { pass: true, score: 10, source: 'creator_history', detail: '8 prior mints over 24h' };
 
-    vi.mocked(checkRugCheck).mockResolvedValue(rugLow);
+    vi.mocked(checkRugCheck).mockResolvedValue([rugLow, { lpLockedPct: 95, risks: [] }]);
     vi.mocked(checkHolderConcentration).mockResolvedValue(holderLow);
     vi.mocked(checkCreatorHistory).mockResolvedValue(creatorLow);
 
@@ -336,30 +362,27 @@ describe('SafetyPipeline', () => {
     const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
     vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
     vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+    vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
 
     // Simulate Promise.allSettled rejections (the pipeline should handle these)
     vi.mocked(checkRugCheck).mockRejectedValue(new Error('timeout'));
     vi.mocked(checkHolderConcentration).mockRejectedValue(new Error('RPC error'));
     vi.mocked(checkCreatorHistory).mockRejectedValue(new Error('network error'));
+    vi.mocked(checkLpLock).mockRejectedValue(new Error('timeout'));
+    vi.mocked(checkMetadataMutability).mockRejectedValue(new Error('timeout'));
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
 
     // With all scores at 0, aggregate will be 0 (well below 60 threshold)
+    // Plus penalties for lp_lock score=0 and metadata score=0
     expect(result.pass).toBe(false);
     expect(result.aggregateScore).toBe(0);
     expect(result.rejectionReasons.some(r => r.includes('aggregate_score'))).toBe(true);
   });
 
   it('evaluate() with source=pumpportal passes source to checkSellRoute', async () => {
-    const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
-    vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
-    vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
-
-    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
-    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
-    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
-    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+    setupAllPassingMocks();
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const event = makeTokenEvent({ source: 'pumpportal' });
@@ -379,11 +402,14 @@ describe('SafetyPipeline', () => {
     const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
     vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass, TOKEN_2022_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+    vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
 
-    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
-    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
-    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
-    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+    const tier2Tier3 = makeTier2Tier3Pass();
+    vi.mocked(checkRugCheck).mockResolvedValue(tier2Tier3.rugCheck);
+    vi.mocked(checkHolderConcentration).mockResolvedValue(tier2Tier3.holder);
+    vi.mocked(checkCreatorHistory).mockResolvedValue(tier2Tier3.creator);
+    vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 100, source: 'lp_lock', detail: 'locked' });
+    vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 100, source: 'metadata_mutability', detail: 'immutable' });
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     await pipeline.evaluate(makeTokenEvent());
@@ -405,16 +431,324 @@ describe('SafetyPipeline', () => {
     const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
     vi.mocked(checkAuthorities).mockResolvedValue([mintAuthPass, freezeAuthPass, TOKEN_2022_PROGRAM_ID_PK]);
     vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+    vi.mocked(checkLiquidityDepth).mockResolvedValue({ pass: true, source: 'liquidity_depth', detail: 'ok' });
 
-    const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
-    vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
-    vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
-    vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+    const tier2Tier3 = makeTier2Tier3Pass();
+    vi.mocked(checkRugCheck).mockResolvedValue(tier2Tier3.rugCheck);
+    vi.mocked(checkHolderConcentration).mockResolvedValue(tier2Tier3.holder);
+    vi.mocked(checkCreatorHistory).mockResolvedValue(tier2Tier3.creator);
+    vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 100, source: 'lp_lock', detail: 'locked' });
+    vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 100, source: 'metadata_mutability', detail: 'immutable' });
 
     const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
     const result = await pipeline.evaluate(makeTokenEvent());
 
     expect(result.pass).toBe(true);
     expect(result.programId).toBe('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+  });
+
+  // --- NEW: Tier 1 liquidity depth check tests ---
+
+  describe('Tier 1: liquidity depth check', () => {
+    it('rejects when liquidity depth check fails (pass=false)', async () => {
+      const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
+      vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
+      vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+      vi.mocked(checkLiquidityDepth).mockResolvedValue({
+        pass: false,
+        source: 'liquidity_depth',
+        detail: 'bonding_curve_sol=0.5000',
+      });
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      expect(result.pass).toBe(false);
+      expect(result.aggregateScore).toBe(0);
+      expect(result.rejectionReasons.some(r => r.includes('liquidity_depth'))).toBe(true);
+      // Tier 2/3 checks must NOT be called (short-circuit)
+      expect(checkRugCheck).not.toHaveBeenCalled();
+      expect(checkHolderConcentration).not.toHaveBeenCalled();
+      expect(checkLpLock).not.toHaveBeenCalled();
+      expect(checkMetadataMutability).not.toHaveBeenCalled();
+      expect(checkCreatorHistory).not.toHaveBeenCalled();
+    });
+
+    it('continues to Tier 2 when liquidity depth passes', async () => {
+      setupAllPassingMocks();
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      expect(result.pass).toBe(true);
+      // Tier 2/3 checks should be called
+      expect(checkRugCheck).toHaveBeenCalled();
+      expect(checkHolderConcentration).toHaveBeenCalled();
+      expect(checkLpLock).toHaveBeenCalled();
+      expect(checkMetadataMutability).toHaveBeenCalled();
+      expect(checkCreatorHistory).toHaveBeenCalled();
+    });
+
+    it('passes source and poolQuoteVault to checkLiquidityDepth', async () => {
+      setupAllPassingMocks();
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const event = makeTokenEvent({ source: 'raydium', poolQuoteVault: 'VaultAddr123' });
+      await pipeline.evaluate(event);
+
+      expect(checkLiquidityDepth).toHaveBeenCalledWith(
+        MOCK_MINT,
+        mockConnection,
+        mockTradingConfig.safety.minLiquiditySol,
+        'raydium',
+        'VaultAddr123',
+      );
+    });
+  });
+
+  // --- NEW: Tier 2 LP lock penalty tests ---
+
+  describe('Tier 2: LP lock penalty', () => {
+    it('reduces aggregate score by lpLockScorePenalty when LP is unlocked (score=0)', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'unlocked' });
+      // rugCheck returns lpLockedPct=0 with no risks, so lpLock on-chain fallback is kept
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 80, source: 'rugcheck', detail: 'ok' },
+        { lpLockedPct: 0, risks: [] },
+      ]);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: (80/100)*40 + (65/100)*30 + (80/100)*30 = 32 + 19.5 + 24 = 75.5 -> 76
+      // LP penalty: -30 -> 46
+      // Metadata score=100, no penalty
+      expect(result.aggregateScore).toBe(46);
+    });
+
+    it('does not reduce aggregate score when LP is locked (score=100)', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 100, source: 'lp_lock', detail: 'locked' });
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: (80/100)*40 + (65/100)*30 + (80/100)*30 = 32 + 19.5 + 24 = 75.5 -> 76
+      // No penalties (lpLock=100, metadata=100)
+      expect(result.aggregateScore).toBe(76);
+    });
+
+    it('LP lock penalty cannot reduce aggregate score below 0', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'unlocked' });
+      // rugCheck returns lpLockedPct=0 with no risks, so lpLock on-chain fallback is kept
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 10, source: 'rugcheck', detail: 'high risk' },
+        { lpLockedPct: 0, risks: [] },
+      ]);
+      vi.mocked(checkHolderConcentration).mockResolvedValue({ pass: true, score: 10, source: 'holder_concentration', detail: 'ok' });
+      vi.mocked(checkCreatorHistory).mockResolvedValue({ pass: true, score: 10, source: 'creator_history', detail: 'ok' });
+      vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 0, source: 'metadata_mutability', detail: 'mutable' });
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: (10/100)*40 + (10/100)*30 + (10/100)*30 = 4 + 3 + 3 = 10
+      // LP penalty: -30 -> max(0, -20) = 0
+      // Metadata penalty would reduce further but already at 0
+      expect(result.aggregateScore).toBe(0);
+    });
+  });
+
+  // --- NEW: Tier 2 metadata mutability penalty tests ---
+
+  describe('Tier 2: metadata mutability penalty', () => {
+    it('reduces aggregate score by metadataMutablePenalty when metadata is mutable (score=0)', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 0, source: 'metadata_mutability', detail: 'isMutable=true' });
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: (80/100)*40 + (65/100)*30 + (80/100)*30 = 32 + 19.5 + 24 = 75.5 -> 76
+      // LP lock score=100 from rugCheck lpLockedPct=95 override, no LP penalty
+      // Metadata penalty: -15 -> 61
+      expect(result.aggregateScore).toBe(61);
+    });
+
+    it('does not reduce aggregate score when metadata is immutable (score=100)', async () => {
+      setupAllPassingMocks();
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: 76 (same as above), no penalties
+      expect(result.aggregateScore).toBe(76);
+    });
+  });
+
+  // --- NEW: Combined penalties tests ---
+
+  describe('combined penalties', () => {
+    it('stacks both LP lock and metadata penalties', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'unlocked' });
+      vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 0, source: 'metadata_mutability', detail: 'isMutable=true' });
+      // rugCheck returns lpLockedPct=0 with no risks, so lpLock on-chain fallback is kept
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 80, source: 'rugcheck', detail: 'ok' },
+        { lpLockedPct: 0, risks: [] },
+      ]);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: (80/100)*40 + (65/100)*30 + (80/100)*30 = 32 + 19.5 + 24 = 75.5 -> 76
+      // LP penalty: -30 -> 46
+      // Metadata penalty: -15 -> 31
+      expect(result.aggregateScore).toBe(31);
+    });
+
+    it('penalties push aggregate below threshold causing rejection', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'unlocked' });
+      vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 0, source: 'metadata_mutability', detail: 'isMutable=true' });
+      // rugCheck returns lpLockedPct=0 with no risks, so lpLock on-chain fallback is kept
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 80, source: 'rugcheck', detail: 'ok' },
+        { lpLockedPct: 0, risks: [] },
+      ]);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Aggregate = 31 (from stacked penalties), threshold = 60
+      expect(result.pass).toBe(false);
+      expect(result.aggregateScore).toBe(31);
+      expect(result.rejectionReasons.some(r => r.includes('aggregate_score'))).toBe(true);
+    });
+
+    it('penalties cannot reduce aggregate below 0', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'unlocked' });
+      vi.mocked(checkMetadataMutability).mockResolvedValue({ pass: true, score: 0, source: 'metadata_mutability', detail: 'mutable' });
+      // Low base scores
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 20, source: 'rugcheck', detail: 'high risk' },
+        { lpLockedPct: 0, risks: [] },
+      ]);
+      vi.mocked(checkHolderConcentration).mockResolvedValue({ pass: true, score: 20, source: 'holder_concentration', detail: 'ok' });
+      vi.mocked(checkCreatorHistory).mockResolvedValue({ pass: true, score: 20, source: 'creator_history', detail: 'ok' });
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // Weighted avg: (20/100)*40 + (20/100)*30 + (20/100)*30 = 8 + 6 + 6 = 20
+      // LP penalty: -30 -> max(0, -10) = 0
+      // Metadata penalty: -15 -> max(0, 0-15) = 0 (already at 0)
+      expect(result.aggregateScore).toBe(0);
+    });
+  });
+
+  // --- NEW: RugCheck lpLockedPct override tests ---
+
+  describe('RugCheck lpLockedPct override', () => {
+    it('overrides lpLock on-chain fallback with rugCheck lpLockedPct when available', async () => {
+      setupAllPassingMocks();
+      // On-chain fallback returned score=0 (unlocked)
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'no LP mint data' });
+      // But rugCheck returned lpLockedPct=95 (locked) -- should override
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 80, source: 'rugcheck', detail: 'ok' },
+        { lpLockedPct: 95, risks: [] },
+      ]);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // lpLock score is overridden to 100 (>=90), so no LP penalty
+      // Weighted avg: (80/100)*40 + (65/100)*30 + (80/100)*30 = 76
+      // No penalties
+      expect(result.aggregateScore).toBe(76);
+      // Verify lpLock result is in tier2 with rugcheck override detail
+      expect(result.tier2.some(r => r.source === 'lp_lock' && r.detail.includes('rugcheck lpLockedPct=95'))).toBe(true);
+    });
+
+    it('confirms unlocked when rugCheck returns lpLockedPct=0 with risks', async () => {
+      setupAllPassingMocks();
+      // On-chain fallback returned score=50 (neutral)
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 50, source: 'lp_lock', detail: 'neutral' });
+      // RugCheck confirms unlocked: lpLockedPct=0 with risks present
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 80, source: 'rugcheck', detail: 'ok' },
+        { lpLockedPct: 0, risks: [{ name: 'Mutable metadata' }] },
+      ]);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // lpLock overridden to score=0 (confirmed unlocked)
+      // Weighted avg: 76
+      // LP penalty: -30 -> 46
+      expect(result.aggregateScore).toBe(46);
+    });
+
+    it('keeps on-chain fallback when rugCheck data is null (error/timeout)', async () => {
+      setupAllPassingMocks();
+      // On-chain fallback returned score=50
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 50, source: 'lp_lock', detail: 'on-chain: neutral' });
+      // RugCheck failed
+      vi.mocked(checkRugCheck).mockRejectedValue(new Error('timeout'));
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // rugCheck score=0 (pessimistic), lpLock score=50 (on-chain fallback kept)
+      // No LP penalty (score=50 != 0)
+      // Weighted avg: (0/100)*40 + (65/100)*30 + (80/100)*30 = 0 + 19.5 + 24 = 43.5 -> 44
+      // No metadata penalty (score=100)
+      expect(result.aggregateScore).toBe(44);
+    });
+
+    it('uses partial lpLockedPct score when between 0 and 90', async () => {
+      setupAllPassingMocks();
+      vi.mocked(checkLpLock).mockResolvedValue({ pass: true, score: 0, source: 'lp_lock', detail: 'no data' });
+      // rugCheck returns lpLockedPct=50 (partial lock)
+      vi.mocked(checkRugCheck).mockResolvedValue([
+        { pass: true, score: 80, source: 'rugcheck', detail: 'ok' },
+        { lpLockedPct: 50, risks: [] },
+      ]);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      // lpLock overridden to score=50 (Math.round(50))
+      // No LP penalty (score=50 != 0)
+      // Weighted avg: 76, no penalties
+      expect(result.aggregateScore).toBe(76);
+    });
+  });
+
+  // --- NEW: Pipeline with all checks passing ---
+
+  describe('full pipeline integration', () => {
+    it('includes all new checks in tier1 and tier2 result arrays', async () => {
+      setupAllPassingMocks();
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const result = await pipeline.evaluate(makeTokenEvent());
+
+      expect(result.pass).toBe(true);
+      // Tier 1 should have 4 results: mint_authority, freeze_authority, sell_route, liquidity_depth
+      expect(result.tier1).toHaveLength(4);
+      expect(result.tier1.some(r => r.source === 'liquidity_depth')).toBe(true);
+      // Tier 2 should have 4 results: rugcheck, holder, lp_lock, metadata
+      expect(result.tier2).toHaveLength(4);
+      expect(result.tier2.some(r => r.source === 'lp_lock')).toBe(true);
+      expect(result.tier2.some(r => r.source === 'metadata_mutability')).toBe(true);
+      // Tier 3 should have 1 result: creator_history
+      expect(result.tier3).toHaveLength(1);
+    });
   });
 });
