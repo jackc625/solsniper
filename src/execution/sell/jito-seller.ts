@@ -11,13 +11,14 @@
  * - Tip tx placed LAST in bundle array (swap first, tip last)
  * - Fresh quote on every call — never reuses across attempts
  */
-import { VersionedTransaction, Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
+import { VersionedTransaction, Transaction, SystemProgram, PublicKey, ComputeBudgetProgram, MessageV0 } from '@solana/web3.js';
 import type { Connection, Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { broadcastAndConfirm } from '../broadcaster.js';
 import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { getRuntimeConfig } from '../../config/trading.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import type { SellOutcome } from '../../types/index.js';
 import { createModuleLogger } from '../../core/logger.js';
 
@@ -48,11 +49,18 @@ export async function jitoSell(
   tokenAmount: bigint,
   config: TradingConfig,
   wallet: Keypair,
-  connections: Connection[]
+  connections: Connection[],
+  feeEstimator: FeeEstimator
 ): Promise<SellOutcome> {
   const { sell } = config.execution;
   const slippageBps = sell.standardSlippageBps;  // Jito uses standard slippage
-  const maxPriorityFee = Math.floor(config.execution.buy.priorityFeeBaseLamports * sell.highFeeMultiplier);
+  // Jito swap uses highFeeMultiplier on dynamic base, capped (D-05, D-22)
+  const feeEstimate = await feeEstimator.getEstimate(config);
+  const maxPriorityFee = Math.min(
+    Math.floor(feeEstimate.maxLamports * sell.highFeeMultiplier),
+    config.execution.buy.maxPriorityFeeCapLamports,
+  );
+  log.debug({ feeSource: feeEstimate.source, baseLamports: feeEstimate.maxLamports, maxPriorityFee }, 'Dynamic fee for Jito sell'); // D-07
 
   log.debug({ mint, tokenAmount: tokenAmount.toString() }, 'Jito bundle sell');
 
@@ -89,13 +97,79 @@ export async function jitoSell(
     wrapAndUnwrapSol: true,
   });
 
-  // Step 2: Sign the swap transaction
+  // Step 2: Sign the swap transaction (initial sign for simulation)
   const swapTxBytes = Buffer.from(swapResponse.swapTransaction, 'base64');
-  const swapTx = VersionedTransaction.deserialize(swapTxBytes);
+  let finalSwapTx = VersionedTransaction.deserialize(swapTxBytes);
   const { blockhash, lastValidBlockHeight } = await connections[0].getLatestBlockhash('processed');
-  swapTx.message.recentBlockhash = blockhash;
-  swapTx.sign([wallet]);
-  const signedSwapBytes = swapTx.serialize();
+  finalSwapTx.message.recentBlockhash = blockhash;
+  finalSwapTx.sign([wallet]);
+
+  // D-11: Simulate CU, then replace Jupiter's CU limit instruction with tighter value
+  try {
+    const simulation = await connections[0].simulateTransaction(finalSwapTx, {
+      replaceRecentBlockhash: true,
+      sigVerify: false,
+    });
+    const cuConsumed = simulation.value.unitsConsumed;
+    if (cuConsumed != null && cuConsumed > 0) {
+      const tighterCU = Math.ceil(cuConsumed * 1.15); // 15% buffer per D-11
+      log.debug({ cuConsumed, tighterCU }, 'CU simulation — replacing Jupiter CU limit');
+
+      // Find Jupiter's existing ComputeBudgetProgram.setComputeUnitLimit instruction
+      const message = finalSwapTx.message as MessageV0;
+      const cbProgramId = ComputeBudgetProgram.programId;
+
+      // Find the account index for ComputeBudgetProgram in the message's account keys
+      const cbAccountIndex = message.staticAccountKeys.findIndex(
+        (key) => key.equals(cbProgramId),
+      );
+
+      if (cbAccountIndex !== -1) {
+        // setComputeUnitLimit instruction: program ID index matches cbAccountIndex,
+        // instruction data starts with discriminator byte 0x02 (SetComputeUnitLimit)
+        const cuLimitInstructionIndex = message.compiledInstructions.findIndex(
+          (ix) => ix.programIdIndex === cbAccountIndex && ix.data[0] === 0x02,
+        );
+
+        if (cuLimitInstructionIndex !== -1) {
+          // Build replacement instruction data: discriminator 0x02 + u32 LE units
+          const newCUInstruction = ComputeBudgetProgram.setComputeUnitLimit({ units: tighterCU });
+          const newData = newCUInstruction.data;
+
+          // Rebuild the compiled instructions array with the replacement
+          const updatedInstructions = [...message.compiledInstructions];
+          updatedInstructions[cuLimitInstructionIndex] = {
+            ...updatedInstructions[cuLimitInstructionIndex],
+            data: newData,
+          };
+
+          // Rebuild MessageV0 with updated instructions
+          const rebuiltMessage = new MessageV0({
+            header: message.header,
+            staticAccountKeys: message.staticAccountKeys,
+            recentBlockhash: message.recentBlockhash,
+            compiledInstructions: updatedInstructions,
+            addressTableLookups: message.addressTableLookups,
+          });
+
+          // Rebuild VersionedTransaction and re-sign
+          const rebuiltTx = new VersionedTransaction(rebuiltMessage);
+          rebuiltTx.sign([wallet]);
+          finalSwapTx = rebuiltTx;
+
+          log.debug({ originalCU: 'jupiter-default', newCU: tighterCU }, 'CU limit instruction replaced');
+        } else {
+          log.debug('No setComputeUnitLimit instruction found in swap tx — skipping CU replacement');
+        }
+      } else {
+        log.debug('ComputeBudgetProgram not found in swap tx account keys — skipping CU replacement');
+      }
+    }
+  } catch (simErr) {
+    log.debug({ simErr }, 'CU simulation failed — continuing with Jupiter CU limit');
+  }
+
+  const signedSwapBytes = finalSwapTx.serialize();
 
   // Step 3: Build tip transaction (separate tx, goes LAST in bundle)
   const tipAccount = JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)];
@@ -144,7 +218,7 @@ export async function jitoSell(
 
   // Compute the swap transaction signature (deterministic from tx bytes)
   // Since we signed the tx ourselves, the signature is the first element of tx.signatures
-  const swapSignature = bs58.encode(swapTx.signatures[0]);
+  const swapSignature = bs58.encode(finalSwapTx.signatures[0]);
   log.info({ bundleId, swapSignature }, 'Jito bundle landed');
   return { signature: swapSignature, solReceived };
 }
