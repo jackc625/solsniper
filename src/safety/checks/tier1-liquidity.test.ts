@@ -50,7 +50,38 @@ describe('checkLiquidityDepth', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Pumpportal source — bonding curve path
+  // Pumpportal source — vSolInBondingCurve fast path (zero RPC)
+  // -------------------------------------------------------------------------
+
+  it('pumpportal: vSolInBondingCurve >= threshold returns pass=true (no RPC)', async () => {
+    const result = await checkLiquidityDepth(MOCK_MINT, mockConnection, 2.0, 'pumpportal', undefined, 30.5);
+
+    expect(result.pass).toBe(true);
+    expect(result.source).toBe('liquidity_depth');
+    expect(result.detail).toContain('bonding_curve_vsol=30.5000');
+    expect(mockGetAccountInfo).not.toHaveBeenCalled();
+  });
+
+  it('pumpportal: vSolInBondingCurve < threshold returns pass=false (no RPC)', async () => {
+    const result = await checkLiquidityDepth(MOCK_MINT, mockConnection, 2.0, 'pumpportal', undefined, 0.5);
+
+    expect(result.pass).toBe(false);
+    expect(result.source).toBe('liquidity_depth');
+    expect(result.detail).toContain('bonding_curve_vsol=0.5000');
+    expect(mockGetAccountInfo).not.toHaveBeenCalled();
+  });
+
+  it('pumpportal: vSolInBondingCurve=undefined falls back to on-chain RPC', async () => {
+    mockGetAccountInfo.mockResolvedValueOnce(null);
+
+    const result = await checkLiquidityDepth(MOCK_MINT, mockConnection, 2.0, 'pumpportal', undefined, undefined);
+
+    expect(result.pass).toBe(false);
+    expect(mockGetAccountInfo).toHaveBeenCalledOnce();
+  });
+
+  // -------------------------------------------------------------------------
+  // Pumpportal source — bonding curve on-chain fallback path
   // -------------------------------------------------------------------------
 
   it('pumpportal: bonding curve SOL reserves >= threshold returns pass=true', async () => {

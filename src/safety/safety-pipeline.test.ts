@@ -502,6 +502,7 @@ describe('SafetyPipeline', () => {
         mockTradingConfig.safety.minLiquiditySol,
         'raydium',
         'VaultAddr123',
+        undefined,
       );
     });
   });

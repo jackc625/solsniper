@@ -39,6 +39,7 @@ export async function checkLiquidityDepth(
   minLiquiditySol: number,
   source?: DetectionSource,
   poolQuoteVault?: string,
+  vSolInBondingCurve?: number,
 ): Promise<CheckResult> {
   try {
     // PumpSwap: neutral skip — vault layout unknown
@@ -50,7 +51,17 @@ export async function checkLiquidityDepth(
       };
     }
 
-    // PumpPortal: read bonding curve SOL reserves
+    // PumpPortal fast path: use vSolInBondingCurve from WebSocket event directly.
+    // Avoids RPC race condition — bonding curve account may not be confirmed yet.
+    if (source === 'pumpportal' && vSolInBondingCurve != null) {
+      return {
+        pass: vSolInBondingCurve >= minLiquiditySol,
+        source: 'liquidity_depth',
+        detail: `bonding_curve_vsol=${vSolInBondingCurve.toFixed(4)}`,
+      };
+    }
+
+    // PumpPortal fallback: read bonding curve SOL reserves on-chain
     if (source === 'pumpportal') {
       return await checkPumpBondingCurve(mint, connection, minLiquiditySol);
     }

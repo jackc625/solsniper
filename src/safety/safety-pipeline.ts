@@ -81,7 +81,7 @@ export class SafetyPipeline {
     const [authResults, sellRouteResult, liquidityResult] = await Promise.all([
       checkAuthorities(event.mint, this.connection),
       checkSellRoute(event.mint, undefined, event.source),
-      checkLiquidityDepth(event.mint, this.connection, cfg.safety.minLiquiditySol, event.source, event.poolQuoteVault),
+      checkLiquidityDepth(event.mint, this.connection, cfg.safety.minLiquiditySol, event.source, event.poolQuoteVault, event.vSolInBondingCurve),
     ]);
 
     const [mintAuthResult, freezeAuthResult, detectedProgramId] = authResults;
