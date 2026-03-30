@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### v1.1 Hardening & Polish
 
 - [x] **Phase 17: Security Fixes** - Resolve all BUGS.md security findings before adding new attack surface (completed 2026-03-27)
-- [ ] **Phase 18: Safety Pipeline Audit & Enhancement** - Validate and improve safety filtering accuracy with new rug detection checks
+- [x] **Phase 18: Safety Pipeline Audit & Enhancement** - Validate and improve safety filtering accuracy with new rug detection checks (completed 2026-03-30)
 - [ ] **Phase 19: Execution Performance** - Dynamic fees, compute optimization, and balance guards for better trade outcomes
 - [ ] **Phase 20: Reliability & Monitoring** - Health endpoints, system alerts, RPC tracking, and log rotation
 - [ ] **Phase 21: Dashboard Overhaul** - Analytics, pipeline visibility, operational controls, and system status
@@ -48,12 +48,12 @@ Plans:
   3. Bot rejects tokens with insufficient sell-side liquidity before buying — configurable minimum liquidity threshold enforced
   4. Bot scores LP lock/burn status as a rug risk factor — unlocked liquidity pools penalize the safety score
   5. Bot scores token metadata mutability — mutable metadata penalizes the safety score as a soft rug signal
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 18-01-PLAN.md — Foundation: types, config schema, DB migration, trade persistence, RaydiumListener vault extraction (SAF-10, SAF-11, SAF-12, SAF-13, SAF-14)
 - [x] 18-02-PLAN.md — Three new safety checks: liquidity depth, LP lock/burn, metadata mutability (SAF-12, SAF-13, SAF-14)
-- [ ] 18-03-PLAN.md — Audit script: log parsing, trade correlation, accuracy report generation (SAF-10, SAF-11)
-- [ ] 18-04-PLAN.md — Pipeline wiring: new checks into tiers, penalty scoring, integration tests (SAF-12, SAF-13, SAF-14, SAF-11)
+- [x] 18-03-PLAN.md — Audit script: log parsing, trade correlation, accuracy report generation (SAF-10, SAF-11)
+- [x] 18-04-PLAN.md — Pipeline wiring: new checks into tiers, penalty scoring, integration tests (SAF-12, SAF-13, SAF-14, SAF-11)
 
 ### Phase 19: Execution Performance
 **Goal**: Bot lands buys with optimal fees and protects against wallet drain — dynamic priority fees replace static fees, compute units are precise, and a balance guard prevents buying below operational minimums
@@ -112,7 +112,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
 | 15. Live Config Hot-Reload Fix | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
-| 18. Safety Pipeline Audit & Enhancement | v1.1 | 2/4 | In Progress|  |
+| 18. Safety Pipeline Audit & Enhancement | v1.1 | 4/4 | Complete   | 2026-03-30 |
 | 19. Execution Performance | v1.1 | 0/? | Not started | - |
 | 20. Reliability & Monitoring | v1.1 | 0/? | Not started | - |
 | 21. Dashboard Overhaul | v1.1 | 0/? | Not started | - |

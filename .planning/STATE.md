@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Completed 18-02-PLAN.md
-last_updated: "2026-03-30T16:44:52.659Z"
+stopped_at: Completed 18-04-PLAN.md
+last_updated: "2026-03-30T16:58:52.604Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 7
   percent: 20
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 18 of 21 (safety pipeline audit & enhancement)
-Plan: 2 of 4 complete
+Plan: 3 of 4 complete
 Status: Ready to execute
 Last activity: 2026-03-30
 
@@ -57,6 +57,7 @@ Progress: [##........] 20%
 
 *Updated after each plan completion*
 | Phase 18 P02 | 4 | 2 tasks | 6 files |
+| Phase 18 P04 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Recent decisions affecting current work:
 - [Phase 18]: Metadata mutability check applies to all sources including pumpportal -- mutable flag is valid rug signal
 - [Phase 18]: Bonding curve IDL signature validation before reading reserves -- prevents misinterpreting non-bonding-curve accounts
 - [Phase 18]: lpLockedPct=0 with no risks treated as neutral (score=50) not pessimistic (score=0) -- per Pitfall 4 distinguishing unavailable from confirmed unlocked
+- [Phase 18]: RugCheck returns tuple [CheckResult, RugCheckResultData | null] to expose lpLockedPct for downstream LP lock check
+- [Phase 18]: All 5 Tier 2 checks run concurrently via Promise.allSettled with post-settle lpLock override from RugCheck data
+- [Phase 18]: LP lock and metadata penalties are flat deductions from weighted average (not included in average); penalty only triggers at score=0
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-30
-Last session: 2026-03-30T16:44:52.654Z
-Stopped at: Completed 18-02-PLAN.md
+Last session: 2026-03-30T16:58:52.599Z
+Stopped at: Completed 18-04-PLAN.md
 Resume file: None
