@@ -28,4 +28,7 @@ export const MIGRATION_SQL = [
   `ALTER TABLE trades ADD COLUMN source TEXT`,
   `ALTER TABLE trades ADD COLUMN token_program_id TEXT`,
   `ALTER TABLE trades ADD COLUMN dry_run INTEGER`,
+  `ALTER TABLE trades ADD COLUMN safety_score INTEGER`,
+  `ALTER TABLE trades ADD COLUMN safety_rejection_reasons TEXT`,
+  `ALTER TABLE trades ADD COLUMN safety_checks_detail TEXT`,
 ];

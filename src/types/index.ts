@@ -25,6 +25,8 @@ export interface TokenEvent {
   marketCapSol?: number;
   vSolInBondingCurve?: number;
   vTokensInBondingCurve?: number;
+  // Raydium-specific: SOL vault address for liquidity depth check
+  poolQuoteVault?: string;
 }
 
 export interface DetectorEvents {

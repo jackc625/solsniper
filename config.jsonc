@@ -81,7 +81,16 @@
     "rugCheckScoreInverted": true,
 
     // Path to the JSON file that persists banned creator wallet addresses across restarts.
-    "blocklistPath": "./data/creator-blocklist.json"
+    "blocklistPath": "./data/creator-blocklist.json",
+
+    // Minimum pool SOL reserves (in SOL) required before buying. Tokens with liquidity below this are hard-rejected.
+    "minLiquiditySol": 1.0,
+
+    // Score penalty (0-100) applied when LP tokens are not locked or burned. Subtracted from aggregate score.
+    "lpLockScorePenalty": 30,
+
+    // Score penalty (0-100) applied when token metadata is mutable. Subtracted from aggregate score.
+    "metadataMutablePenalty": 15
   },
 
   "execution": {

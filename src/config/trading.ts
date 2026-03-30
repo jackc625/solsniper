@@ -23,6 +23,9 @@ const SafetyConfigSchema = z.object({
   holder: HolderConfigSchema,
   rugCheckScoreInverted: z.boolean().default(true),  // true = RugCheck score is risk (higher=worse), invert for safety
   blocklistPath: z.string().default('./data/creator-blocklist.json'),
+  minLiquiditySol: z.number().positive().default(1.0),                  // Minimum pool SOL reserves required before buying
+  lpLockScorePenalty: z.number().int().min(0).max(100).default(30),     // Score penalty when LP tokens not locked/burned
+  metadataMutablePenalty: z.number().int().min(0).max(100).default(15), // Score penalty when token metadata is mutable
 });
 
 export type SafetyConfig = z.infer<typeof SafetyConfigSchema>;

@@ -6,7 +6,7 @@
  * and primitive top-level keys overwrite directly.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { patchRuntimeConfig, getRuntimeConfig } from './trading.js';
+import { patchRuntimeConfig, getRuntimeConfig, TradingConfigSchema } from './trading.js';
 
 describe('patchRuntimeConfig deep merge', () => {
   // Capture the initial config for restoration
@@ -103,5 +103,109 @@ describe('patchRuntimeConfig deep merge', () => {
 
     // Restore
     patchRuntimeConfig(initialConfig);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SafetyConfigSchema new fields (Phase 18-01)
+// ---------------------------------------------------------------------------
+describe('SafetyConfigSchema new fields', () => {
+  it('parses minLiquiditySol=2 from config', () => {
+    const result = TradingConfigSchema.parse({
+      buyAmountSol: 0.01,
+      maxSlippageBps: 1000,
+      maxConcurrentPositions: 1,
+      stopLossPct: -50,
+      takeProfitPct: 300,
+      minSafetyScore: 80,
+      detection: {},
+      safety: { weights: {}, holder: {}, minLiquiditySol: 2 },
+      execution: { buy: {}, sell: {} },
+      positionManagement: {},
+    });
+    expect(result.safety.minLiquiditySol).toBe(2);
+  });
+
+  it('uses default value for minLiquiditySol when omitted', () => {
+    const result = TradingConfigSchema.parse({
+      buyAmountSol: 0.01,
+      maxSlippageBps: 1000,
+      maxConcurrentPositions: 1,
+      stopLossPct: -50,
+      takeProfitPct: 300,
+      minSafetyScore: 80,
+      detection: {},
+      safety: { weights: {}, holder: {} },
+      execution: { buy: {}, sell: {} },
+      positionManagement: {},
+    });
+    expect(result.safety.minLiquiditySol).toBe(1.0);
+  });
+
+  it('parses lpLockScorePenalty=30 from config', () => {
+    const result = TradingConfigSchema.parse({
+      buyAmountSol: 0.01,
+      maxSlippageBps: 1000,
+      maxConcurrentPositions: 1,
+      stopLossPct: -50,
+      takeProfitPct: 300,
+      minSafetyScore: 80,
+      detection: {},
+      safety: { weights: {}, holder: {}, lpLockScorePenalty: 30 },
+      execution: { buy: {}, sell: {} },
+      positionManagement: {},
+    });
+    expect(result.safety.lpLockScorePenalty).toBe(30);
+  });
+
+  it('parses metadataMutablePenalty=15 from config', () => {
+    const result = TradingConfigSchema.parse({
+      buyAmountSol: 0.01,
+      maxSlippageBps: 1000,
+      maxConcurrentPositions: 1,
+      stopLossPct: -50,
+      takeProfitPct: 300,
+      minSafetyScore: 80,
+      detection: {},
+      safety: { weights: {}, holder: {}, metadataMutablePenalty: 15 },
+      execution: { buy: {}, sell: {} },
+      positionManagement: {},
+    });
+    expect(result.safety.metadataMutablePenalty).toBe(15);
+  });
+
+  it('rejects negative minLiquiditySol', () => {
+    expect(() =>
+      TradingConfigSchema.parse({
+        buyAmountSol: 0.01,
+        maxSlippageBps: 1000,
+        maxConcurrentPositions: 1,
+        stopLossPct: -50,
+        takeProfitPct: 300,
+        minSafetyScore: 80,
+        detection: {},
+        safety: { weights: {}, holder: {}, minLiquiditySol: -1 },
+        execution: { buy: {}, sell: {} },
+        positionManagement: {},
+      })
+    ).toThrow();
+  });
+
+  it('runtime config has minLiquiditySol from config.jsonc', () => {
+    const cfg = getRuntimeConfig();
+    expect(cfg.safety.minLiquiditySol).toBeDefined();
+    expect(typeof cfg.safety.minLiquiditySol).toBe('number');
+  });
+
+  it('runtime config has lpLockScorePenalty from config.jsonc', () => {
+    const cfg = getRuntimeConfig();
+    expect(cfg.safety.lpLockScorePenalty).toBeDefined();
+    expect(typeof cfg.safety.lpLockScorePenalty).toBe('number');
+  });
+
+  it('runtime config has metadataMutablePenalty from config.jsonc', () => {
+    const cfg = getRuntimeConfig();
+    expect(cfg.safety.metadataMutablePenalty).toBeDefined();
+    expect(typeof cfg.safety.metadataMutablePenalty).toBe('number');
   });
 });
