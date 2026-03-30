@@ -375,10 +375,14 @@ export function computeStats(
           stats.scores.push(check.score);
         }
       }
-    } else if (entry.trade) {
-      // Trade without log decision -- count as passed (since trade was executed)
+    } else if (entry.trade && entry.trade.safety_score !== null) {
+      // Trade with DB safety score but no log decision -- count as passed
       totalPassed++;
+      allScores.push(entry.trade.safety_score);
     }
+    // Trades with neither log decision nor DB safety score are NOT counted as
+    // evaluated -- they predate the safety pipeline and inflating "tokens evaluated"
+    // with them produces a misleading report.
 
     // P&L tracking (only for trades)
     if (entry.trade) {
@@ -486,9 +490,10 @@ function generateRecommendations(
     return recs;
   }
 
-  // Win rate analysis
-  if (totalPassed > 0) {
-    const winRate = profitableCount / totalPassed;
+  // Win rate analysis (use trades with P&L data, not totalPassed which includes trades without outcomes)
+  const tradesWithOutcome = profitableCount + _lossCount;
+  if (tradesWithOutcome > 0) {
+    const winRate = profitableCount / tradesWithOutcome;
     if (winRate < 0.3) {
       recs.push(
         `Low win rate (${(winRate * 100).toFixed(1)}%) suggests minSafetyScore threshold may be too low. ` +
