@@ -10,7 +10,8 @@ export type BotEventType =
   | 'SELL_CONFIRMED'
   | 'SELL_FAILED'
   | 'ERROR'
-  | 'CONFIG_CHANGED';
+  | 'CONFIG_CHANGED'
+  | 'LOW_BALANCE';     // EXE-12: emitted when wallet balance below buy threshold
 
 export interface BotEvent {
   type: BotEventType;

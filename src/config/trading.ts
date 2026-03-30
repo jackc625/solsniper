@@ -44,6 +44,7 @@ const ExecutionBuyConfigSchema = z.object({
   slippageBps: z.number().int().min(50).max(4900).default(1000),            // 10% default
   priorityFeeBaseLamports: z.number().int().positive().default(100000),     // 0.0001 SOL base
   priorityFeeMultiplier: z.number().positive().default(1),
+  maxPriorityFeeCapLamports: z.number().int().positive().default(500000),   // 0.0005 SOL absolute ceiling
 });
 
 const ExecutionSellConfigSchema = z.object({
@@ -93,6 +94,7 @@ export const TradingConfigSchema = z.object({
   takeProfitPct: z.number().positive(),
   minSafetyScore: z.number().int().min(0).max(100),
   dryRun: z.boolean().default(false),
+  minBalanceBufferSol: z.number().positive().default(0.01), // Min SOL buffer beyond buy amount
   detection: DetectionConfigSchema,
   safety: SafetyConfigSchema,
   execution: ExecutionConfigSchema,
