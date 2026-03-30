@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Completed 18-01-PLAN.md
-last_updated: "2026-03-30T16:35:00.000Z"
+stopped_at: Completed 18-03-PLAN.md
+last_updated: "2026-03-30T16:45:14.019Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
   percent: 20
 ---
 
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 18 of 21 (safety pipeline audit & enhancement)
-Plan: 1 of 4 complete
-Status: Executing Phase 18
+Plan: 2 of 4 complete
+Status: Ready to execute
 Last activity: 2026-03-30
 
 Progress: [##........] 20%
@@ -56,6 +56,7 @@ Progress: [##........] 20%
 - Trend: fast (hardening tasks with clear specs)
 
 *Updated after each plan completion*
+| Phase 18 P03 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 18-01]: poolQuoteVault only set when quoteMint (accounts[9]) is WSOL -- confirms vault holds SOL before passing to liquidity check
 - [Phase 18-01]: safetyRejectionReasons stored as JSON.stringify(array) in TEXT column -- simple serialization, no relational table needed
 - [Phase 18-01]: checksDetail built in index.ts caller (not inside TradeStore) -- keeps store generic, avoids coupling to SafetyResult shape
+- [Phase 18]: generateReport returns string (not writes file) for testability -- writeReport handles file I/O separately
+- [Phase 18]: isDirectExecution guard prevents main() from running during test imports
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-30
-Last session: 2026-03-30T16:35:00.000Z
-Stopped at: Completed 18-01-PLAN.md
+Last session: 2026-03-30T16:45:14.014Z
+Stopped at: Completed 18-03-PLAN.md
 Resume file: None
