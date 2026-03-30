@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Completed 19-01-PLAN.md
-last_updated: "2026-03-30T23:06:57.102Z"
-last_activity: 2026-03-30 -- Phase 19 execution started
+stopped_at: Completed 19-02-PLAN.md
+last_updated: "2026-03-30T23:45:59.728Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 7
+  completed_plans: 9
   percent: 40
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 19 (execution-performance) — EXECUTING
-Plan: 1 of 3 complete
-Status: Executing Phase 19
-Last activity: 2026-03-30 -- Phase 19 Wave 1 complete
+Plan: 2 of 3 complete
+Status: Ready to execute
+Last activity: 2026-03-30
 
 Progress: [####......] 40%
 
@@ -59,6 +59,7 @@ Progress: [####......] 40%
 - Trend: fast (hardening tasks with clear specs)
 
 *Updated after each plan completion*
+| Phase 19 P02 | 21 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting current work:
 - [Phase 18]: RugCheck returns tuple [CheckResult, RugCheckResultData | null] to expose lpLockedPct for downstream LP lock check
 - [Phase 18]: All 5 Tier 2 checks run concurrently via Promise.allSettled with post-settle lpLock override from RugCheck data
 - [Phase 18]: LP lock and metadata penalties are flat deductions from weighted average (not included in average); penalty only triggers at score=0
+- [Phase 19]: Standard seller applies feeMultiplier on dynamic Helius base, capped at maxPriorityFeeCapLamports -- escalation multipliers work on network-aware estimate
+- [Phase 19]: Jito CU simulation uses replaceRecentBlockhash=true, sigVerify=false; CU instruction found via programId index + 0x02 discriminator; failure gracefully degrades to Jupiter default CU
 
 ### Pending Todos
 
@@ -100,6 +103,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-30
-Last session: 2026-03-30T23:06:57.043Z
-Stopped at: Phase 19 Wave 1 complete, executing Wave 2
-Resume file: .planning/phases/19-execution-performance/19-CONTEXT.md
+Last session: 2026-03-30T23:45:59.721Z
+Stopped at: Completed 19-02-PLAN.md
+Resume file: None
