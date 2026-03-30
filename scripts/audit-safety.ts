@@ -173,6 +173,15 @@ export function queryTradesFromDb(dbPath: string): TradeAuditRow[] {
   const db = new Database(dbPath, { readonly: true });
 
   try {
+    // Check which safety columns exist (they may not if DB predates Phase 18)
+    const columns = (db.pragma('table_info(trades)') as { name: string }[]).map(c => c.name);
+    const hasSafetyCols = columns.includes('safety_score');
+
+    // Build SELECT with safety columns only if they exist
+    const safetyCols = hasSafetyCols
+      ? 'safety_score, safety_rejection_reasons, safety_checks_detail,'
+      : 'NULL AS safety_score, NULL AS safety_rejection_reasons, NULL AS safety_checks_detail,';
+
     // Query all trades (COMPLETED, FAILED, ABANDONED) for comprehensive analysis
     const rows = db.prepare(`
       SELECT mint, source, state, amount_sol, sell_price_sol,
@@ -181,12 +190,16 @@ export function queryTradesFromDb(dbPath: string): TradeAuditRow[] {
                THEN (sell_price_sol - amount_sol)
                ELSE NULL
              END AS pnl_sol,
-             safety_score, safety_rejection_reasons, safety_checks_detail,
+             ${safetyCols}
              created_at
       FROM trades
       WHERE state IN ('COMPLETED', 'FAILED', 'ABANDONED')
       ORDER BY created_at ASC
     `).all() as TradeAuditRow[];
+
+    if (!hasSafetyCols) {
+      console.log('  Note: safety columns not found in DB schema -- using NULL values (DB predates Phase 18 migration)');
+    }
 
     return rows;
   } finally {
