@@ -7,8 +7,12 @@ import { SafetyCache } from './safety-cache.js';
 import { Blocklist } from './blocklist.js';
 import { checkAuthorities } from './checks/tier1-authority.js';
 import { checkSellRoute } from './checks/tier1-sell-route.js';
+import { checkLiquidityDepth } from './checks/tier1-liquidity.js';
 import { checkRugCheck } from './checks/tier2-rugcheck.js';
+import type { RugCheckResultData } from './checks/tier2-rugcheck.js';
 import { checkHolderConcentration } from './checks/tier2-holder.js';
+import { checkLpLock } from './checks/tier2-lp-lock.js';
+import { checkMetadataMutability } from './checks/tier2-metadata.js';
 import { checkCreatorHistory } from './checks/tier3-creator.js';
 import { createModuleLogger } from '../core/logger.js';
 import { botEventBus } from '../dashboard/bot-event-bus.js';
@@ -17,17 +21,21 @@ import { botEventBus } from '../dashboard/bot-event-bus.js';
  * Orchestrates the three-tier safety pipeline:
  *
  * Tier 1 (hard blocks, parallel via Promise.all):
- *   - checkAuthorities() -- mint + freeze authority revocation (SAF-01, SAF-02)
- *   - checkSellRoute()  -- Jupiter sell route existence (SAF-03)
+ *   - checkAuthorities()     -- mint + freeze authority revocation (SAF-01, SAF-02)
+ *   - checkSellRoute()       -- Jupiter sell route existence (SAF-03)
+ *   - checkLiquidityDepth()  -- minimum pool SOL reserves (SAF-12)
  *
  * Tier 2 (scoring signals, parallel via Promise.allSettled with timeout):
  *   - checkRugCheck()            -- RugCheck API risk score inversion (SAF-05)
  *   - checkHolderConcentration() -- whale dominance soft block (SAF-06)
+ *   - checkLpLock()              -- LP lock/burn status scoring (SAF-13)
+ *   - checkMetadataMutability()  -- metadata immutability scoring (SAF-14)
  *
  * Tier 3 (scoring signals, parallel with Tier 2 via Promise.allSettled):
  *   - checkCreatorHistory() -- serial deployer detection (SAF-07)
  *
  * Aggregate score (SAF-08): weighted average of Tier 2+3 scores.
+ * Penalty adjustments (SAF-11): LP lock and metadata penalties subtracted from aggregate.
  * Threshold rejection (SAF-09): tokens below minSafetyScore rejected.
  * Cache: results cached per mint for cacheTtlMs to prevent re-running checks.
  * Soft blocks: holder concentration and creator history can independently reject.
@@ -66,16 +74,18 @@ export class SafetyPipeline {
 
     try {
 
-    // 2. Tier 1: Hard blocks in parallel via Promise.all (SAF-04)
+    // 2. Tier 1: Hard blocks in parallel via Promise.all (SAF-04, SAF-12)
     // checkAuthorities returns [CheckResult, CheckResult, PublicKey] -- third element is detected programId
     // checkSellRoute receives event.source so pumpportal tokens skip the Jupiter indexing check
-    const [authResults, sellRouteResult] = await Promise.all([
+    // checkLiquidityDepth checks minimum SOL reserves in pool/bonding curve
+    const [authResults, sellRouteResult, liquidityResult] = await Promise.all([
       checkAuthorities(event.mint, this.connection),
       checkSellRoute(event.mint, undefined, event.source),
+      checkLiquidityDepth(event.mint, this.connection, cfg.safety.minLiquiditySol, event.source, event.poolQuoteVault),
     ]);
 
     const [mintAuthResult, freezeAuthResult, detectedProgramId] = authResults;
-    const tier1Results: CheckResult[] = [mintAuthResult, freezeAuthResult, sellRouteResult];
+    const tier1Results: CheckResult[] = [mintAuthResult, freezeAuthResult, sellRouteResult, liquidityResult];
 
     // 3. Short-circuit: any Tier 1 failure = immediate hard reject
     const tier1Failures = tier1Results.filter(r => !r.pass);
@@ -99,21 +109,50 @@ export class SafetyPipeline {
     }
 
     // 4. Tier 2 + Tier 3: Scoring signals in parallel via Promise.allSettled with timeouts
+    // All 5 scoring checks run concurrently for maximum parallelism.
+    // checkLpLock receives null for rugCheckData (uses on-chain fallback); after allSettled,
+    // RugCheck lpLockedPct data overrides the LP lock result if available.
     const tier2Signal = AbortSignal.timeout(cfg.safety.tier2TimeoutMs);
     const tier3Signal = AbortSignal.timeout(cfg.safety.tier3TimeoutMs);
 
-    const [rugCheckSettled, holderSettled, creatorSettled] = await Promise.allSettled([
+    const [rugCheckSettled, holderSettled, creatorSettled, lpLockSettled, metadataSettled] = await Promise.allSettled([
       checkRugCheck(event.mint, this.env.RUGCHECK_API_KEY, tier2Signal),
       checkHolderConcentration(event.mint, this.connection, cfg.safety.holder, detectedProgramId, event.source),
       checkCreatorHistory(event.creator, this.env.HELIUS_API_KEY, this.blocklist, tier3Signal),
+      checkLpLock(event.mint, this.connection, null, event.source, tier2Signal),
+      checkMetadataMutability(event.mint, this.connection, tier2Signal),
     ]);
 
-    // Resolve settled results -- pessimistic on rejection (score=0, pass=true to not incorrectly hard-block)
-    const rugCheckResult = this.resolveSettled(rugCheckSettled, 'rugcheck');
+    // Resolve rugCheck tuple -- extract CheckResult and RugCheckResultData separately
+    let rugCheckResult: CheckResult;
+    let rugCheckData: RugCheckResultData | null = null;
+    if (rugCheckSettled.status === 'fulfilled') {
+      [rugCheckResult, rugCheckData] = rugCheckSettled.value;
+    } else {
+      rugCheckResult = { pass: true, score: 0, source: 'rugcheck', detail: 'timeout_or_error' };
+    }
+
     const holderResult = this.resolveSettled(holderSettled, 'holder_concentration');
     const creatorResult = this.resolveSettled(creatorSettled, 'creator_history');
+    let lpLockResult = this.resolveSettled(lpLockSettled, 'lp_lock');
+    const metadataResult = this.resolveSettled(metadataSettled, 'metadata_mutability');
 
-    const tier2Results: CheckResult[] = [rugCheckResult, holderResult];
+    // Override lpLock result with RugCheck lpLockedPct data when available (more accurate than on-chain fallback)
+    if (rugCheckData && rugCheckData.lpLockedPct > 0) {
+      const pct = rugCheckData.lpLockedPct;
+      lpLockResult = {
+        pass: true,
+        score: pct >= 90 ? 100 : Math.round(pct),
+        source: 'lp_lock',
+        detail: `rugcheck lpLockedPct=${pct}`,
+      };
+    } else if (rugCheckData && rugCheckData.lpLockedPct === 0 && rugCheckData.risks.length > 0) {
+      // Confirmed unlocked per Pitfall 4
+      lpLockResult = { pass: true, score: 0, source: 'lp_lock', detail: 'rugcheck lpLockedPct=0 (confirmed unlocked)' };
+    }
+    // If rugCheckData is null or lpLockedPct=0 with no risks, keep the on-chain fallback result from checkLpLock
+
+    const tier2Results: CheckResult[] = [rugCheckResult, holderResult, lpLockResult, metadataResult];
     const tier3Results: CheckResult[] = [creatorResult];
 
     // 5. Soft block check: per-check rejections independent of aggregate score
@@ -146,11 +185,23 @@ export class SafetyPipeline {
     const holderScore = holderResult.score ?? 0;
     const creatorScore = creatorResult.score ?? 0;
 
-    const aggregateScore = Math.round(
+    let aggregateScore = Math.round(
       (rugScore / 100) * weights.rugCheck +
       (holderScore / 100) * weights.holder +
       (creatorScore / 100) * weights.creator,
     );
+
+    // 6a. Apply flat penalties for LP lock and metadata mutability (SAF-11)
+    // Penalties are subtracted from the weighted average (not included in it).
+    const lpLockScore = lpLockResult.score ?? 0;
+    const metadataScore = metadataResult.score ?? 0;
+
+    if (lpLockScore === 0) {
+      aggregateScore = Math.max(0, aggregateScore - cfg.safety.lpLockScorePenalty);
+    }
+    if (metadataScore === 0) {
+      aggregateScore = Math.max(0, aggregateScore - cfg.safety.metadataMutablePenalty);
+    }
 
     // 7. Threshold check: reject tokens below minSafetyScore (SAF-09)
     if (aggregateScore < cfg.minSafetyScore) {

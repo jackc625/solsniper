@@ -7,7 +7,16 @@ const RUGCHECK_BASE_URL = 'https://api.rugcheck.xyz/v1/tokens';
 interface RugCheckResponse {
   score: number;
   score_normalised: number;
+  lpLockedPct: number;
   risks: Array<{ name: string; level: string; description: string; score: number }>;
+}
+
+/**
+ * Structured RugCheck data subset for downstream checks (e.g., LP lock scoring).
+ */
+export interface RugCheckResultData {
+  lpLockedPct: number;
+  risks: Array<{ name: string }>;
 }
 
 /**
@@ -27,7 +36,7 @@ export async function checkRugCheck(
   mint: string,
   apiKey: string | undefined,
   signal: AbortSignal,
-): Promise<CheckResult> {
+): Promise<[CheckResult, RugCheckResultData | null]> {
   const url = `${RUGCHECK_BASE_URL}/${mint}/report/summary`;
 
   try {
@@ -40,30 +49,35 @@ export async function checkRugCheck(
 
     if (!response.ok) {
       log.warn({ mint, status: response.status }, 'RugCheck API returned non-200 status');
-      return {
+      return [{
         pass: true,
         score: 0,
         source: 'rugcheck',
         detail: `HTTP ${response.status}`,
-      };
+      }, null];
     }
 
     const data = (await response.json()) as RugCheckResponse;
     const safetyScore = Math.max(0, Math.min(100, Math.round(100 - data.score_normalised)));
 
-    return {
+    const resultData: RugCheckResultData = {
+      lpLockedPct: data.lpLockedPct ?? 0,
+      risks: data.risks.map(r => ({ name: r.name })),
+    };
+
+    return [{
       pass: true,
       score: safetyScore,
       source: 'rugcheck',
       detail: `score_normalised=${data.score_normalised} risks=${data.risks.length}`,
-    };
+    }, resultData];
   } catch (err: unknown) {
     log.warn({ mint, err }, 'RugCheck API fetch error or timeout');
-    return {
+    return [{
       pass: true,
       score: 0,
       source: 'rugcheck',
       detail: 'timeout_or_error',
-    };
+    }, null];
   }
 }
