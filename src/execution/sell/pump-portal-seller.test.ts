@@ -51,7 +51,8 @@ vi.mock('../../core/fee-estimator.js', () => ({
 // Imports (after mocks are registered)
 // ---------------------------------------------------------------------------
 import { pumpPortalSell } from './pump-portal-seller.js';
-const mockFeeEstimator = { getEstimate: mockGetEstimate };
+import type { FeeEstimator } from '../../core/fee-estimator.js';
+const mockFeeEstimator = { getEstimate: mockGetEstimate } as unknown as FeeEstimator;
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -78,6 +79,7 @@ function makeTradingConfig(): TradingConfig {
     takeProfitPct: 300,
     minSafetyScore: 60,
     dryRun: false,
+    minBalanceBufferSol: 0.01,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -95,6 +97,9 @@ function makeTradingConfig(): TradingConfig {
       holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
+      minLiquiditySol: 1.0,
+      lpLockScorePenalty: 30,
+      metadataMutablePenalty: 15,
     },
     execution: {
       buy: {

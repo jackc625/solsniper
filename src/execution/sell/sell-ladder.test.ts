@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Connection, Keypair } from '@solana/web3.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import type { Trade } from '../../types/index.js';
 import { PublicKey } from '@solana/web3.js';
 
@@ -69,6 +70,7 @@ const mockConnection = {
 } as unknown as Connection;
 
 const mockConnections = [mockConnection];
+const mockFeeEstimator = { getEstimate: vi.fn().mockResolvedValue({ maxLamports: 150000, priorityFeeSol: 0.00015, source: 'helius' as const }) } as unknown as FeeEstimator;
 
 function makeTradingConfig(): TradingConfig {
   return {
@@ -79,6 +81,7 @@ function makeTradingConfig(): TradingConfig {
     takeProfitPct: 300,
     minSafetyScore: 60,
     dryRun: false,
+    minBalanceBufferSol: 0.01,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -96,12 +99,16 @@ function makeTradingConfig(): TradingConfig {
       holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
+      minLiquiditySol: 1.0,
+      lpLockScorePenalty: 30,
+      metadataMutablePenalty: 15,
     },
     execution: {
       buy: {
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
       },
       sell: {
         standardSlippageBps: 500,
@@ -169,7 +176,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig1', solReceived: 0.5 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     // Advance timers to resolve any pending microtasks
@@ -197,7 +204,7 @@ describe('SellLadder', () => {
       .mockResolvedValueOnce({ signature: 'sig-high-fee', solReceived: 0.5 });                    // HIGH_FEE: resolves
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     // Advance past STANDARD timeout (30000ms) and HIGH_FEE processing
@@ -217,7 +224,7 @@ describe('SellLadder', () => {
     mockPumpPortalSell.mockImplementation(() => new Promise<never>(() => {}));
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     // Advance past all timeouts: standard(30s) + highFee(20s) + jito(30s) + chunked(60s) + pumpportal(30s) + emergency(30s)
@@ -245,7 +252,7 @@ describe('SellLadder', () => {
     mockJitoSell.mockResolvedValue({ signature: 'sig-jito', solReceived: 0.5 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     // Advance past STANDARD (30s) and HIGH_FEE (20s) timeouts
@@ -271,7 +278,7 @@ describe('SellLadder', () => {
     mockChunkedSell.mockResolvedValue({ confirmedTranches: 0 });  // CHUNKED: 0 tranches
 
     const tradeStore = makeTradeStore();  // no source set — PUMPPORTAL will skip
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     // Advance past STANDARD(30s) + HIGH_FEE(20s) + JITO(30s) timeouts, then CHUNKED resolves
@@ -291,7 +298,7 @@ describe('SellLadder', () => {
     mockChunkedSell.mockResolvedValue({ confirmedTranches: 2, solReceived: 1.0 });  // CHUNKED: 2 tranches confirmed
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001);
@@ -318,7 +325,7 @@ describe('SellLadder', () => {
 
     const tradeStore = makeTradeStore();  // no pumpportal source — PUMPPORTAL skips
     const config = makeTradingConfig();
-    const ladder = new SellLadder(mockWallet, mockConnections, config, tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, config, tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001);
@@ -355,7 +362,7 @@ describe('SellLadder', () => {
     mockPumpPortalSell.mockResolvedValue({ signature: 'pump-sell-sig', solReceived: 0.3 });
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.runAllTimersAsync();
@@ -378,7 +385,7 @@ describe('SellLadder', () => {
 
     // source is raydium, not pumpportal — PUMPPORTAL step should skip
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'raydium' } });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.runAllTimersAsync();
@@ -399,7 +406,7 @@ describe('SellLadder', () => {
 
     // pumpportal token, but last error is generic (not JupiterRouteError)
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.runAllTimersAsync();
@@ -416,7 +423,7 @@ describe('SellLadder', () => {
     mockChunkedSell.mockResolvedValue({ confirmedTranches: 1, solReceived: 0.5 });
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal', tokenProgramId: 'SomeToken22ProgramId' } });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001);
@@ -437,7 +444,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig1', solReceived: 0.42 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.runAllTimersAsync();
@@ -463,7 +470,7 @@ describe('SellLadder', () => {
         buyPriceSol: 0.000001,  // buyPriceSol is per-token unit -- NOT used for P&L
       }
     });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     // Capture emitted events
     const { botEventBus } = await import('../../dashboard/bot-event-bus.js');
@@ -488,7 +495,7 @@ describe('SellLadder', () => {
     mockChunkedSell.mockResolvedValue({ confirmedTranches: 2, solReceived: 0.88 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001);
@@ -507,7 +514,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig-fb', solReceived: undefined });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, 0.25);  // fallback = 0.25 SOL
     await vi.runAllTimersAsync();
@@ -529,7 +536,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig-partial', solReceived: 0.3 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true);
     await vi.runAllTimersAsync();
@@ -557,7 +564,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig-full', solReceived: 0.5 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);  // no partial flag (defaults false)
     await vi.runAllTimersAsync();
@@ -581,7 +588,7 @@ describe('SellLadder', () => {
     mockPumpPortalSell.mockImplementation(() => new Promise<never>(() => {}));
 
     const tradeStore = makeTradeStore({ getTradeByMintResult: { source: 'pumpportal' } });
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true);
     await vi.advanceTimersByTimeAsync(30001 + 20001 + 30001 + 60001 + 30001 + 30001);
@@ -602,7 +609,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig-p', solReceived: 0.2 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const { botEventBus } = await import('../../dashboard/bot-event-bus.js');
     const events: Array<{ type: string }> = [];
@@ -647,7 +654,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig-fresh', solReceived: 0.25 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT); // TOKEN_AMOUNT = 1_000_000n (stale)
     await vi.runAllTimersAsync();
@@ -683,7 +690,7 @@ describe('SellLadder', () => {
     mockJitoSell.mockResolvedValue({ signature: 'sig-jito', solReceived: 0.15 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT); // stale 1_000_000n passed
     await vi.advanceTimersByTimeAsync(30001 + 20001); // STANDARD + HIGH_FEE timeout
@@ -704,7 +711,7 @@ describe('SellLadder', () => {
     mockGetParsedTokenAccountsByOwner.mockResolvedValue({ value: [] }); // no accounts = 0 balance
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT);
     await vi.runAllTimersAsync();
@@ -740,7 +747,7 @@ describe('SellLadder', () => {
     mockStandardSell.mockResolvedValue({ signature: 'sig-partial', solReceived: 0.2 });
 
     const tradeStore = makeTradeStore();
-    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const ladder = new SellLadder(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const resultPromise = ladder.sell(MINT, TOKEN_AMOUNT, undefined, true); // partial=true, stale amount
     await vi.runAllTimersAsync();

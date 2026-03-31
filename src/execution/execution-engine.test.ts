@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Connection, Keypair } from '@solana/web3.js';
 import type { TokenEvent } from '../types/index.js';
 import type { TradingConfig } from '../config/trading.js';
+import type { FeeEstimator } from '../core/fee-estimator.js';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — declared before imports so vi.mock factories can reference them.
@@ -18,6 +19,7 @@ const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntim
     stopLossPct: -50,
     takeProfitPct: 300,
     minSafetyScore: 60,
+    minBalanceBufferSol: 0.01,
     detection: {
       wsHeartbeatIntervalMs: 30000, wsBaseBackoffMs: 3000, wsMaxBackoffMs: 60000,
       wsExcessiveReconnectThreshold: 5, wsExcessiveReconnectWindowMs: 600000,
@@ -28,9 +30,10 @@ const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntim
       weights: { rugCheck: 40, holder: 30, creator: 30 },
       holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true, blocklistPath: './data/creator-blocklist.json',
+      minLiquiditySol: 1.0, lpLockScorePenalty: 30, metadataMutablePenalty: 15,
     },
     execution: {
-      buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1 },
+      buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1, maxPriorityFeeCapLamports: 500000 },
       sell: {
         standardSlippageBps: 500, emergencySlippageBps: 4900, standardTimeoutMs: 30000,
         highFeeTimeoutMs: 20000, highFeeMultiplier: 3, jitoTimeoutMs: 30000,
@@ -77,6 +80,7 @@ import { ExecutionEngine } from './execution-engine.js';
 
 const mockWallet = {} as unknown as Keypair;
 const mockConnections = [{} as unknown as Connection];
+const mockFeeEstimator = { getEstimate: vi.fn().mockResolvedValue({ maxLamports: 150000, priorityFeeSol: 0.00015, source: 'helius' as const }) } as unknown as FeeEstimator;
 
 function makeTradingConfig(): TradingConfig {
   return {
@@ -87,6 +91,7 @@ function makeTradingConfig(): TradingConfig {
     takeProfitPct: 300,
     minSafetyScore: 60,
     dryRun: false,
+    minBalanceBufferSol: 0.01,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -104,12 +109,16 @@ function makeTradingConfig(): TradingConfig {
       holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
+      minLiquiditySol: 1.0,
+      lpLockScorePenalty: 30,
+      metadataMutablePenalty: 15,
     },
     execution: {
       buy: {
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
       },
       sell: {
         standardSlippageBps: 500,
@@ -166,7 +175,7 @@ describe('ExecutionEngine', () => {
     mockJupiterClientQuote.mockResolvedValue({});
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpportal'));
     await vi.runAllTimersAsync();
@@ -180,7 +189,7 @@ describe('ExecutionEngine', () => {
     mockJupiterBuy.mockResolvedValue({ success: true, signature: 'jup-sig' });
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('raydium'));
     await vi.runAllTimersAsync();
@@ -194,7 +203,7 @@ describe('ExecutionEngine', () => {
     mockJupiterBuy.mockResolvedValue({ success: true, signature: 'jup-sig' });
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpswap'));
     await vi.runAllTimersAsync();
@@ -213,7 +222,7 @@ describe('ExecutionEngine', () => {
     mockJupiterClientQuote.mockResolvedValue({});
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpportal'));
     await vi.runAllTimersAsync();
@@ -234,7 +243,7 @@ describe('ExecutionEngine', () => {
     });
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpportal'));
     await vi.runAllTimersAsync();
@@ -252,7 +261,7 @@ describe('ExecutionEngine', () => {
     mockPumpPortalBuy.mockRejectedValue(new Error('Network timeout'));
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpportal'));
     await vi.runAllTimersAsync();
@@ -279,7 +288,7 @@ describe('ExecutionEngine', () => {
       .mockResolvedValueOnce({});
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpportal'));
     // buy() returns immediately (fire-and-forget verification)
@@ -301,7 +310,7 @@ describe('ExecutionEngine', () => {
     mockJupiterBuy.mockResolvedValue({ success: true, signature: 'jup-sig' });
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('raydium'));
     await buyPromise;
@@ -315,7 +324,7 @@ describe('ExecutionEngine', () => {
     mockJupiterBuy.mockResolvedValue({ success: true, signature: 'jup-sig' });
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpswap'));
     await buyPromise;
@@ -329,7 +338,7 @@ describe('ExecutionEngine', () => {
     mockPumpPortalBuy.mockResolvedValue({ success: false, errorMessage: 'HTTP 400' });
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     const buyPromise = engine.buy(makeEvent('pumpportal'));
     await buyPromise;
@@ -355,7 +364,7 @@ describe('ExecutionEngine', () => {
     const tradeStore = makeTradeStore();
     const config = makeTradingConfig();
     config.buyAmountSol = 0.01;
-    const engine = new ExecutionEngine(mockWallet, mockConnections, config, tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, config, tradeStore as never, mockFeeEstimator);
 
     const event = makeEvent('pumpportal');
     event.vSolInBondingCurve = 30;
@@ -398,7 +407,7 @@ describe('ExecutionEngine', () => {
     mockJupiterClientQuote.mockResolvedValue({});
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     // Event without bonding curve data
     const event = makeEvent('pumpportal');
@@ -420,7 +429,7 @@ describe('ExecutionEngine', () => {
     mockJupiterClientQuote.mockImplementation(() => new Promise(() => {}));
 
     const tradeStore = makeTradeStore();
-    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never);
+    const engine = new ExecutionEngine(mockWallet, mockConnections, makeTradingConfig(), tradeStore as never, mockFeeEstimator);
 
     // buy() should return without waiting for all 3 retries
     const buyPromise = engine.buy(makeEvent('pumpportal'));

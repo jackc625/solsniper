@@ -91,6 +91,7 @@ const mockTradingConfig: TradingConfig = {
   takeProfitPct: 0.5,
   minSafetyScore: 60,
   dryRun: false,
+  minBalanceBufferSol: 0.01,
   detection: {
     wsHeartbeatIntervalMs: 30000,
     wsBaseBackoffMs: 3000,
@@ -113,7 +114,7 @@ const mockTradingConfig: TradingConfig = {
     metadataMutablePenalty: 15,
   },
   execution: {
-    buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1 },
+    buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1, maxPriorityFeeCapLamports: 500000 },
     sell: {
       standardSlippageBps: 500,
       emergencySlippageBps: 4900,

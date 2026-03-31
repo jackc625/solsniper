@@ -68,6 +68,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['detection']> = {}):
     takeProfitPct: 300,
     minSafetyScore: 60,
     dryRun: false,
+    minBalanceBufferSol: 0.01,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -86,9 +87,12 @@ function makeTradingConfig(overrides: Partial<TradingConfig['detection']> = {}):
       holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
+      minLiquiditySol: 1.0,
+      lpLockScorePenalty: 30,
+      metadataMutablePenalty: 15,
     },
     execution: {
-      buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1 },
+      buy: { slippageBps: 1000, priorityFeeBaseLamports: 100000, priorityFeeMultiplier: 1, maxPriorityFeeCapLamports: 500000 },
       sell: {
         standardSlippageBps: 500,
         emergencySlippageBps: 4900,
