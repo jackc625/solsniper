@@ -26,7 +26,7 @@ Requirements for the hardening & polish milestone. Each maps to roadmap phases.
 
 - [x] **EXE-10**: Bot uses dynamic priority fees via Helius getPriorityFeeEstimate instead of static fees
 - [x] **EXE-11**: Bot sets precise compute unit limits via ComputeBudgetProgram to reduce per-transaction cost
-- [ ] **EXE-12**: Bot checks wallet SOL balance before buying — skips buy if below configurable minimum
+- [x] **EXE-12**: Bot checks wallet SOL balance before buying — skips buy if below configurable minimum
 
 ### Reliability & Monitoring
 
@@ -93,7 +93,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAF-14 | Phase 18 | Complete |
 | EXE-10 | Phase 19 | Complete |
 | EXE-11 | Phase 19 | Complete |
-| EXE-12 | Phase 19 | Pending |
+| EXE-12 | Phase 19 | Complete |
 | REL-01 | Phase 20 | Pending |
 | REL-02 | Phase 20 | Pending |
 | REL-03 | Phase 20 | Pending |
