@@ -32,3 +32,21 @@ export const MIGRATION_SQL = [
   `ALTER TABLE trades ADD COLUMN safety_rejection_reasons TEXT`,
   `ALTER TABLE trades ADD COLUMN safety_checks_detail TEXT`,
 ];
+
+// Phase 20: Alerts table for SYSTEM_ALERT persistence (REL-02)
+export const ALERTS_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS alerts (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp  INTEGER NOT NULL,
+  type       TEXT    NOT NULL,
+  severity   TEXT    NOT NULL,
+  source     TEXT    NOT NULL,
+  message    TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_source ON alerts (source);
+`;
+
+// Future migrations for the alerts table go here.
+// No-op for fresh DBs -- alerts table already created by ALERTS_SCHEMA_SQL.
+export const ALERTS_MIGRATION_SQL: string[] = [];

@@ -11,7 +11,8 @@ export type BotEventType =
   | 'SELL_FAILED'
   | 'ERROR'
   | 'CONFIG_CHANGED'
-  | 'LOW_BALANCE';     // EXE-12: emitted when wallet balance below buy threshold
+  | 'LOW_BALANCE'       // EXE-12: emitted when wallet balance below buy threshold
+  | 'SYSTEM_ALERT';     // REL-02: emitted on detection disconnect, API failure, rate limit
 
 export interface BotEvent {
   type: BotEventType;
@@ -23,6 +24,8 @@ export interface BotEvent {
   source?: string;        // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
   buyAmountSol?: number;  // Configured or actual buy amount in SOL
   pnlSol?: number;        // Realized P&L in SOL (present on SELL_CONFIRMED/SELL_FAILED when known)
+  severity?: 'info' | 'warn' | 'error';                         // REL-02: alert severity (optional to preserve existing emit calls)
+  alertSource?: 'detection' | 'rpc' | 'api' | 'rateLimit';     // REL-02: alert origin subsystem (optional)
 }
 
 // Typed EventEmitter3 -- only one event name ('event') with BotEvent payload.

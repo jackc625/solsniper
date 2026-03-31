@@ -86,6 +86,20 @@ const PositionManagementConfigSchema = z.object({
 
 export type PositionManagementConfig = z.infer<typeof PositionManagementConfigSchema>;
 
+// Phase 20: Monitoring configuration for alerts and log rotation (REL-02, REL-04)
+const LogRotationConfigSchema = z.object({
+  sizeMb: z.number().int().positive().default(50),
+  retentionDays: z.number().int().positive().default(7),
+});
+
+export const MonitoringConfigSchema = z.object({
+  alertCooldownMs: z.number().int().positive().default(60_000),
+  apiFailureThreshold: z.number().int().positive().default(5),
+  logRotation: LogRotationConfigSchema.default({}),
+});
+
+export type MonitoringConfig = z.infer<typeof MonitoringConfigSchema>;
+
 export const TradingConfigSchema = z.object({
   buyAmountSol: z.number().positive().max(10),
   maxSlippageBps: z.number().int().min(50).max(4900),
@@ -99,6 +113,7 @@ export const TradingConfigSchema = z.object({
   safety: SafetyConfigSchema,
   execution: ExecutionConfigSchema,
   positionManagement: PositionManagementConfigSchema,
+  monitoring: MonitoringConfigSchema.default({}),
 });
 
 export type TradingConfig = z.infer<typeof TradingConfigSchema>;

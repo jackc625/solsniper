@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createModuleLogger } from '../core/logger.js';
-import { SCHEMA_SQL, MIGRATION_SQL } from './schema.js';
+import { SCHEMA_SQL, MIGRATION_SQL, ALERTS_SCHEMA_SQL } from './schema.js';
 import type { Trade, TradeState } from '../types/index.js';
 import type BetterSqlite3 from 'better-sqlite3';
 
@@ -72,6 +72,9 @@ export class TradeStore {
         // Column already exists -- safe to ignore
       }
     }
+
+    // Create alerts table (Phase 20)
+    this.db.exec(ALERTS_SCHEMA_SQL);
 
     // Compile prepared statements once at construction time for efficiency.
     this.stmtInsert = this.db.prepare(
@@ -385,6 +388,14 @@ export class TradeStore {
   getTradeByMint(mint: string): Trade | undefined {
     const row = this.stmtGetByMint.get({ mint }) as Record<string, unknown> | undefined;
     return row ? this.mapRow(row) : undefined;
+  }
+
+  /**
+   * Returns the underlying better-sqlite3 Database instance.
+   * Used by AlertStore to share the same WAL-mode connection.
+   */
+  getDb(): BetterSqlite3.Database {
+    return this.db;
   }
 
   /**
