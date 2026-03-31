@@ -31,9 +31,9 @@ Requirements for the hardening & polish milestone. Each maps to roadmap phases.
 ### Reliability & Monitoring
 
 - [ ] **REL-01**: /api/health endpoint returns structured status of all components (detection, RPC, safety, execution)
-- [ ] **REL-02**: Bot emits SYSTEM_ALERT events when detection disconnects, APIs fail, or rate limits activate
+- [x] **REL-02**: Bot emits SYSTEM_ALERT events when detection disconnects, APIs fail, or rate limits activate
 - [ ] **REL-03**: Bot tracks per-RPC-connection latency and error rates
-- [ ] **REL-04**: Log files rotate automatically by size/time to prevent disk fill
+- [x] **REL-04**: Log files rotate automatically by size/time to prevent disk fill
 
 ### Dashboard
 
@@ -95,9 +95,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXE-11 | Phase 19 | Complete |
 | EXE-12 | Phase 19 | Complete |
 | REL-01 | Phase 20 | Pending |
-| REL-02 | Phase 20 | Pending |
+| REL-02 | Phase 20 | Complete |
 | REL-03 | Phase 20 | Pending |
-| REL-04 | Phase 20 | Pending |
+| REL-04 | Phase 20 | Complete |
 | DASH-07 | Phase 21 | Pending |
 | DASH-08 | Phase 21 | Pending |
 | DASH-09 | Phase 21 | Pending |
