@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 17: Security Fixes** - Resolve all BUGS.md security findings before adding new attack surface (completed 2026-03-27)
 - [x] **Phase 18: Safety Pipeline Audit & Enhancement** - Validate and improve safety filtering accuracy with new rug detection checks (completed 2026-03-30)
-- [x] **Phase 19: Execution Performance** - Dynamic fees, compute optimization, and balance guards for better trade outcomes (completed 2026-03-31)
+- [x] **Phase 19: Execution Performance** - Dynamic fees, compute optimization, and balance guards for better trade outcomes (completed 2026-03-31)
 - [ ] **Phase 20: Reliability & Monitoring** - Health endpoints, system alerts, RPC tracking, and log rotation
 - [ ] **Phase 21: Dashboard Overhaul** - Analytics, pipeline visibility, operational controls, and system status
 
@@ -63,11 +63,12 @@ Plans:
   1. Bot fetches priority fee estimates from Helius getPriorityFeeEstimate and uses them for buy and sell transactions — no more static priority fee values
   2. Bot sets compute unit limits via ComputeBudgetProgram on every transaction — reduced per-transaction cost compared to default 200K CU
   3. Bot checks wallet SOL balance before every buy attempt — skips buy and logs warning if balance is below configurable minimum
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
 - [x] 19-01-PLAN.md — FeeEstimator service, BalanceGuard service, config schema extensions, LOW_BALANCE event (EXE-10, EXE-11, EXE-12)
 - [x] 19-02-PLAN.md — Wire FeeEstimator into all buyer/seller files + Jito CU simulation (EXE-10, EXE-11)
 - [x] 19-03-PLAN.md — Wire BalanceGuard into detection handler for buy-path balance checks (EXE-12)
+- [ ] 19-04-PLAN.md — Gap closure: fix chunked-seller feeEstimator wiring + stale test mocks (EXE-10, EXE-11, EXE-12)
 
 ### Phase 20: Reliability & Monitoring
 **Goal**: Operator can detect and diagnose silent failures — structured health checks, system alerts on component failures, per-RPC metrics, and automatic log rotation prevent operational blind spots
@@ -117,6 +118,6 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
 | 18. Safety Pipeline Audit & Enhancement | v1.1 | 4/4 | Complete   | 2026-03-30 |
-| 19. Execution Performance | v1.1 | 3/3 | Complete    | 2026-03-31 |
+| 19. Execution Performance | v1.1 | 3/4 | Gap closure | 2026-03-31 |
 | 20. Reliability & Monitoring | v1.1 | 0/? | Not started | - |
 | 21. Dashboard Overhaul | v1.1 | 0/? | Not started | - |
