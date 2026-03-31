@@ -1,10 +1,15 @@
 import type { CheckResult } from '../../types/index.js';
 import type { Blocklist } from '../../safety/blocklist.js';
+import type { MetricsTracker } from '../../monitoring/metrics-tracker.js';
+import type { ApiAlertCallback } from '../../core/fee-estimator.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('tier3-creator');
 const HELIUS_TX_URL = 'https://api-mainnet.helius-rpc.com/v0/addresses';
 const SERIAL_DEPLOYER_THRESHOLD = 10;
+
+// D-10: Module-level consecutive failure counter
+let consecutiveFailures = 0;
 
 interface HeliusTx {
   type: string;
@@ -77,6 +82,9 @@ export async function checkCreatorHistory(
   heliusApiKey: string | undefined,
   blocklist: Blocklist,
   signal: AbortSignal,
+  metricsTracker?: MetricsTracker,
+  onApiAlert?: ApiAlertCallback,
+  apiFailureThreshold = 5,
 ): Promise<CheckResult> {
   // Fast path 1: No creator in event (Raydium events)
   if (!creator) {
@@ -111,11 +119,20 @@ export async function checkCreatorHistory(
 
   const url = `${HELIUS_TX_URL}/${creator}/transactions?type=TOKEN_MINT&limit=10`;
 
+  const start = Date.now();
+  let success = false;
   try {
     const response = await fetch(url, {
       signal,
       headers: { 'X-Api-Key': heliusApiKey },
     });
+
+    success = response.ok;
+
+    // D-10: HTTP 429 rate limit detection
+    if (response.status === 429) {
+      onApiAlert?.('helius:das-api', 'rate_limit', 'HTTP 429 rate limit from helius:das-api');
+    }
 
     if (!response.ok) {
       log.warn({ creator, status: response.status }, 'Helius API returned non-200 status');
@@ -152,5 +169,18 @@ export async function checkCreatorHistory(
       source: 'creator_history',
       detail: 'timeout_or_error',
     };
+  } finally {
+    metricsTracker?.record('helius:das-api', Date.now() - start, success);
+
+    // D-10: Consecutive failure tracking
+    if (!success) {
+      consecutiveFailures++;
+      if (consecutiveFailures >= apiFailureThreshold) {
+        onApiAlert?.('helius:das-api', 'consecutive_failure',
+          `${consecutiveFailures} consecutive failures on helius:das-api`);
+      }
+    } else {
+      consecutiveFailures = 0;
+    }
   }
 }

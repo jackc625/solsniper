@@ -11,17 +11,25 @@ import { broadcastWithRetry } from '../broadcaster.js';
 import type { BuyResult } from '../../types/index.js';
 import type { TradingConfig } from '../../config/trading.js';
 import type { FeeEstimator } from '../../core/fee-estimator.js';
+import type { MetricsTracker } from '../../monitoring/metrics-tracker.js';
+import type { ApiAlertCallback } from '../../core/fee-estimator.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('pump-portal-buyer');
 const PUMPPORTAL_API = 'https://pumpportal.fun/api/trade-local';
+
+// D-10: Module-level consecutive failure counter
+let consecutiveFailures = 0;
 
 export async function pumpPortalBuy(
   mint: string,
   config: TradingConfig,
   wallet: Keypair,
   connections: Connection[],
-  feeEstimator: FeeEstimator
+  feeEstimator: FeeEstimator,
+  metricsTracker?: MetricsTracker,
+  onApiAlert?: ApiAlertCallback,
+  apiFailureThreshold = 5,
 ): Promise<BuyResult> {
   const { buy } = config.execution;
   // CRITICAL: PumpPortal slippage is PERCENT, not basis points (bps/100 = percent)
@@ -32,36 +40,62 @@ export async function pumpPortalBuy(
 
   log.debug({ mint, buyAmountSol: config.buyAmountSol, slippagePct }, 'PumpPortal buy initiated');
 
-  const response = await fetch(PUMPPORTAL_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      publicKey: wallet.publicKey.toBase58(),
-      action: 'buy',
-      mint,
-      denominatedInSol: 'true',
-      amount: config.buyAmountSol,
-      slippage: slippagePct,
-      priorityFee: priorityFeeSol,
-      pool: 'pump',
-    }),
-  });
+  const start = Date.now();
+  let success = false;
+  try {
+    const response = await fetch(PUMPPORTAL_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        publicKey: wallet.publicKey.toBase58(),
+        action: 'buy',
+        mint,
+        denominatedInSol: 'true',
+        amount: config.buyAmountSol,
+        slippage: slippagePct,
+        priorityFee: priorityFeeSol,
+        pool: 'pump',
+      }),
+    });
 
-  if (!response.ok) {
-    return { success: false, errorMessage: `PumpPortal HTTP ${response.status}` };
+    success = response.ok;
+
+    // D-10: HTTP 429 rate limit detection
+    if (response.status === 429) {
+      onApiAlert?.('pumpportal:buy', 'rate_limit', 'HTTP 429 rate limit from pumpportal:buy');
+    }
+
+    if (!response.ok) {
+      return { success: false, errorMessage: `PumpPortal HTTP ${response.status}` };
+    }
+
+    // Raw bytes response -- NOT JSON. Use arrayBuffer().
+    const txBytes = new Uint8Array(await response.arrayBuffer());
+    const tx = VersionedTransaction.deserialize(txBytes);
+
+    const result = await broadcastWithRetry(tx, wallet, connections);
+
+    log.info({ mint, signature: result.signature }, 'PumpPortal buy confirmed');
+    return {
+      success: true,
+      signature: result.signature,
+      // amountTokens not available from PumpPortal API response; Phase 7 price polling fills this
+      amountTokens: undefined,
+    };
+  } catch (err) {
+    throw err;
+  } finally {
+    metricsTracker?.record('pumpportal:buy', Date.now() - start, success);
+
+    // D-10: Consecutive failure tracking
+    if (!success) {
+      consecutiveFailures++;
+      if (consecutiveFailures >= apiFailureThreshold) {
+        onApiAlert?.('pumpportal:buy', 'consecutive_failure',
+          `${consecutiveFailures} consecutive failures on pumpportal:buy`);
+      }
+    } else {
+      consecutiveFailures = 0;
+    }
   }
-
-  // Raw bytes response -- NOT JSON. Use arrayBuffer().
-  const txBytes = new Uint8Array(await response.arrayBuffer());
-  const tx = VersionedTransaction.deserialize(txBytes);
-
-  const result = await broadcastWithRetry(tx, wallet, connections);
-
-  log.info({ mint, signature: result.signature }, 'PumpPortal buy confirmed');
-  return {
-    success: true,
-    signature: result.signature,
-    // amountTokens not available from PumpPortal API response; Phase 7 price polling fills this
-    amountTokens: undefined,
-  };
 }

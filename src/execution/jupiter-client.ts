@@ -1,5 +1,7 @@
 import { env } from '../config/env.js';
 import { createModuleLogger } from '../core/logger.js';
+import type { MetricsTracker } from '../monitoring/metrics-tracker.js';
+import type { ApiAlertCallback } from '../core/fee-estimator.js';
 
 const log = createModuleLogger('jupiter-client');
 
@@ -33,6 +35,23 @@ export class JupiterRouteError extends Error {
  */
 export class JupiterClient {
   private cooldownUntil: number = 0;
+  private metricsTracker?: MetricsTracker;
+  private onApiAlert?: ApiAlertCallback;
+  private apiFailureThreshold = 5;
+  private readonly consecutiveFailures = new Map<string, number>();
+
+  // ---------------------------------------------------------------------------
+  // Monitoring injection (set from index.ts after construction)
+  // ---------------------------------------------------------------------------
+
+  setMetricsTracker(mt: MetricsTracker): void {
+    this.metricsTracker = mt;
+  }
+
+  setApiAlertCallback(cb: ApiAlertCallback, threshold = 5): void {
+    this.onApiAlert = cb;
+    this.apiFailureThreshold = threshold;
+  }
 
   // ---------------------------------------------------------------------------
   // Private helpers
@@ -40,6 +59,21 @@ export class JupiterClient {
 
   private headers(): Record<string, string> {
     return { 'x-api-key': env.SOLSNIPER_JUPITER_API_KEY };
+  }
+
+  private trackResult(endpoint: string, latencyMs: number, success: boolean): void {
+    this.metricsTracker?.record(endpoint, latencyMs, success);
+
+    if (!success) {
+      const count = (this.consecutiveFailures.get(endpoint) ?? 0) + 1;
+      this.consecutiveFailures.set(endpoint, count);
+      if (count >= this.apiFailureThreshold) {
+        this.onApiAlert?.(endpoint, 'consecutive_failure',
+          `${count} consecutive failures on ${endpoint}`);
+      }
+    } else {
+      this.consecutiveFailures.set(endpoint, 0);
+    }
   }
 
   private isCoolingDown(): boolean {
@@ -71,37 +105,49 @@ export class JupiterClient {
       throw new Error('Jupiter rate limited -- cooldown active');
     }
 
-    const url = `${JUPITER_BASE_URL}/quote?${params.toString()}`;
-    const response = await fetch(url, {
-      headers: this.headers(),
-      ...(signal ? { signal } : {}),
-    });
+    const start = Date.now();
+    let success = false;
+    try {
+      const url = `${JUPITER_BASE_URL}/quote?${params.toString()}`;
+      const response = await fetch(url, {
+        headers: this.headers(),
+        ...(signal ? { signal } : {}),
+      });
 
-    if (response.status === 429) {
-      const retryAfterHeader = response.headers.get('retry-after');
-      const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
-      this.triggerCooldown(retryAfterMs);
-      throw new Error('Jupiter rate limited (429)');
+      success = response.ok;
+
+      if (response.status === 429) {
+        const retryAfterHeader = response.headers.get('retry-after');
+        const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
+        this.triggerCooldown(retryAfterMs);
+        // D-10: HTTP 429 rate limit detection
+        this.onApiAlert?.('jupiter:quote', 'rate_limit', 'HTTP 429 rate limit from jupiter:quote');
+        throw new Error('Jupiter rate limited (429)');
+      }
+
+      if (response.status === 400) {
+        let errorCode: string | undefined;
+        try {
+          const body = await response.json() as { errorCode?: string };
+          errorCode = body.errorCode;
+        } catch { /* body not JSON */ }
+        log.warn({ errorCode }, 'Jupiter quote 400');
+        throw new JupiterRouteError(
+          `Jupiter quote HTTP 400${errorCode ? `: ${errorCode}` : ''}`,
+          errorCode,
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`Jupiter quote HTTP ${response.status}`);
+      }
+
+      return response.json();
+    } catch (err) {
+      throw err;
+    } finally {
+      this.trackResult('jupiter:quote', Date.now() - start, success);
     }
-
-    if (response.status === 400) {
-      let errorCode: string | undefined;
-      try {
-        const body = await response.json() as { errorCode?: string };
-        errorCode = body.errorCode;
-      } catch { /* body not JSON */ }
-      log.warn({ errorCode }, 'Jupiter quote 400');
-      throw new JupiterRouteError(
-        `Jupiter quote HTTP 400${errorCode ? `: ${errorCode}` : ''}`,
-        errorCode,
-      );
-    }
-
-    if (!response.ok) {
-      throw new Error(`Jupiter quote HTTP ${response.status}`);
-    }
-
-    return response.json();
   }
 
   /**
@@ -118,40 +164,52 @@ export class JupiterClient {
       throw new Error('Jupiter rate limited -- cooldown active');
     }
 
-    const response = await fetch(`${JUPITER_BASE_URL}/swap`, {
-      method: 'POST',
-      headers: {
-        ...this.headers(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const start = Date.now();
+    let success = false;
+    try {
+      const response = await fetch(`${JUPITER_BASE_URL}/swap`, {
+        method: 'POST',
+        headers: {
+          ...this.headers(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (response.status === 429) {
-      const retryAfterHeader = response.headers.get('retry-after');
-      const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
-      this.triggerCooldown(retryAfterMs);
-      throw new Error('Jupiter rate limited (429)');
+      success = response.ok;
+
+      if (response.status === 429) {
+        const retryAfterHeader = response.headers.get('retry-after');
+        const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
+        this.triggerCooldown(retryAfterMs);
+        // D-10: HTTP 429 rate limit detection
+        this.onApiAlert?.('jupiter:swap', 'rate_limit', 'HTTP 429 rate limit from jupiter:swap');
+        throw new Error('Jupiter rate limited (429)');
+      }
+
+      if (response.status === 400) {
+        let errorCode: string | undefined;
+        try {
+          const body = await response.json() as { errorCode?: string };
+          errorCode = body.errorCode;
+        } catch { /* body not JSON */ }
+        log.warn({ errorCode }, 'Jupiter swap 400');
+        throw new JupiterRouteError(
+          `Jupiter swap HTTP 400${errorCode ? `: ${errorCode}` : ''}`,
+          errorCode,
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`Jupiter swap HTTP ${response.status}`);
+      }
+
+      return response.json() as Promise<{ swapTransaction: string }>;
+    } catch (err) {
+      throw err;
+    } finally {
+      this.trackResult('jupiter:swap', Date.now() - start, success);
     }
-
-    if (response.status === 400) {
-      let errorCode: string | undefined;
-      try {
-        const body = await response.json() as { errorCode?: string };
-        errorCode = body.errorCode;
-      } catch { /* body not JSON */ }
-      log.warn({ errorCode }, 'Jupiter swap 400');
-      throw new JupiterRouteError(
-        `Jupiter swap HTTP 400${errorCode ? `: ${errorCode}` : ''}`,
-        errorCode,
-      );
-    }
-
-    if (!response.ok) {
-      throw new Error(`Jupiter swap HTTP ${response.status}`);
-    }
-
-    return response.json() as Promise<{ swapTransaction: string }>;
   }
 
   /**

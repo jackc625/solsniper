@@ -1,8 +1,12 @@
 import { createModuleLogger } from './logger.js';
 import type { TradingConfig } from '../config/trading.js';
+import type { MetricsTracker } from '../monitoring/metrics-tracker.js';
 
 const log = createModuleLogger('fee-estimator');
 const ESTIMATED_CU = 200_000; // Standard swap CU estimate for conversion
+
+/** Callback for consecutive failure / rate limit alert emission (wired in index.ts). */
+export type ApiAlertCallback = (endpoint: string, type: 'consecutive_failure' | 'rate_limit', message: string) => void;
 
 export interface FeeEstimate {
   maxLamports: number;       // For Jupiter paths: total lamports cap
@@ -14,10 +18,23 @@ export class FeeEstimator {
   private cache: { microlamportsPerCU: number; expiry: number } | null = null;
   private readonly ttlMs: number;
   private readonly rpcUrl: string;
+  private readonly metricsTracker?: MetricsTracker;
+  private readonly onApiAlert?: ApiAlertCallback;
+  private readonly apiFailureThreshold: number;
+  private consecutiveFailures = 0;
 
-  constructor(rpcUrl: string, ttlMs = 5000) {
+  constructor(
+    rpcUrl: string,
+    ttlMs = 5000,
+    metricsTracker?: MetricsTracker,
+    onApiAlert?: ApiAlertCallback,
+    apiFailureThreshold = 5,
+  ) {
     this.rpcUrl = rpcUrl;
     this.ttlMs = ttlMs;
+    this.metricsTracker = metricsTracker;
+    this.onApiAlert = onApiAlert;
+    this.apiFailureThreshold = apiFailureThreshold;
   }
 
   async getEstimate(config: TradingConfig): Promise<FeeEstimate> {
@@ -33,6 +50,8 @@ export class FeeEstimator {
     }
 
     // Fetch from Helius
+    const start = Date.now();
+    let success = false;
     try {
       const response = await fetch(this.rpcUrl, {
         method: 'POST',
@@ -44,6 +63,13 @@ export class FeeEstimator {
           params: [{ options: { priorityLevel: 'VeryHigh' } }],
         }),
       });
+
+      success = response.ok;
+
+      // D-10: HTTP 429 rate limit detection
+      if (response.status === 429) {
+        this.onApiAlert?.('helius:fee-estimate', 'rate_limit', 'HTTP 429 rate limit from helius:fee-estimate');
+      }
 
       if (!response.ok) {
         throw new Error(`Helius HTTP ${response.status}`);
@@ -74,6 +100,19 @@ export class FeeEstimator {
       log.warn({ err, fallbackLamports: capped, source: 'fallback' }, 'Helius fee estimate failed -- using static fallback');
 
       return { maxLamports: capped, priorityFeeSol: capped / 1e9, source: 'fallback' };
+    } finally {
+      this.metricsTracker?.record('helius:fee-estimate', Date.now() - start, success);
+
+      // D-10: Consecutive failure tracking
+      if (!success) {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= this.apiFailureThreshold) {
+          this.onApiAlert?.('helius:fee-estimate', 'consecutive_failure',
+            `${this.consecutiveFailures} consecutive failures on helius:fee-estimate`);
+        }
+      } else {
+        this.consecutiveFailures = 0;
+      }
     }
   }
 }

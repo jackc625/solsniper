@@ -19,12 +19,47 @@ import { jupiterClient } from '../jupiter-client.js';
 import type { TradingConfig } from '../../config/trading.js';
 import { getRuntimeConfig } from '../../config/trading.js';
 import type { FeeEstimator } from '../../core/fee-estimator.js';
+import type { MetricsTracker } from '../../monitoring/metrics-tracker.js';
+import type { ApiAlertCallback } from '../../core/fee-estimator.js';
 import type { SellOutcome } from '../../types/index.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('jito-seller');
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const JITO_BUNDLE_URL = 'https://mainnet.block-engine.jito.wtf/api/v1/bundles';
+
+// D-10: Module-level monitoring state (set from index.ts)
+let _metricsTracker: MetricsTracker | undefined;
+let _onApiAlert: ApiAlertCallback | undefined;
+let _apiFailureThreshold = 5;
+const _consecutiveFailures = new Map<string, number>();
+
+export function setJitoMonitoring(mt: MetricsTracker, cb: ApiAlertCallback, threshold = 5): void {
+  _metricsTracker = mt;
+  _onApiAlert = cb;
+  _apiFailureThreshold = threshold;
+}
+
+function trackJitoResult(endpoint: string, latencyMs: number, success: boolean, status?: number): void {
+  _metricsTracker?.record(endpoint, latencyMs, success);
+
+  // D-10: HTTP 429 rate limit detection
+  if (status === 429) {
+    _onApiAlert?.(endpoint, 'rate_limit', `HTTP 429 rate limit from ${endpoint}`);
+  }
+
+  // D-10: Consecutive failure tracking
+  if (!success) {
+    const count = (_consecutiveFailures.get(endpoint) ?? 0) + 1;
+    _consecutiveFailures.set(endpoint, count);
+    if (count >= _apiFailureThreshold) {
+      _onApiAlert?.(endpoint, 'consecutive_failure',
+        `${count} consecutive failures on ${endpoint}`);
+    }
+  } else {
+    _consecutiveFailures.set(endpoint, 0);
+  }
+}
 
 // Known Jito tip accounts (stable as of 2026; getTipAccounts is the authoritative source)
 const JITO_TIP_ACCOUNTS = [
@@ -189,7 +224,9 @@ export async function jitoSell(
   const encodedSwap = bs58.encode(signedSwapBytes);
   const encodedTip = bs58.encode(tipTx.serialize());
 
-  const bundleResponse = await fetch(JITO_BUNDLE_URL, {
+  const bundleSubmitStart = Date.now();
+  let bundleSubmitSuccess = false;
+  const bundleSubmitResponse = await fetch(JITO_BUNDLE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -198,7 +235,10 @@ export async function jitoSell(
       method: 'sendBundle',
       params: [[encodedSwap, encodedTip]],
     }),
-  }).then((r) => r.json() as Promise<{ result?: string; error?: { message: string } }>);
+  });
+  bundleSubmitSuccess = bundleSubmitResponse.ok;
+  trackJitoResult('jito:bundle-submit', Date.now() - bundleSubmitStart, bundleSubmitSuccess, bundleSubmitResponse.status);
+  const bundleResponse = await bundleSubmitResponse.json() as { result?: string; error?: { message: string } };
 
   if (bundleResponse.error) {
     throw new Error(`Jito sendBundle error: ${bundleResponse.error.message}`);
@@ -234,6 +274,8 @@ export async function pollBundleStatus(bundleId: string): Promise<'Landed' | 'Fa
   while (true) {
     await new Promise(resolve => setTimeout(resolve, delay));
 
+    const pollStart = Date.now();
+    let pollSuccess = false;
     const response = await fetch(JITO_BUNDLE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -244,6 +286,8 @@ export async function pollBundleStatus(bundleId: string): Promise<'Landed' | 'Fa
         params: [[bundleId]],
       }),
     });
+    pollSuccess = response.ok;
+    trackJitoResult('jito:bundle-status', Date.now() - pollStart, pollSuccess, response.status);
     const json = await response.json();
     const status = (json?.result?.value?.[0]?.confirmation_status as string) ?? 'Pending';
 
