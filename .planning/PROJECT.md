@@ -27,6 +27,8 @@ Land buy transactions in the first block on new token launches while filtering o
 (Defined in REQUIREMENTS.md for v1.1)
 
 - ✓ SEC-01 to SEC-04: Security hardening — SQL audit, API key migration, config validation, dependency fixes — v1.1 Phase 17
+- ✓ SAF-11 to SAF-14: Safety pipeline enhancement — liquidity depth, LP lock, metadata mutability checks — v1.1 Phase 18
+- ✓ EXE-10 to EXE-12: Execution performance — dynamic Helius fees, CU optimization, balance guard — v1.1 Phase 19
 
 ## Current Milestone: v1.1 Hardening & Polish
 
@@ -34,9 +36,8 @@ Land buy transactions in the first block on new token launches while filtering o
 
 **Target features:**
 - ~~Fix all 4 BUGS.md security findings~~ (Phase 17 complete — SQL confirmed safe, API key in header, config validated, deps patched)
-- Safety pipeline audit — validate current checks are accurate, identify gaps in rug pattern detection, improve coverage and scoring calibration
-- Improve buy execution success rate (faster landing, fewer missed buys)
-- Improve sell execution (smarter timing, better price outcomes, reduced slippage losses)
+- ~~Safety pipeline audit~~ (Phase 18 complete — 3 new rug checks, scoring calibrated, pipeline wired)
+- ~~Execution optimization~~ (Phase 19 complete — dynamic Helius fees, Jito CU simulation, balance guard)
 - Dashboard overhaul — better analytics, live pipeline visibility, operational controls
 - Reliability improvements — RPC failover hardening, better crash recovery, surfacing silent failures
 
