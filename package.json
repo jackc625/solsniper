@@ -30,6 +30,7 @@
     "fastify": "^5.8.4",
     "lightweight-charts": "^5.1.0",
     "pino": "^10.3.1",
+    "pino-roll": "^4.0.0",
     "strip-json-comments": "^5.0.3",
     "ws": "^8.19.0",
     "zod": "^4.3.6"

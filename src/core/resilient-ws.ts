@@ -104,6 +104,21 @@ export abstract class ResilientWebSocket {
     return this.reconnectCount;
   }
 
+  /**
+   * Returns the timestamp of the last received WebSocket message (Unix ms).
+   * Used by HealthService to detect silence/inactivity.
+   */
+  getLastMessageAt(): number {
+    return this.lastMessageAt;
+  }
+
+  /**
+   * Returns true if close() has been called (graceful shutdown in progress).
+   */
+  isClosed(): boolean {
+    return this.closed;
+  }
+
   // ---------------------------------------------------------------------------
   // Private internals
   // ---------------------------------------------------------------------------

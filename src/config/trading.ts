@@ -95,7 +95,7 @@ const LogRotationConfigSchema = z.object({
 export const MonitoringConfigSchema = z.object({
   alertCooldownMs: z.number().int().positive().default(60_000),
   apiFailureThreshold: z.number().int().positive().default(5),
-  logRotation: LogRotationConfigSchema.default({}),
+  logRotation: LogRotationConfigSchema.default({ sizeMb: 50, retentionDays: 7 }),
 });
 
 export type MonitoringConfig = z.infer<typeof MonitoringConfigSchema>;
@@ -113,7 +113,7 @@ export const TradingConfigSchema = z.object({
   safety: SafetyConfigSchema,
   execution: ExecutionConfigSchema,
   positionManagement: PositionManagementConfigSchema,
-  monitoring: MonitoringConfigSchema.default({}),
+  monitoring: MonitoringConfigSchema.default({ alertCooldownMs: 60_000, apiFailureThreshold: 5, logRotation: { sizeMb: 50, retentionDays: 7 } }),
 });
 
 export type TradingConfig = z.infer<typeof TradingConfigSchema>;

@@ -113,6 +113,7 @@ function makeTradingConfig(overrides: Partial<TradingConfig['detection']> = {}):
       trailingStopPct: 0,
       maxHoldTimeMs: 120000,
     },
+    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, logRotation: { sizeMb: 50, retentionDays: 7 } },
   };
 }
 

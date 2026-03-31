@@ -1,5 +1,6 @@
 import pino from 'pino';
 import { env } from '../config/env.js';
+import { getRuntimeConfig } from '../config/trading.js';
 
 const isDev = env.NODE_ENV === 'development';
 
@@ -21,11 +22,41 @@ function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
   return sanitized;
 }
 
+/**
+ * Builds the pino transport configuration based on environment.
+ * - Development: pino-pretty to stdout (colorized, human-readable)
+ * - Production: pino-roll for automatic file rotation (REL-04)
+ *
+ * getRuntimeConfig() is safe to call here because trading.ts is imported
+ * before logger.ts in the module load order (env.ts -> trading.ts -> logger.ts).
+ *
+ * Pitfall 1: Uses relative path 'logs/solsniper' with mkdir: true --
+ * bot is always started from project root.
+ * Pitfall 2: Early startup messages before transport ready are buffered by pino.
+ */
+function buildTransport(): pino.TransportSingleOptions {
+  if (isDev) {
+    return { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } };
+  }
+  // Production: pino-roll for file rotation (REL-04)
+  const config = getRuntimeConfig();
+  const { sizeMb, retentionDays } = config.monitoring.logRotation;
+  return {
+    target: 'pino-roll',
+    options: {
+      file: 'logs/solsniper',
+      frequency: 'daily',
+      size: `${sizeMb}m`,
+      limit: { count: retentionDays },
+      mkdir: true,
+      dateFormat: 'yyyy-MM-dd',
+    },
+  };
+}
+
 export const logger = pino({
   level: env.LOG_LEVEL,
-  transport: isDev
-    ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } }
-    : undefined,
+  transport: buildTransport(),
   serializers: {
     // Strip sensitive keys from any object logged under the 'env' key
     env: (envObj: Record<string, unknown>) => ({
