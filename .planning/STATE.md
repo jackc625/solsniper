@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Phase 20 context gathered
-last_updated: "2026-03-31T02:35:06.715Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-03-31T13:00:00Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 5
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 20
-Plan: 02 complete
+Plan: 03 complete
 Status: Executing
 Last activity: 2026-03-31
 
@@ -63,6 +63,7 @@ Progress: [#####.....] 50%
 | Phase 19-execution-performance P04 | 20 | 2 tasks | 13 files |
 | Phase 20-reliability-monitoring P01 | 19 | 2 tasks | 19 files |
 | Phase 20-reliability-monitoring P02 | 9 | 2 tasks | 4 files |
+| Phase 20-reliability-monitoring P03 | 4 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,8 @@ Recent decisions affecting current work:
 - [Phase 20-02]: Recovery resets ALL cooldowns for source via suffix match -- enables immediate re-alerting after recovery per D-11
 - [Phase 20-02]: MetricsTracker uses exact sorted-array percentiles -- memory bounded by 5-min window + 60s prune
 - [Phase 20-02]: Provider errors caught and treated as down status -- HealthService.check() never throws
+- [Phase 20-03]: Health route returns HTTP 503 only for status=down, 200 for both healthy and degraded
+- [Phase 20-03]: Alerts limit capped at 100 to prevent abuse; default 50 for dashboard pagination
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-31
-Last session: 2026-03-31T12:40:27Z
-Stopped at: Completed 20-02-PLAN.md
+Last session: 2026-03-31T13:00:00Z
+Stopped at: Completed 20-03-PLAN.md
 Resume file: None
