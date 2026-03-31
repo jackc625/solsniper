@@ -79,7 +79,12 @@ Plans:
   2. Bot emits SYSTEM_ALERT events via BotEventBus when detection disconnects, API calls fail repeatedly, or rate limits activate — alerts are observable in SSE stream
   3. Bot tracks per-RPC-endpoint latency (p50, p99) and error rates — data accessible via API for dashboard consumption
   4. Log files rotate automatically based on configurable size and time limits — no unbounded log growth on VPS
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 20-01-PLAN.md — Foundation: types, config schema, AlertStore, pino-roll, WS accessors (REL-02, REL-04)
+- [ ] 20-02-PLAN.md — HealthService and MetricsTracker core services (REL-01, REL-03)
+- [ ] 20-03-PLAN.md — Health, alerts, metrics route plugins + dashboard registration (REL-01, REL-02, REL-03)
+- [ ] 20-04-PLAN.md — Fetch instrumentation + startup wiring + health providers (REL-01, REL-02, REL-03, REL-04)
 
 ### Phase 21: Dashboard Overhaul
 **Goal**: Dashboard provides full operational visibility and control — analytics for performance tuning, live safety pipeline view for threshold calibration, operational controls for incident response, and system status for infrastructure monitoring
@@ -118,6 +123,6 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
 | 16. SELL_PARTIAL + Traceability | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
 | 18. Safety Pipeline Audit & Enhancement | v1.1 | 4/4 | Complete   | 2026-03-30 |
-| 19. Execution Performance | v1.1 | 4/1 | Complete    | 2026-03-31 |
-| 20. Reliability & Monitoring | v1.1 | 0/? | Not started | - |
+| 19. Execution Performance | v1.1 | 4/4 | Complete    | 2026-03-31 |
+| 20. Reliability & Monitoring | v1.1 | 0/4 | Planning complete | - |
 | 21. Dashboard Overhaul | v1.1 | 0/? | Not started | - |
