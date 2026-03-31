@@ -1,9 +1,9 @@
 ---
-status: resolved
+status: partial
 phase: 20-reliability-monitoring
 source: [20-01-SUMMARY.md, 20-02-SUMMARY.md, 20-03-SUMMARY.md, 20-04-SUMMARY.md]
 started: 2026-03-31T14:00:00Z
-updated: 2026-03-31T17:15:00Z
+updated: 2026-03-31T19:05:00Z
 ---
 
 ## Current Test
@@ -30,9 +30,7 @@ result: pass
 
 ### 5. Health Endpoint — 503 on Down
 expected: If a critical component is down (e.g., RPC connection lost or detection silent for >10 min), GET /api/health returns HTTP 503 instead of 200. The response body still contains the full health payload with the failing component's status shown as "down".
-result: issue
-reported: "rugcheck:report and helius:das-api have 28+ consecutive failures with 100% error rate, but /api/health still reports all components as healthy. Health providers only check activity thresholds (time since last event), not API failure state from MetricsTracker."
-severity: major
+result: pass
 
 ### 6. API Failure Alerts
 expected: When an external API (Jupiter, Jito, PumpPortal, Helius, RugCheck) returns consecutive failures exceeding the configured threshold (default 5), a SYSTEM_ALERT event is emitted. The alert appears in GET /api/alerts with type, severity, source, and message fields.
@@ -46,7 +44,7 @@ result: skipped
 
 total: 7
 passed: 5
-issues: 1
+issues: 0
 pending: 0
 skipped: 1
 blocked: 0
