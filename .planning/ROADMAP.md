@@ -79,7 +79,7 @@ Plans:
   2. Bot emits SYSTEM_ALERT events via BotEventBus when detection disconnects, API calls fail repeatedly, or rate limits activate — alerts are observable in SSE stream
   3. Bot tracks per-RPC-endpoint latency (p50, p99) and error rates — data accessible via API for dashboard consumption
   4. Log files rotate automatically based on configurable size and time limits — no unbounded log growth on VPS
-**Plans:** 4/4 plans complete
+**Plans:** 5/4 plans complete
 Plans:
 - [x] 20-01-PLAN.md — Foundation: types, config schema, AlertStore, pino-roll, WS accessors (REL-02, REL-04)
 - [x] 20-02-PLAN.md — HealthService and MetricsTracker core services (REL-01, REL-03)
@@ -124,5 +124,5 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21
 | 17. Security Fixes | v1.1 | 3/3 | Complete    | 2026-03-27 |
 | 18. Safety Pipeline Audit & Enhancement | v1.1 | 4/4 | Complete   | 2026-03-30 |
 | 19. Execution Performance | v1.1 | 4/4 | Complete    | 2026-03-31 |
-| 20. Reliability & Monitoring | v1.1 | 4/4 | Complete    | 2026-03-31 |
+| 20. Reliability & Monitoring | v1.1 | 5/4 | Complete   | 2026-03-31 |
 | 21. Dashboard Overhaul | v1.1 | 0/? | Not started | - |

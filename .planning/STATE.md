@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Completed 20-04-PLAN.md
-last_updated: "2026-03-31T13:43:00.546Z"
+stopped_at: Completed 20-05-PLAN.md
+last_updated: "2026-03-31T16:56:13.904Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 16
-  completed_plans: 15
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 16
   percent: 50
 ---
 
@@ -65,6 +65,7 @@ Progress: [#####.....] 50%
 | Phase 20-reliability-monitoring P02 | 9 | 2 tasks | 4 files |
 | Phase 20-reliability-monitoring P03 | 4 | 2 tasks | 7 files |
 | Phase 20-reliability-monitoring P04 | 20 | 2 tasks | 11 files |
+| Phase 20 P05 | 6 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,7 @@ Recent decisions affecting current work:
 - [Phase 20-04]: Module-level setter injection pattern for monitoring wiring -- avoids cascading constructor changes through ExecutionEngine/SellLadder/SafetyPipeline
 - [Phase 20-04]: ApiAlertCallback type exported from fee-estimator.ts as shared callback signature -- single type definition reused by all 7 fetch-calling modules
 - [Phase 20-04]: Centralized onApiAlert callback in index.ts handles both consecutive_failure and rate_limit types -- emits SYSTEM_ALERT to BotEventBus and persists to AlertStore
+- [Phase 20]: apis provider tested as pure function mirroring index.ts closure; count=0 endpoints ignored; apis mapped to api alert source
 
 ### Pending Todos
 
@@ -122,6 +124,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-31
-Last session: 2026-03-31T13:27:29Z
-Stopped at: Completed 20-04-PLAN.md
+Last session: 2026-03-31T16:56:13.896Z
+Stopped at: Completed 20-05-PLAN.md
 Resume file: None
