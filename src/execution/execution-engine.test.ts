@@ -46,7 +46,7 @@ const { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntim
       tieredTp: [{ at: 2, pct: 33 }, { at: 5, pct: 33 }, { at: 10, pct: 34 }],
       trailingStopPct: 0, maxHoldTimeMs: 120000,
     },
-    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, logRotation: { sizeMb: 50, retentionDays: 7 } },
+    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, apiErrorRateDegraded: 0.5, apiErrorRateDown: 0.9, logRotation: { sizeMb: 50, retentionDays: 7 } },
   };
   const mockGetRuntimeConfig = vi.fn().mockReturnValue(defaultRuntimeConfig);
   return { mockPumpPortalBuy, mockJupiterBuy, mockJupiterClientQuote, mockGetRuntimeConfig, defaultRuntimeConfig };
@@ -141,7 +141,7 @@ function makeTradingConfig(): TradingConfig {
       trailingStopPct: 0,
       maxHoldTimeMs: 120000,
     },
-    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, logRotation: { sizeMb: 50, retentionDays: 7 } },
+    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, apiErrorRateDegraded: 0.5, apiErrorRateDown: 0.9, logRotation: { sizeMb: 50, retentionDays: 7 } },
   };
 }
 

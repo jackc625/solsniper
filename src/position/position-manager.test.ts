@@ -153,7 +153,7 @@ function makeConfig(
       maxHoldTimeMs: 120000,
       ...overrides,
     },
-    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, logRotation: { sizeMb: 50, retentionDays: 7 } },
+    monitoring: { alertCooldownMs: 60000, apiFailureThreshold: 5, apiErrorRateDegraded: 0.5, apiErrorRateDown: 0.9, logRotation: { sizeMb: 50, retentionDays: 7 } },
   };
 }
 
