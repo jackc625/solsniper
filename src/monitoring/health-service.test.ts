@@ -6,9 +6,11 @@ import type { BotEvent } from '../dashboard/bot-event-bus.js';
 import {
   HealthService,
   type ComponentStatus,
+  type ComponentHealth,
   type HealthProvider,
   type HealthCheckResult,
 } from './health-service.js';
+import type { EndpointStats } from './metrics-tracker.js';
 
 type BotEventBusEvents = {
   event: (e: BotEvent) => void;
@@ -260,5 +262,122 @@ describe('HealthService', () => {
     expect(result.version.length).toBeGreaterThan(0);
     expect(typeof result.timestamp).toBe('number');
     expect(result.timestamp).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// apis health provider (gap closure: UAT Test 5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Mirror of the apis provider logic from index.ts for unit testing.
+ * This pure function allows testing the provider logic without the full
+ * index.ts dependency graph.
+ */
+function apisProviderLogic(
+  getAllStats: () => Record<string, EndpointStats>,
+  degradedThreshold: number,
+  downThreshold: number,
+): ComponentHealth {
+  const allStats = getAllStats();
+  const degraded: string[] = [];
+  const down: string[] = [];
+
+  for (const [endpoint, stats] of Object.entries(allStats)) {
+    if (stats.count === 0) continue;
+    if (stats.errorRate >= downThreshold) {
+      down.push(endpoint);
+    } else if (stats.errorRate >= degradedThreshold) {
+      degraded.push(endpoint);
+    }
+  }
+
+  if (down.length > 0) {
+    return { status: 'down', detail: `Down: ${down.join(', ')}${degraded.length ? `; Degraded: ${degraded.join(', ')}` : ''}` };
+  }
+  if (degraded.length > 0) {
+    return { status: 'degraded', detail: `Degraded: ${degraded.join(', ')}` };
+  }
+  return { status: 'healthy', detail: 'All API endpoints nominal' };
+}
+
+describe('apis health provider (gap closure)', () => {
+  const DEFAULT_DEGRADED = 0.5;
+  const DEFAULT_DOWN = 0.9;
+
+  function makeStats(overrides: Record<string, Partial<EndpointStats>>): Record<string, EndpointStats> {
+    const result: Record<string, EndpointStats> = {};
+    for (const [key, partial] of Object.entries(overrides)) {
+      result[key] = { p50: 100, p99: 500, errorRate: 0, count: 10, ...partial };
+    }
+    return result;
+  }
+
+  it('Test 1: returns healthy when no endpoints have errors (empty getAllStats)', () => {
+    const result = apisProviderLogic(() => ({}), DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('healthy');
+    expect(result.detail).toBe('All API endpoints nominal');
+  });
+
+  it('Test 2: returns healthy when all endpoints have errorRate below degraded threshold', () => {
+    const stats = makeStats({
+      'rugcheck:report': { errorRate: 0.1, count: 20 },
+      'helius:das-api': { errorRate: 0.2, count: 15 },
+      'jupiter:quote': { errorRate: 0.0, count: 50 },
+    });
+    const result = apisProviderLogic(() => stats, DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('healthy');
+  });
+
+  it('Test 3: returns degraded with detail when any endpoint has errorRate >= 0.5 but < 0.9', () => {
+    const stats = makeStats({
+      'rugcheck:report': { errorRate: 0.6, count: 20 },
+      'helius:das-api': { errorRate: 0.1, count: 15 },
+    });
+    const result = apisProviderLogic(() => stats, DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('degraded');
+    expect(result.detail).toContain('rugcheck:report');
+  });
+
+  it('Test 4: returns down with detail when any endpoint has errorRate >= 0.9', () => {
+    const stats = makeStats({
+      'rugcheck:report': { errorRate: 0.95, count: 20 },
+      'helius:das-api': { errorRate: 0.1, count: 15 },
+    });
+    const result = apisProviderLogic(() => stats, DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('down');
+    expect(result.detail).toContain('rugcheck:report');
+  });
+
+  it('Test 5: detail string includes the failing endpoint names', () => {
+    const stats = makeStats({
+      'rugcheck:report': { errorRate: 0.7, count: 20 },
+    });
+    const result = apisProviderLogic(() => stats, DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('degraded');
+    expect(result.detail).toContain('Degraded: rugcheck:report');
+  });
+
+  it('Test 6: multiple failing endpoints are all listed in detail', () => {
+    const stats = makeStats({
+      'rugcheck:report': { errorRate: 1.0, count: 30 },
+      'helius:das-api': { errorRate: 0.6, count: 15 },
+      'jupiter:quote': { errorRate: 0.0, count: 50 },
+    });
+    const result = apisProviderLogic(() => stats, DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('down');
+    expect(result.detail).toContain('rugcheck:report');
+    expect(result.detail).toContain('helius:das-api');
+    expect(result.detail).toContain('Down: rugcheck:report');
+    expect(result.detail).toContain('Degraded: helius:das-api');
+  });
+
+  it('Test 7: endpoints with count=0 are ignored (no data yet is not a failure)', () => {
+    const stats = makeStats({
+      'rugcheck:report': { errorRate: 1.0, count: 0 },
+      'helius:das-api': { errorRate: 0.0, count: 10 },
+    });
+    const result = apisProviderLogic(() => stats, DEFAULT_DEGRADED, DEFAULT_DOWN);
+    expect(result.status).toBe('healthy');
   });
 });

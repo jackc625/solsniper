@@ -47,6 +47,7 @@ const ALERT_SOURCE_MAP: Record<string, string> = {
   rpc: 'rpc',
   safety: 'api',
   execution: 'api',
+  apis: 'api',
 };
 
 // Severity ordering for worst-of computation

@@ -273,7 +273,34 @@ async function main(): Promise<void> {
     return { status: 'healthy' as const, detail: 'Execution engine active' };
   });
 
-  log.info('Health providers registered: detection, rpc, safety, execution');
+  // API endpoint health: error-rate based from MetricsTracker (gap closure: UAT Test 5)
+  const apiErrorRateDegraded = tradingConfig.monitoring.apiErrorRateDegraded;
+  const apiErrorRateDown = tradingConfig.monitoring.apiErrorRateDown;
+
+  healthService.register('apis', () => {
+    const allStats = metricsTracker.getAllStats();
+    const degraded: string[] = [];
+    const down: string[] = [];
+
+    for (const [endpoint, stats] of Object.entries(allStats)) {
+      if (stats.count === 0) continue;
+      if (stats.errorRate >= apiErrorRateDown) {
+        down.push(endpoint);
+      } else if (stats.errorRate >= apiErrorRateDegraded) {
+        degraded.push(endpoint);
+      }
+    }
+
+    if (down.length > 0) {
+      return { status: 'down' as const, detail: `Down: ${down.join(', ')}${degraded.length ? `; Degraded: ${degraded.join(', ')}` : ''}` };
+    }
+    if (degraded.length > 0) {
+      return { status: 'degraded' as const, detail: `Degraded: ${degraded.join(', ')}` };
+    }
+    return { status: 'healthy' as const, detail: 'All API endpoints nominal' };
+  });
+
+  log.info('Health providers registered: detection, rpc, safety, execution, apis');
 
   // 12.4. Start periodic health check to trigger alert transitions (REL-02)
   const healthCheckInterval = setInterval(() => {

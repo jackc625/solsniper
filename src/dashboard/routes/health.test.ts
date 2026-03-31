@@ -15,6 +15,7 @@ function makeHealthy(): HealthCheckResult {
       rpc: { status: 'healthy' },
       safety: { status: 'healthy' },
       execution: { status: 'healthy' },
+      apis: { status: 'healthy' },
     },
     uptime: 12345,
     version: '1.0.0',
@@ -83,7 +84,7 @@ describe('GET /api/health', () => {
     expect(body).toHaveProperty('version');
     expect(body).toHaveProperty('timestamp');
 
-    // Components must be an object with 4 entries per mock
-    expect(Object.keys(body.components)).toHaveLength(4);
+    // Components must be an object with 5 entries per mock (detection, rpc, safety, execution, apis)
+    expect(Object.keys(body.components)).toHaveLength(5);
   });
 });
