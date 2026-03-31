@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 20
-Plan: 01 complete
+Plan: 02 complete
 Status: Executing
 Last activity: 2026-03-31
 
@@ -62,6 +62,7 @@ Progress: [#####.....] 50%
 | Phase 19 P02 | 21 | 2 tasks | 13 files |
 | Phase 19-execution-performance P04 | 20 | 2 tasks | 13 files |
 | Phase 20-reliability-monitoring P01 | 19 | 2 tasks | 19 files |
+| Phase 20-reliability-monitoring P02 | 9 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,11 @@ Recent decisions affecting current work:
 - [Phase 20-01]: MonitoringConfigSchema uses .default() with full objects for Zod v4 compat -- .default({}) fails TypeScript because Zod v4 expects output type, not input type
 - [Phase 20-01]: AlertStore receives shared DB instance from TradeStore.getDb() -- WAL mode requires single connection per file
 - [Phase 20-01]: pino-roll uses relative path 'logs/solsniper' with mkdir: true -- bot always started from project root
+- [Phase 20-02]: HealthService reads package.json version via createRequire -- same ESM interop pattern as other modules
+- [Phase 20-02]: Cooldown composite key format ${type}:${source} per Pitfall 7 -- prevents cross-component cooldown interference
+- [Phase 20-02]: Recovery resets ALL cooldowns for source via suffix match -- enables immediate re-alerting after recovery per D-11
+- [Phase 20-02]: MetricsTracker uses exact sorted-array percentiles -- memory bounded by 5-min window + 60s prune
+- [Phase 20-02]: Provider errors caught and treated as down status -- HealthService.check() never throws
 
 ### Pending Todos
 
@@ -109,6 +115,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-31
-Last session: 2026-03-31T12:17:10Z
-Stopped at: Completed 20-01-PLAN.md
+Last session: 2026-03-31T12:40:27Z
+Stopped at: Completed 20-02-PLAN.md
 Resume file: None
