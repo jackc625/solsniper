@@ -142,7 +142,7 @@ export class SellLadder {
       {
         name: 'CHUNKED',
         timeoutMs: sell.chunkedTimeoutMs,
-        fn: () => chunkedSell(mint, cfg, this.wallet, this.connections, this.tradeStore),
+        fn: () => chunkedSell(mint, cfg, this.wallet, this.connections, this.tradeStore, this.feeEstimator),
       },
       {
         name: 'PUMPPORTAL',

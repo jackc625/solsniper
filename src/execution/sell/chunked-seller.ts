@@ -16,6 +16,7 @@ import { standardSell } from './standard-seller.js';
 import type { TradingConfig } from '../../config/trading.js';
 import type { ChunkedSellOutcome } from '../../types/index.js';
 import type { TradeStore } from '../../persistence/trade-store.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import { createModuleLogger } from '../../core/logger.js';
 
 const log = createModuleLogger('chunked-seller');
@@ -36,7 +37,8 @@ export async function chunkedSell(
   config: TradingConfig,
   wallet: Keypair,
   connections: Connection[],
-  tradeStore?: TradeStore
+  tradeStore: TradeStore | undefined,
+  feeEstimator: FeeEstimator
 ): Promise<ChunkedSellOutcome> {  // returns { confirmedTranches, solReceived }
   const { sell } = config.execution;
 
@@ -78,7 +80,8 @@ export async function chunkedSell(
         { slippageBps: sell.standardSlippageBps, feeMultiplier: sell.highFeeMultiplier },
         config,
         wallet,
-        connections
+        connections,
+        feeEstimator
       );
       confirmedTranches++;
       if (outcome.solReceived != null) totalSolReceived += outcome.solReceived;

@@ -36,7 +36,10 @@ vi.mock('@solana/spl-token', () => ({
 // ---------------------------------------------------------------------------
 import { chunkedSell } from './chunked-seller.js';
 import type { TradingConfig } from '../../config/trading.js';
+import type { FeeEstimator } from '../../core/fee-estimator.js';
 import type { Keypair, Connection } from '@solana/web3.js';
+
+const mockFeeEstimator = { getEstimate: vi.fn().mockResolvedValue({ maxLamports: 150000, priorityFeeSol: 0.00015, source: 'helius' as const }) } as unknown as FeeEstimator;
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -61,6 +64,7 @@ function makeTradingConfig(): TradingConfig {
     takeProfitPct: 300,
     minSafetyScore: 60,
     dryRun: false,
+    minBalanceBufferSol: 0.01,
     detection: {
       wsHeartbeatIntervalMs: 30000,
       wsBaseBackoffMs: 3000,
@@ -78,12 +82,16 @@ function makeTradingConfig(): TradingConfig {
       holder: { top1SoftBlockThreshold: 0.25, top10SoftBlockThreshold: 0.50, minUserHolders: 2 },
       rugCheckScoreInverted: true,
       blocklistPath: './data/creator-blocklist.json',
+      minLiquiditySol: 1.0,
+      lpLockScorePenalty: 30,
+      metadataMutablePenalty: 15,
     },
     execution: {
       buy: {
         slippageBps: 1000,
         priorityFeeBaseLamports: 100000,
         priorityFeeMultiplier: 1,
+        maxPriorityFeeCapLamports: 500000,
       },
       sell: {
         standardSlippageBps: 500,
@@ -129,7 +137,9 @@ describe('chunkedSell', () => {
       MINT,
       makeTradingConfig(),
       mockWallet,
-      mockConnections
+      mockConnections,
+      undefined,
+      mockFeeEstimator
     );
 
     expect(result).toEqual({ confirmedTranches: 3, solReceived: 1.0 });
@@ -143,7 +153,9 @@ describe('chunkedSell', () => {
       MINT,
       makeTradingConfig(),
       mockWallet,
-      mockConnections
+      mockConnections,
+      undefined,
+      mockFeeEstimator
     );
 
     expect(result).toEqual({ confirmedTranches: 0, solReceived: undefined });
@@ -161,7 +173,9 @@ describe('chunkedSell', () => {
       MINT,
       makeTradingConfig(),
       mockWallet,
-      mockConnections
+      mockConnections,
+      undefined,
+      mockFeeEstimator
     );
 
     expect(result.confirmedTranches).toBe(2);
