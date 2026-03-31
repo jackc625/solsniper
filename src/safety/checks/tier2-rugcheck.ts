@@ -6,8 +6,17 @@ import { createModuleLogger } from '../../core/logger.js';
 const log = createModuleLogger('tier2-rugcheck');
 const RUGCHECK_BASE_URL = 'https://api.rugcheck.xyz/v1/tokens';
 
-// D-10: Module-level consecutive failure counter
+// D-10: Module-level monitoring state (set from index.ts)
+let _metricsTracker: MetricsTracker | undefined;
+let _onApiAlert: ApiAlertCallback | undefined;
+let _apiFailureThreshold = 5;
 let consecutiveFailures = 0;
+
+export function setRugCheckMonitoring(mt: MetricsTracker, cb: ApiAlertCallback, threshold = 5): void {
+  _metricsTracker = mt;
+  _onApiAlert = cb;
+  _apiFailureThreshold = threshold;
+}
 
 interface RugCheckResponse {
   score: number;
@@ -43,8 +52,11 @@ export async function checkRugCheck(
   signal: AbortSignal,
   metricsTracker?: MetricsTracker,
   onApiAlert?: ApiAlertCallback,
-  apiFailureThreshold = 5,
+  apiFailureThreshold?: number,
 ): Promise<[CheckResult, RugCheckResultData | null]> {
+  const mt = metricsTracker ?? _metricsTracker;
+  const alertCb = onApiAlert ?? _onApiAlert;
+  const threshold = apiFailureThreshold ?? _apiFailureThreshold;
   const url = `${RUGCHECK_BASE_URL}/${mint}/report/summary`;
 
   const start = Date.now();
@@ -61,7 +73,7 @@ export async function checkRugCheck(
 
     // D-10: HTTP 429 rate limit detection
     if (response.status === 429) {
-      onApiAlert?.('rugcheck:report', 'rate_limit', 'HTTP 429 rate limit from rugcheck:report');
+      alertCb?.('rugcheck:report', 'rate_limit', 'HTTP 429 rate limit from rugcheck:report');
     }
 
     if (!response.ok) {
@@ -97,13 +109,13 @@ export async function checkRugCheck(
       detail: 'timeout_or_error',
     }, null];
   } finally {
-    metricsTracker?.record('rugcheck:report', Date.now() - start, success);
+    mt?.record('rugcheck:report', Date.now() - start, success);
 
     // D-10: Consecutive failure tracking
     if (!success) {
       consecutiveFailures++;
-      if (consecutiveFailures >= apiFailureThreshold) {
-        onApiAlert?.('rugcheck:report', 'consecutive_failure',
+      if (consecutiveFailures >= threshold) {
+        alertCb?.('rugcheck:report', 'consecutive_failure',
           `${consecutiveFailures} consecutive failures on rugcheck:report`);
       }
     } else {

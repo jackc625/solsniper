@@ -26,7 +26,7 @@ describe('GET /api/health', () => {
   it('returns 200 when all components are healthy', async () => {
     const healthService = createMockHealthService(makeHealthy());
     const fastify = Fastify();
-    await fastify.register(healthRoute, { healthService, prefix: '/api' });
+    await fastify.register(healthRoute, { healthService: healthService as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(200);
@@ -47,7 +47,7 @@ describe('GET /api/health', () => {
     const healthService = createMockHealthService(result);
 
     const fastify = Fastify();
-    await fastify.register(healthRoute, { healthService, prefix: '/api' });
+    await fastify.register(healthRoute, { healthService: healthService as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(200);
@@ -61,7 +61,7 @@ describe('GET /api/health', () => {
     const healthService = createMockHealthService(result);
 
     const fastify = Fastify();
-    await fastify.register(healthRoute, { healthService, prefix: '/api' });
+    await fastify.register(healthRoute, { healthService: healthService as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(503);
@@ -71,7 +71,7 @@ describe('GET /api/health', () => {
   it('response shape matches UI-SPEC contract (all fields present)', async () => {
     const healthService = createMockHealthService(makeHealthy());
     const fastify = Fastify();
-    await fastify.register(healthRoute, { healthService, prefix: '/api' });
+    await fastify.register(healthRoute, { healthService: healthService as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/health' });
     const body = JSON.parse(res.body);

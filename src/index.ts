@@ -19,6 +19,15 @@ import { FeeEstimator } from './core/fee-estimator.js';
 import { createDashboardServer } from './dashboard/dashboard-server.js';
 import { botEventBus } from './dashboard/bot-event-bus.js';
 import { BalanceGuard } from './core/balance-guard.js';
+import { HealthService } from './monitoring/health-service.js';
+import { MetricsTracker } from './monitoring/metrics-tracker.js';
+import { AlertStore } from './monitoring/alert-store.js';
+import { setPumpPortalBuyMonitoring } from './execution/buy/pump-portal-buyer.js';
+import { setJitoMonitoring } from './execution/sell/jito-seller.js';
+import { setPumpPortalSellMonitoring } from './execution/sell/pump-portal-seller.js';
+import { setRugCheckMonitoring } from './safety/checks/tier2-rugcheck.js';
+import { setCreatorCheckMonitoring } from './safety/checks/tier3-creator.js';
+import type { ApiAlertCallback } from './core/fee-estimator.js';
 import type { FastifyInstance } from 'fastify';
 
 const log = createModuleLogger('main');
@@ -32,6 +41,8 @@ async function shutdown(
   tradeStore: TradeStore,
   positionManager: PositionManager,
   dashboardServer: FastifyInstance,
+  metricsTracker: MetricsTracker,
+  healthCheckInterval: ReturnType<typeof setInterval>,
 ): Promise<void> {
   if (isShuttingDown) return; // Prevent double-shutdown
   isShuttingDown = true;
@@ -49,7 +60,13 @@ async function shutdown(
     // Must stop first -- prevents new sell triggers during teardown while connections are still open
     positionManager.stop();
 
-    // 0.5. Close dashboard HTTP server (SSE clients get 503; drains in-flight API requests)
+    // 0.5. Stop periodic health check
+    clearInterval(healthCheckInterval);
+
+    // 0.6. Close MetricsTracker prune timer (REL-03 shutdown)
+    metricsTracker.close();
+
+    // 0.7. Close dashboard HTTP server (SSE clients get 503; drains in-flight API requests)
     await dashboardServer.close();
 
     // 1. Close RPC health check timers
@@ -99,11 +116,58 @@ async function main(): Promise<void> {
   const tradeStore = new TradeStore('data/trades.db');
   log.info('TradeStore initialized');
 
+  // 6.5. Initialize monitoring services (REL-01, REL-02, REL-03)
+  const alertStore = new AlertStore(tradeStore.getDb());
+  const metricsTracker = new MetricsTracker(); // 5-min default window
+  const healthService = new HealthService(botEventBus, alertStore, {
+    alertCooldownMs: tradingConfig.monitoring.alertCooldownMs,
+  });
+  log.info('Monitoring services initialized (HealthService, MetricsTracker, AlertStore)');
+
+  // 6.6. API failure/rate-limit alert callback (REL-02, D-10)
+  const apiFailureThreshold = tradingConfig.monitoring.apiFailureThreshold;
+  const onApiAlert: ApiAlertCallback = (endpoint, type, message) => {
+    const severity = type === 'rate_limit' ? 'error' as const : 'warn' as const;
+    const alertSource = type === 'rate_limit' ? 'rateLimit' as const : 'api' as const;
+    botEventBus.emit('event', {
+      type: 'SYSTEM_ALERT',
+      mint: '',
+      ts: Date.now(),
+      detail: message,
+      severity,
+      alertSource,
+    });
+    alertStore.insert({
+      timestamp: Date.now(),
+      type,
+      severity,
+      source: endpoint,
+      message,
+    });
+    log.warn({ endpoint, type }, message);
+  };
+
   // 7. Load wallet keypair for execution
   const wallet = getWallet();
 
-  // 7.5. Initialize FeeEstimator (Helius dynamic priority fees)
-  const feeEstimator = new FeeEstimator(env.SOLSNIPER_RPC_URL);
+  // 7.5. Initialize FeeEstimator (Helius dynamic priority fees) with monitoring
+  const feeEstimator = new FeeEstimator(
+    env.SOLSNIPER_RPC_URL,
+    5000,
+    metricsTracker,
+    onApiAlert,
+    apiFailureThreshold,
+  );
+
+  // 7.6. Wire monitoring into all fetch-calling modules (D-10, REL-03)
+  jupiterClient.setMetricsTracker(metricsTracker);
+  jupiterClient.setApiAlertCallback(onApiAlert, apiFailureThreshold);
+  setPumpPortalBuyMonitoring(metricsTracker, onApiAlert, apiFailureThreshold);
+  setPumpPortalSellMonitoring(metricsTracker, onApiAlert, apiFailureThreshold);
+  setJitoMonitoring(metricsTracker, onApiAlert, apiFailureThreshold);
+  setRugCheckMonitoring(metricsTracker, onApiAlert, apiFailureThreshold);
+  setCreatorCheckMonitoring(metricsTracker, onApiAlert, apiFailureThreshold);
+  log.info('MetricsTracker and API alert callback wired into all fetch call sites');
 
   // 8. Initialize execution engine (buy routing: PumpPortal vs Jupiter)
   const executionEngine = new ExecutionEngine(
@@ -160,8 +224,65 @@ async function main(): Promise<void> {
   positionManager.start();
   log.info('PositionManager started');
 
+  // 12.3. Register health providers (REL-01)
+  const DETECTION_SILENCE_THRESHOLD_MS = 600_000; // 10 min
+  let lastDetectionActivity = Date.now();
+
+  healthService.register('detection', () => {
+    const silenceMs = Date.now() - lastDetectionActivity;
+    if (silenceMs > DETECTION_SILENCE_THRESHOLD_MS) {
+      return { status: 'degraded' as const, detail: `No tokens detected for ${Math.round(silenceMs / 60000)}min` };
+    }
+    return { status: 'healthy' as const, detail: 'Receiving token events' };
+  });
+
+  // RPC health: from RpcManager state (D-07)
+  let rpcDegraded = false;
+  rpcManager.on('failover', () => { rpcDegraded = true; });
+  rpcManager.on('recovered', () => { rpcDegraded = false; });
+
+  healthService.register('rpc', () => {
+    const state = rpcManager.getState();
+    if (rpcDegraded || state === 'backup') {
+      return { status: 'degraded' as const, detail: `Using ${state} RPC endpoint` };
+    }
+    return { status: 'healthy' as const, detail: 'Primary RPC active' };
+  });
+
+  // Safety pipeline health: last-activity based (D-06)
+  const SAFETY_SILENCE_THRESHOLD_MS = 600_000; // 10 min
+  let lastSafetyActivity = Date.now();
+
+  healthService.register('safety', () => {
+    const silenceMs = Date.now() - lastSafetyActivity;
+    if (silenceMs > SAFETY_SILENCE_THRESHOLD_MS) {
+      return { status: 'degraded' as const, detail: `No safety checks for ${Math.round(silenceMs / 60000)}min` };
+    }
+    return { status: 'healthy' as const, detail: 'Safety pipeline active' };
+  });
+
+  // Execution engine health: last-activity based (D-06)
+  const EXECUTION_SILENCE_THRESHOLD_MS = 1_800_000; // 30 min (generous for execution)
+  let lastExecutionActivity = Date.now();
+
+  healthService.register('execution', () => {
+    const silenceMs = Date.now() - lastExecutionActivity;
+    if (silenceMs > EXECUTION_SILENCE_THRESHOLD_MS) {
+      return { status: 'degraded' as const, detail: `No execution activity for ${Math.round(silenceMs / 60000)}min` };
+    }
+    return { status: 'healthy' as const, detail: 'Execution engine active' };
+  });
+
+  log.info('Health providers registered: detection, rpc, safety, execution');
+
+  // 12.4. Start periodic health check to trigger alert transitions (REL-02)
+  const healthCheckInterval = setInterval(() => {
+    healthService.check();
+  }, 30_000); // Every 30 seconds
+  healthCheckInterval.unref(); // Don't prevent process exit
+
   // 12.5. Start dashboard HTTP server (in-process, read-only observer)
-  const dashboardServer = await createDashboardServer(tradeStore);
+  const dashboardServer = await createDashboardServer(tradeStore, healthService, alertStore, metricsTracker);
   await dashboardServer.listen({ port: env.DASHBOARD_PORT, host: '127.0.0.1' });
   log.info({ port: env.DASHBOARD_PORT }, 'Dashboard HTTP server listening');
 
@@ -172,6 +293,7 @@ async function main(): Promise<void> {
 
   // 14. Wire token events through safety pipeline and trade persistence
   detectionManager.on('token', async (event) => {
+    lastDetectionActivity = Date.now(); // Track detection health
     try {
       // POS-06: Enforce max concurrent position limit (before safety pipeline to avoid wasted RPC calls)
       const activePositions = tradeStore.getMonitoringTrades().length;
@@ -206,6 +328,7 @@ async function main(): Promise<void> {
       }
 
       const result = await safetyPipeline.evaluate(event);
+      lastSafetyActivity = Date.now(); // Track safety health
       if (result.pass) {
         botEventBus.emit('event', { type: 'TOKEN_DETECTED', mint: event.mint, ts: Date.now(), detail: `from ${event.source}`, isDryRun: getRuntimeConfig().dryRun, safetyScore: result.aggregateScore, source: event.source, buyAmountSol: getRuntimeConfig().buyAmountSol });
         // Duplicate guard: reject if a non-terminal trade already exists for this mint
@@ -231,6 +354,7 @@ async function main(): Promise<void> {
           checksDetail,
         );
         // Execute buy -- routes to PumpPortal (bonding curve) or Jupiter (migrated) based on event.source
+        lastExecutionActivity = Date.now(); // Track execution health
         void executionEngine.buy(event);
       }
       // Rejections already logged by SafetyPipeline with full detail
@@ -240,7 +364,7 @@ async function main(): Promise<void> {
   });
 
   // 15. Register shutdown handlers (WebSocket and onLogs keep event loop alive -- no keepalive needed)
-  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore, positionManager, dashboardServer); };
+  const handler = (signal: string) => { void shutdown(signal, rpcManager, detectionManager, tradeStore, positionManager, dashboardServer, metricsTracker, healthCheckInterval); };
   process.on('SIGTERM', () => handler('SIGTERM'));
   process.on('SIGINT', () => handler('SIGINT'));
 }

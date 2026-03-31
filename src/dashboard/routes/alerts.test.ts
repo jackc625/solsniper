@@ -12,7 +12,7 @@ describe('GET /api/alerts', () => {
     const queryResult: AlertQueryResult = { alerts: [], total: 0, page: 1, limit: 50 };
     const alertStore = createMockAlertStore(queryResult);
     const fastify = Fastify();
-    await fastify.register(alertsRoute, { alertStore, prefix: '/api' });
+    await fastify.register(alertsRoute, { alertStore: alertStore as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/alerts' });
     expect(res.statusCode).toBe(200);
@@ -23,7 +23,7 @@ describe('GET /api/alerts', () => {
     const queryResult: AlertQueryResult = { alerts: [], total: 100, page: 2, limit: 10 };
     const alertStore = createMockAlertStore(queryResult);
     const fastify = Fastify();
-    await fastify.register(alertsRoute, { alertStore, prefix: '/api' });
+    await fastify.register(alertsRoute, { alertStore: alertStore as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/alerts?page=2&limit=10' });
     expect(res.statusCode).toBe(200);
@@ -37,7 +37,7 @@ describe('GET /api/alerts', () => {
     const queryResult: AlertQueryResult = { alerts, total: 1, page: 1, limit: 50 };
     const alertStore = createMockAlertStore(queryResult);
     const fastify = Fastify();
-    await fastify.register(alertsRoute, { alertStore, prefix: '/api' });
+    await fastify.register(alertsRoute, { alertStore: alertStore as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/alerts' });
     const body = JSON.parse(res.body);
@@ -54,7 +54,7 @@ describe('GET /api/alerts', () => {
     const queryResult: AlertQueryResult = { alerts: [], total: 0, page: 1, limit: 100 };
     const alertStore = createMockAlertStore(queryResult);
     const fastify = Fastify();
-    await fastify.register(alertsRoute, { alertStore, prefix: '/api' });
+    await fastify.register(alertsRoute, { alertStore: alertStore as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/alerts?limit=999' });
     expect(res.statusCode).toBe(200);

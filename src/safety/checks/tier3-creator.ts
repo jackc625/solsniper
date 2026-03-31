@@ -8,8 +8,17 @@ const log = createModuleLogger('tier3-creator');
 const HELIUS_TX_URL = 'https://api-mainnet.helius-rpc.com/v0/addresses';
 const SERIAL_DEPLOYER_THRESHOLD = 10;
 
-// D-10: Module-level consecutive failure counter
+// D-10: Module-level monitoring state (set from index.ts)
+let _metricsTracker: MetricsTracker | undefined;
+let _onApiAlert: ApiAlertCallback | undefined;
+let _apiFailureThreshold = 5;
 let consecutiveFailures = 0;
+
+export function setCreatorCheckMonitoring(mt: MetricsTracker, cb: ApiAlertCallback, threshold = 5): void {
+  _metricsTracker = mt;
+  _onApiAlert = cb;
+  _apiFailureThreshold = threshold;
+}
 
 interface HeliusTx {
   type: string;
@@ -84,8 +93,11 @@ export async function checkCreatorHistory(
   signal: AbortSignal,
   metricsTracker?: MetricsTracker,
   onApiAlert?: ApiAlertCallback,
-  apiFailureThreshold = 5,
+  apiFailureThreshold?: number,
 ): Promise<CheckResult> {
+  const mt = metricsTracker ?? _metricsTracker;
+  const alertCb = onApiAlert ?? _onApiAlert;
+  const threshold = apiFailureThreshold ?? _apiFailureThreshold;
   // Fast path 1: No creator in event (Raydium events)
   if (!creator) {
     return {
@@ -131,7 +143,7 @@ export async function checkCreatorHistory(
 
     // D-10: HTTP 429 rate limit detection
     if (response.status === 429) {
-      onApiAlert?.('helius:das-api', 'rate_limit', 'HTTP 429 rate limit from helius:das-api');
+      alertCb?.('helius:das-api', 'rate_limit', 'HTTP 429 rate limit from helius:das-api');
     }
 
     if (!response.ok) {
@@ -170,13 +182,13 @@ export async function checkCreatorHistory(
       detail: 'timeout_or_error',
     };
   } finally {
-    metricsTracker?.record('helius:das-api', Date.now() - start, success);
+    mt?.record('helius:das-api', Date.now() - start, success);
 
     // D-10: Consecutive failure tracking
     if (!success) {
       consecutiveFailures++;
-      if (consecutiveFailures >= apiFailureThreshold) {
-        onApiAlert?.('helius:das-api', 'consecutive_failure',
+      if (consecutiveFailures >= threshold) {
+        alertCb?.('helius:das-api', 'consecutive_failure',
           `${consecutiveFailures} consecutive failures on helius:das-api`);
       }
     } else {

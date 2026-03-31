@@ -20,8 +20,17 @@ import { createModuleLogger } from '../../core/logger.js';
 const log = createModuleLogger('pump-portal-seller');
 const PUMPPORTAL_API = 'https://pumpportal.fun/api/trade-local';
 
-// D-10: Module-level consecutive failure counter
+// D-10: Module-level monitoring state (set from index.ts)
+let _metricsTracker: MetricsTracker | undefined;
+let _onApiAlert: ApiAlertCallback | undefined;
+let _apiFailureThreshold = 5;
 let consecutiveFailures = 0;
+
+export function setPumpPortalSellMonitoring(mt: MetricsTracker, cb: ApiAlertCallback, threshold = 5): void {
+  _metricsTracker = mt;
+  _onApiAlert = cb;
+  _apiFailureThreshold = threshold;
+}
 
 /**
  * Sells tokens via PumpPortal trade-local API.
@@ -43,8 +52,11 @@ export async function pumpPortalSell(
   feeEstimator: FeeEstimator,
   metricsTracker?: MetricsTracker,
   onApiAlert?: ApiAlertCallback,
-  apiFailureThreshold = 5,
+  apiFailureThreshold?: number,
 ): Promise<SellOutcome> {
+  const mt = metricsTracker ?? _metricsTracker;
+  const alertCb = onApiAlert ?? _onApiAlert;
+  const threshold = apiFailureThreshold ?? _apiFailureThreshold;
   const { sell } = config.execution;
   // CRITICAL: PumpPortal slippage is PERCENT, not basis points (bps/100 = percent)
   const slippagePct = sell.standardSlippageBps / 100;
@@ -75,7 +87,7 @@ export async function pumpPortalSell(
 
     // D-10: HTTP 429 rate limit detection
     if (response.status === 429) {
-      onApiAlert?.('pumpportal:sell', 'rate_limit', 'HTTP 429 rate limit from pumpportal:sell');
+      alertCb?.('pumpportal:sell', 'rate_limit', 'HTTP 429 rate limit from pumpportal:sell');
     }
 
     if (!response.ok) {
@@ -95,13 +107,13 @@ export async function pumpPortalSell(
   } catch (err) {
     throw err;
   } finally {
-    metricsTracker?.record('pumpportal:sell', Date.now() - start, success);
+    mt?.record('pumpportal:sell', Date.now() - start, success);
 
     // D-10: Consecutive failure tracking
     if (!success) {
       consecutiveFailures++;
-      if (consecutiveFailures >= apiFailureThreshold) {
-        onApiAlert?.('pumpportal:sell', 'consecutive_failure',
+      if (consecutiveFailures >= threshold) {
+        alertCb?.('pumpportal:sell', 'consecutive_failure',
           `${consecutiveFailures} consecutive failures on pumpportal:sell`);
       }
     } else {

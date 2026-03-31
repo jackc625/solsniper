@@ -15,7 +15,7 @@ describe('GET /api/metrics', () => {
     };
     const metricsTracker = createMockMetricsTracker(stats);
     const fastify = Fastify();
-    await fastify.register(metricsRoute, { metricsTracker, prefix: '/api' });
+    await fastify.register(metricsRoute, { metricsTracker: metricsTracker as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/metrics' });
     expect(res.statusCode).toBe(200);
@@ -31,7 +31,7 @@ describe('GET /api/metrics', () => {
   it('returns empty endpoints object when no metrics recorded', async () => {
     const metricsTracker = createMockMetricsTracker({});
     const fastify = Fastify();
-    await fastify.register(metricsRoute, { metricsTracker, prefix: '/api' });
+    await fastify.register(metricsRoute, { metricsTracker: metricsTracker as any, prefix: '/api' });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/metrics' });
     const body = JSON.parse(res.body);
