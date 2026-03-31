@@ -14,12 +14,23 @@ import { apiKeyAuth } from './auth.js';
 import { eventsRoute } from './routes/events.js';
 import { tradesRoute } from './routes/trades.js';
 import { configRoute } from './routes/config.js';
+import { healthRoute } from './routes/health.js';
+import { alertsRoute } from './routes/alerts.js';
+import { metricsRoute } from './routes/metrics.js';
 import type { TradeStore } from '../persistence/trade-store.js';
+import type { HealthService } from '../monitoring/health-service.js';
+import type { AlertStore } from '../monitoring/alert-store.js';
+import type { MetricsTracker } from '../monitoring/metrics-tracker.js';
 import { createModuleLogger } from '../core/logger.js';
 
 const log = createModuleLogger('dashboard');
 
-export async function createDashboardServer(tradeStore: TradeStore): Promise<FastifyInstance> {
+export async function createDashboardServer(
+  tradeStore: TradeStore,
+  healthService: HealthService,
+  alertStore: AlertStore,
+  metricsTracker: MetricsTracker,
+): Promise<FastifyInstance> {
   const fastify = Fastify({
     logger: false,                  // Use bot's pino logger -- avoid duplicate log streams
     forceCloseConnections: 'idle',  // Close idle keep-alive on shutdown
@@ -53,6 +64,9 @@ export async function createDashboardServer(tradeStore: TradeStore): Promise<Fas
   await fastify.register(eventsRoute);
   await fastify.register(tradesRoute, { tradeStore, prefix: '/api' });
   await fastify.register(configRoute, { prefix: '/api' });
+  await fastify.register(healthRoute, { healthService, prefix: '/api' });
+  await fastify.register(alertsRoute, { alertStore, prefix: '/api' });
+  await fastify.register(metricsRoute, { metricsTracker, prefix: '/api' });
 
   // SPA fallback -- serve index.html for all non-asset, non-API GET requests
   // Required because tab-based UI uses only '/' but direct URL access still needs fallback
