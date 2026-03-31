@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Completed 20-03-PLAN.md
-last_updated: "2026-03-31T13:00:00Z"
+stopped_at: Completed 20-04-PLAN.md
+last_updated: "2026-03-31T13:27:29Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 5
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 20
-Plan: 03 complete
+Plan: 04 complete
 Status: Executing
 Last activity: 2026-03-31
 
@@ -64,6 +64,7 @@ Progress: [#####.....] 50%
 | Phase 20-reliability-monitoring P01 | 19 | 2 tasks | 19 files |
 | Phase 20-reliability-monitoring P02 | 9 | 2 tasks | 4 files |
 | Phase 20-reliability-monitoring P03 | 4 | 2 tasks | 7 files |
+| Phase 20-reliability-monitoring P04 | 20 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,9 @@ Recent decisions affecting current work:
 - [Phase 20-02]: Provider errors caught and treated as down status -- HealthService.check() never throws
 - [Phase 20-03]: Health route returns HTTP 503 only for status=down, 200 for both healthy and degraded
 - [Phase 20-03]: Alerts limit capped at 100 to prevent abuse; default 50 for dashboard pagination
+- [Phase 20-04]: Module-level setter injection pattern for monitoring wiring -- avoids cascading constructor changes through ExecutionEngine/SellLadder/SafetyPipeline
+- [Phase 20-04]: ApiAlertCallback type exported from fee-estimator.ts as shared callback signature -- single type definition reused by all 7 fetch-calling modules
+- [Phase 20-04]: Centralized onApiAlert callback in index.ts handles both consecutive_failure and rate_limit types -- emits SYSTEM_ALERT to BotEventBus and persists to AlertStore
 
 ### Pending Todos
 
@@ -118,6 +122,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-31
-Last session: 2026-03-31T13:00:00Z
-Stopped at: Completed 20-03-PLAN.md
+Last session: 2026-03-31T13:27:29Z
+Stopped at: Completed 20-04-PLAN.md
 Resume file: None
