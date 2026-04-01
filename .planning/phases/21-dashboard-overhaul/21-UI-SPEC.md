@@ -163,7 +163,7 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 |----------|-------|
 | Background | `var(--red)` |
 | Color | `#000` |
-| Font | `var(--font-display)`, 12px, weight 700 |
+| Font | `var(--font-display)`, 13px, weight 700 |
 | Letter spacing | 0.15em |
 | Padding | 8px `var(--sp-4)` |
 | Width | `calc(100% - 2 * var(--sp-3))` (sidebar width minus margins) |
@@ -208,7 +208,7 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 | Pause/Resume toggle | Large toggle button (not checkbox). PAUSED state: yellow background. ACTIVE state: green background. Label shows current state | D-12 |
 | Positions table | Table of open positions: Mint (link), Source badge, Entry SOL, Current P&L, Duration, Action column | D-11 |
 | Force Sell button | Per-row button in Action column. Red outline style: `border: 1px solid var(--red)`, `color: var(--red)`, `background: transparent`. On hover: `background: rgba(255, 68, 68, 0.1)` | D-11 |
-| Force Sell confirmation | Inline confirmation: clicking FORCE SELL replaces the button with "SELL {mint_short}?" text + CONFIRM (red solid) and KEEP (transparent border) buttons. Auto-dismisses after 5 seconds if no action taken, reverting to FORCE SELL button | Added per reviewer flag |
+| Force Sell confirmation | Inline confirmation: clicking FORCE SELL replaces the button with "SELL {mint_short}?" text + CONFIRM SELL (red solid) and KEEP POSITION (transparent border) buttons. Auto-dismisses after 5 seconds if no action taken, reverting to FORCE SELL button | Added per reviewer flag |
 | Selling badge | When position is mid-sell (sellsInFlight), show amber "SELLING..." badge instead of Force Sell button. Pulsing animation | D-14 |
 | Emergency stop section | Card at bottom of detection controls area with red border. Contains "EMERGENCY STOP" heading + description + trigger button. Same button as sidebar e-stop | D-13 |
 
@@ -242,9 +242,9 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 ### Force Sell Flow
 
 1. User clicks FORCE SELL button on open position row
-2. Button is replaced inline with confirmation prompt: "SELL {mint_short}?" plus CONFIRM (red solid) and KEEP (transparent border) buttons
-3. If user clicks CONFIRM: POST `/api/trades/:id/force-sell` fires, row immediately shows "SELLING..." amber badge with pulse animation
-4. If user clicks KEEP or 5 seconds elapse with no action: revert to FORCE SELL button
+2. Button is replaced inline with confirmation prompt: "SELL {mint_short}?" plus CONFIRM SELL (red solid) and KEEP POSITION (transparent border) buttons
+3. If user clicks CONFIRM SELL: POST `/api/trades/:id/force-sell` fires, row immediately shows "SELLING..." amber badge with pulse animation
+4. If user clicks KEEP POSITION or 5 seconds elapse with no action: revert to FORCE SELL button
 5. If 409 Conflict (already selling): no-op, badge already shows SELLING
 6. If 200 OK: position row updates via next poll cycle (5s)
 7. If error: show inline red error text below the row for 5 seconds
@@ -299,8 +299,8 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 | Primary CTA (Controls) | PAUSE DETECTION / RESUME DETECTION | Toggle label changes based on state |
 | Primary CTA (Force Sell) | FORCE SELL | Per-position action button |
 | Force Sell confirmation prompt | SELL {mint_short}? | Inline confirmation text shown after clicking FORCE SELL |
-| Force Sell confirm button | CONFIRM | Red solid button in inline confirmation |
-| Force Sell keep button | KEEP | Transparent border button to abandon force sell |
+| Force Sell confirm button | CONFIRM SELL | Red solid button in inline confirmation |
+| Force Sell keep button | KEEP POSITION | Transparent border button to abandon force sell |
 | Primary CTA (E-Stop) | EMERGENCY STOP | Always-visible sidebar button + controls page |
 | E-Stop confirmation title | CONFIRM EMERGENCY STOP | Dialog heading |
 | E-Stop confirmation body | This will pause all detection and force-sell every open position. Type STOP to confirm. | Dialog description |
