@@ -308,8 +308,18 @@ async function main(): Promise<void> {
   }, 30_000); // Every 30 seconds
   healthCheckInterval.unref(); // Don't prevent process exit
 
-  // 12.5. Start dashboard HTTP server (in-process, read-only observer)
-  const dashboardServer = await createDashboardServer(tradeStore, healthService, alertStore, metricsTracker);
+  // 12.5. Detection pause state for controls API (D-12, Pitfall 2)
+  const detectionState = { paused: false };
+
+  // 12.6. Start dashboard HTTP server (in-process, read-only observer)
+  const dashboardServer = await createDashboardServer(tradeStore, healthService, alertStore, metricsTracker, {
+    getDetectionPaused: () => detectionState.paused,
+    setDetectionPaused: (paused: boolean) => { detectionState.paused = paused; },
+    isSellInFlight: (mint: string) => positionManager.isSellInFlight(mint),
+    triggerSell: (mint: string, tokenAmount: bigint) => {
+      void sellLadder.sell(mint, tokenAmount);
+    },
+  });
   await dashboardServer.listen({ port: env.DASHBOARD_PORT, host: '127.0.0.1' });
   log.info({ port: env.DASHBOARD_PORT }, 'Dashboard HTTP server listening');
 
@@ -322,6 +332,12 @@ async function main(): Promise<void> {
   detectionManager.on('token', async (event) => {
     lastDetectionActivity = Date.now(); // Track detection health
     try {
+      // D-12: Skip processing if detection is paused (must be first check -- Pitfall 2)
+      if (detectionState.paused) {
+        log.debug({ mint: event.mint }, 'Detection paused -- skipping token');
+        return;
+      }
+
       // POS-06: Enforce max concurrent position limit (before safety pipeline to avoid wasted RPC calls)
       const activePositions = tradeStore.getMonitoringTrades().length;
       const maxPositions = getRuntimeConfig().maxConcurrentPositions;

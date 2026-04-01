@@ -48,6 +48,7 @@ export class TradeStore {
   private readonly stmtAddSellPrice: BetterSqlite3.Statement;
   private readonly stmtDecrementTokenAmount: BetterSqlite3.Statement;
   private readonly stmtGetByMint: BetterSqlite3.Statement;
+  private readonly stmtGetById: BetterSqlite3.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -156,6 +157,13 @@ export class TradeStore {
               source, token_program_id, dry_run,
               safety_score, safety_rejection_reasons, safety_checks_detail
        FROM trades WHERE mint = @mint ORDER BY updated_at DESC LIMIT 1`
+    );
+
+    this.stmtGetById = this.db.prepare(
+      `SELECT id, mint, state, created_at, updated_at, buy_signature, sell_signature,
+              amount_sol, amount_tokens, buy_price_sol, sell_price_sol, error_message,
+              source, token_program_id, dry_run
+       FROM trades WHERE id = @id`
     );
 
     // Rebuild the active Set from any non-terminal rows left in the DB.
@@ -396,6 +404,15 @@ export class TradeStore {
    */
   getDb(): BetterSqlite3.Database {
     return this.db;
+  }
+
+  /**
+   * Returns the trade with the given row ID, or undefined if not found.
+   * Used by the controls API for force-sell lookups.
+   */
+  getTradeById(id: number): Trade | undefined {
+    const row = this.stmtGetById.get({ id }) as Record<string, unknown> | undefined;
+    return row ? this.mapRow(row) : undefined;
   }
 
   /**

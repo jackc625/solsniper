@@ -17,6 +17,7 @@ import { configRoute } from './routes/config.js';
 import { healthRoute } from './routes/health.js';
 import { alertsRoute } from './routes/alerts.js';
 import { metricsRoute } from './routes/metrics.js';
+import { controlsRoute } from './routes/controls.js';
 import type { TradeStore } from '../persistence/trade-store.js';
 import type { HealthService } from '../monitoring/health-service.js';
 import type { AlertStore } from '../monitoring/alert-store.js';
@@ -30,6 +31,12 @@ export async function createDashboardServer(
   healthService: HealthService,
   alertStore: AlertStore,
   metricsTracker: MetricsTracker,
+  controlsOpts: {
+    getDetectionPaused: () => boolean;
+    setDetectionPaused: (paused: boolean) => void;
+    isSellInFlight: (mint: string) => boolean;
+    triggerSell: (mint: string, tokenAmount: bigint) => void;
+  },
 ): Promise<FastifyInstance> {
   const fastify = Fastify({
     logger: false,                  // Use bot's pino logger -- avoid duplicate log streams
@@ -67,6 +74,7 @@ export async function createDashboardServer(
   await fastify.register(healthRoute, { healthService, prefix: '/api' });
   await fastify.register(alertsRoute, { alertStore, prefix: '/api' });
   await fastify.register(metricsRoute, { metricsTracker, prefix: '/api' });
+  await fastify.register(controlsRoute, { ...controlsOpts, tradeStore, prefix: '/api' });
 
   // SPA fallback -- serve index.html for all non-asset, non-API GET requests
   // Required because tab-based UI uses only '/' but direct URL access still needs fallback
