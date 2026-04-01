@@ -30,6 +30,7 @@ Land buy transactions in the first block on new token launches while filtering o
 - ✓ SAF-11 to SAF-14: Safety pipeline enhancement — liquidity depth, LP lock, metadata mutability checks — v1.1 Phase 18
 - ✓ EXE-10 to EXE-12: Execution performance — dynamic Helius fees, CU optimization, balance guard — v1.1 Phase 19
 - ✓ REL-01 to REL-04: Reliability & monitoring — health endpoints, system alerts, per-RPC metrics, log rotation — v1.1 Phase 20
+- ✓ DASH-07 to DASH-10: Dashboard overhaul — per-source analytics, live pipeline view, operational controls, system status — v1.1 Phase 21
 
 ## Current Milestone: v1.1 Hardening & Polish
 
@@ -40,7 +41,7 @@ Land buy transactions in the first block on new token launches while filtering o
 - ~~Safety pipeline audit~~ (Phase 18 complete — 3 new rug checks, scoring calibrated, pipeline wired)
 - ~~Execution optimization~~ (Phase 19 complete — dynamic Helius fees, Jito CU simulation, balance guard)
 - ~~Reliability & monitoring~~ (Phase 20 complete — health endpoints, system alerts, per-endpoint metrics, log rotation)
-- Dashboard overhaul — better analytics, live pipeline visibility, operational controls
+- ~~Dashboard overhaul~~ (Phase 21 complete — per-source analytics, live pipeline view, controls with force-sell and e-stop, system status monitoring)
 
 ### Out of Scope
 
