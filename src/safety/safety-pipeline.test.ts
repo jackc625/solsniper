@@ -781,10 +781,10 @@ describe('SafetyPipeline', () => {
       vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
       vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
 
-      const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
-      vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
-      vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
-      vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+      const tier2Tier3 = makeTier2Tier3Pass();
+      vi.mocked(checkRugCheck).mockResolvedValue(tier2Tier3.rugCheck);
+      vi.mocked(checkHolderConcentration).mockResolvedValue(tier2Tier3.holder);
+      vi.mocked(checkCreatorHistory).mockResolvedValue(tier2Tier3.creator);
 
       const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
       const event = makeTokenEvent({ source: 'pumpportal' });
