@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { PnlChart, type PnlDataPoint } from './PnlChart.js';
 
 // ---- Types ----------------------------------------------------------------
@@ -160,6 +160,31 @@ function SourceBadge({ source }: { source: string | null }) {
   );
 }
 
+// ---- Source card styles ----------------------------------------------------
+
+const SOURCE_CARD: Record<string, string> = {
+  background: 'var(--bg2)',
+  border: '1px solid var(--border)',
+  padding: '0.75rem 1rem',
+  flex: '1 1 140px',
+  minWidth: '140px',
+};
+const SOURCE_CARD_HEADER: Record<string, string> = {
+  marginBottom: '0.5rem',
+};
+const SOURCE_STAT_LABEL: Record<string, string> = {
+  fontSize: '10px',
+  color: 'var(--gray)',
+  letterSpacing: '0.08em',
+  fontWeight: '700',
+  marginBottom: '2px',
+};
+const SOURCE_STAT_VALUE: Record<string, string> = {
+  fontSize: '13px',
+  fontWeight: '700',
+  color: 'var(--text)',
+};
+
 // ---- Main component --------------------------------------------------------
 
 export function Performance() {
@@ -170,6 +195,8 @@ export function Performance() {
   const [sortDir, setSortDir]     = useState<SortDir>('desc');
   const [filter, setFilter]       = useState('');
   const [showActive, setShowActive] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<string | null>(null); // null = ALL
+  const [sourceTableFilter, setSourceTableFilter] = useState<string>(''); // '' = all sources
 
   // ---- Data fetching -------------------------------------------------------
 
@@ -209,7 +236,27 @@ export function Performance() {
 
   // ---- Derived data --------------------------------------------------------
 
-  const chartData = buildChartData(history);
+  // Per-source P&L and win/loss counts -- computed from history array (D-06: client-side)
+  const sourceStats = useMemo(() => {
+    const stats: Record<string, { pnl: number; wins: number; losses: number; total: number }> = {};
+    for (const t of history) {
+      const src = (t.source ?? 'unknown').toLowerCase();
+      if (!stats[src]) stats[src] = { pnl: 0, wins: 0, losses: 0, total: 0 };
+      const s = stats[src]!;
+      s.total++;
+      if (t.pnl_sol !== null) {
+        s.pnl += t.pnl_sol;
+        if (t.pnl_sol > 0) s.wins++;
+        else s.losses++;
+      }
+    }
+    return stats;
+  }, [history]);
+
+  const filteredChartHistory = sourceFilter
+    ? history.filter(t => (t.source ?? '').toLowerCase() === sourceFilter)
+    : history;
+  const chartData = buildChartData(filteredChartHistory);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -222,6 +269,7 @@ export function Performance() {
 
   const filteredHistory = history
     .filter(t => !filter || t.mint.toLowerCase().includes(filter.toLowerCase()))
+    .filter(t => !sourceTableFilter || (t.source ?? '').toLowerCase() === sourceTableFilter)
     .sort((a, b) => {
       let cmp = 0;
       if (sortField === 'updated_at') {
@@ -289,6 +337,66 @@ export function Performance() {
         <StatCard label="OPEN" value={stats?.openPositions.toString() ?? '—'} color="var(--blue)" />
       </div>
 
+      {/* Per-source stat cards (D-05, DASH-07) */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {(['pumpportal', 'raydium', 'pumpswap'] as const)
+          .filter(src => sourceStats[src])
+          .map(src => {
+            const s = sourceStats[src]!;
+            return (
+              <div key={src} style={SOURCE_CARD}>
+                <div style={SOURCE_CARD_HEADER}>
+                  <SourceBadge source={src} />
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'baseline' }}>
+                  <div>
+                    <div style={SOURCE_STAT_LABEL}>P&amp;L</div>
+                    <div style={{ ...SOURCE_STAT_VALUE, color: pnlColor(s.pnl) }}>
+                      {s.pnl >= 0 ? '+' : ''}{s.pnl.toFixed(4)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={SOURCE_STAT_LABEL}>W/L</div>
+                    <div style={SOURCE_STAT_VALUE}>{s.wins}/{s.losses}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
+
+      {/* Source filter buttons (D-05, DASH-07) */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '0.5rem' }}>
+        {[
+          { key: null as string | null, label: 'ALL' },
+          { key: 'pumpportal', label: 'PUMP' },
+          { key: 'raydium', label: 'RAY' },
+          { key: 'pumpswap', label: 'PSWAP' },
+        ].map(({ key, label }) => {
+          const isActive = sourceFilter === key;
+          return (
+            <button
+              key={label}
+              onClick={() => setSourceFilter(key)}
+              style={{
+                background: isActive ? 'var(--amber)' : 'var(--bg4)',
+                color: isActive ? '#000' : 'var(--text-dim)',
+                border: 'none',
+                padding: '4px 12px',
+                fontSize: '10px',
+                fontWeight: '700',
+                letterSpacing: '0.1em',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* P&L Chart */}
       {chartData.length === 0 ? (
         <div style={{
@@ -319,21 +427,40 @@ export function Performance() {
               </span>
             )}
           </h3>
-          <input
-            type="text"
-            placeholder="filter by mint..."
-            value={filter}
-            onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
-            style={{
-              background: 'var(--bg2)',
-              border: '1px solid var(--border)',
-              color: 'var(--text)',
-              padding: '0.2rem 0.5rem',
-              fontFamily: 'var(--mono)',
-              fontSize: '0.8rem',
-              width: '200px',
-            }}
-          />
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select
+              value={sourceTableFilter}
+              onChange={(e) => setSourceTableFilter((e.target as HTMLSelectElement).value)}
+              style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                padding: '0.2rem 0.5rem',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+              }}
+            >
+              <option value="">all sources</option>
+              <option value="pumpportal">pumpportal</option>
+              <option value="raydium">raydium</option>
+              <option value="pumpswap">pumpswap</option>
+            </select>
+            <input
+              type="text"
+              placeholder="filter by mint..."
+              value={filter}
+              onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
+              style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                padding: '0.2rem 0.5rem',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.8rem',
+                width: '200px',
+              }}
+            />
+          </div>
         </div>
 
         {filteredHistory.length === 0 ? (
