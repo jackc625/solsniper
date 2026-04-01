@@ -3,6 +3,9 @@ import { Sidebar } from './components/Sidebar.js';
 import type { View } from './components/Sidebar.js';
 import { LiveFeed } from './components/LiveFeed.js';
 import { Performance } from './components/Performance.js';
+import { Pipeline } from './components/Pipeline.js';
+import { Controls } from './components/Controls.js';
+import { SystemStatus } from './components/SystemStatus.js';
 import { Settings } from './components/Settings.js';
 import { configSignal, fetchConfig } from './store/config.js';
 import { connectFeed } from './store/feed.js';
@@ -34,6 +37,9 @@ export function App() {
         <main style={MAIN}>
           {view === 'feed'        && <LiveFeed />}
           {view === 'performance' && <Performance />}
+          {view === 'pipeline'    && <Pipeline />}
+          {view === 'controls'    && <Controls />}
+          {view === 'status'      && <SystemStatus />}
           {view === 'settings'    && <Settings />}
         </main>
       </div>

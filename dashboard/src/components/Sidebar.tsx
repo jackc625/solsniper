@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { configSignal } from '../store/config.js';
+import { pausedSignal, estopDialogOpen, fetchPausedState } from '../store/controls.js';
 
-export type View = 'feed' | 'performance' | 'settings';
+export type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'settings';
 
 interface SidebarProps {
   activeView: View;
@@ -15,9 +16,12 @@ interface Stats {
 }
 
 const NAV_ITEMS: { view: View; label: string; abbr: string }[] = [
-  { view: 'feed',        label: 'Live Feed',    abbr: 'FEED' },
-  { view: 'performance', label: 'Performance',  abbr: 'PERF' },
-  { view: 'settings',    label: 'Settings',     abbr: 'CONF' },
+  { view: 'feed',        label: 'Live Feed',        abbr: 'FEED' },
+  { view: 'performance', label: 'Performance',      abbr: 'PERF' },
+  { view: 'pipeline',    label: 'Safety Pipeline',  abbr: 'PIPE' },
+  { view: 'controls',    label: 'Controls',         abbr: 'CTRL' },
+  { view: 'status',      label: 'System Status',    abbr: 'STAT' },
+  { view: 'settings',    label: 'Settings',         abbr: 'CONF' },
 ];
 
 export function Sidebar({ activeView, onNavigate }: SidebarProps) {
@@ -25,8 +29,9 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   const [connected, setConnected]   = useState(true);
   const [lastTick, setLastTick]     = useState(Date.now());
   const [hoveredView, setHovered]   = useState<View | null>(null);
+  const [healthStatus, setHealthStatus] = useState<'healthy' | 'degraded' | 'down'>('healthy');
 
-  // Poll /api/stats every 5 s (mirrors old Header pattern)
+  // Poll /api/stats + /api/health + paused state every 5 s
   useEffect(() => {
     const load = async () => {
       try {
@@ -41,9 +46,19 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
       } catch {
         setConnected(false);
       }
+
+      // Health status for STAT nav dot (D-02)
+      try {
+        const healthRes = await fetch('/api/health');
+        if (healthRes.ok) {
+          const healthData = await healthRes.json() as { status: string };
+          setHealthStatus(healthData.status as 'healthy' | 'degraded' | 'down');
+        }
+      } catch { /* ignore */ }
     };
     void load();
-    const id = setInterval(() => void load(), 5000);
+    void fetchPausedState();
+    const id = setInterval(() => { void load(); void fetchPausedState(); }, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -61,6 +76,13 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   const pnlSign  = pnlPos ? '+' : '';
 
   const isDryRun = Boolean(configSignal.value?.dryRun);
+
+  // Connection bar state (D-04): priority: not connected -> NO SIGNAL, paused -> PAUSED, else -> CONNECTED
+  const isPaused = pausedSignal.value;
+  const connState = !connected ? 'disconnected' : isPaused ? 'paused' : 'connected';
+  const connDotColor = connState === 'connected' ? 'var(--green)' : connState === 'paused' ? 'var(--yellow)' : 'var(--red)';
+  const connLabel = connState === 'connected' ? 'CONNECTED' : connState === 'paused' ? 'PAUSED' : 'NO SIGNAL';
+  const connLabelColor = connState === 'connected' ? 'var(--text-dim)' : connState === 'paused' ? 'var(--yellow)' : 'var(--red)';
 
   return (
     <aside style={SIDEBAR}>
@@ -115,6 +137,16 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
                 {abbr}
               </span>
               <span style={NAV_LABEL}>{label}</span>
+              {/* Health dot next to STAT nav item (D-02) */}
+              {view === 'status' && (
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: healthStatus === 'healthy' ? 'var(--green)' : healthStatus === 'degraded' ? 'var(--yellow)' : 'var(--red)',
+                  flexShrink: '0',
+                }} />
+              )}
               {isActive && <span style={NAV_INDICATOR} />}
             </button>
           );
@@ -154,15 +186,25 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
         </div>
       </div>
 
-      {/* ---- Connection status ---- */}
+      {/* ---- E-Stop button (D-03) ---- */}
+      <button
+        onClick={() => { estopDialogOpen.value = true; }}
+        style={ESTOP_BTN}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 12px rgba(255, 68, 68, 0.4)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+      >
+        EMERGENCY STOP
+      </button>
+
+      {/* ---- Connection status (D-04: 3-state) ---- */}
       <div style={CONN_BAR}>
         <span style={{
           ...CONN_DOT,
-          background: connected ? 'var(--green)' : 'var(--red)',
-          animation: connected ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+          background: connDotColor,
+          animation: connState === 'connected' ? 'pulse-dot 2s ease-in-out infinite' : 'none',
         }} />
-        <span style={{ color: connected ? 'var(--text-dim)' : 'var(--red)', fontSize: '10px', letterSpacing: '0.1em' }}>
-          {connected ? 'CONNECTED' : 'NO SIGNAL'}
+        <span style={{ color: connLabelColor, fontSize: '10px', letterSpacing: '0.1em' }}>
+          {connLabel}
         </span>
       </div>
     </aside>
@@ -334,6 +376,23 @@ const STAT_DIVIDER: Record<string, string> = {
   height:     '1px',
   background: 'var(--border-subtle)',
   margin:     '2px 0',
+};
+
+const ESTOP_BTN: Record<string, string> = {
+  background:    'var(--red)',
+  color:         '#000',
+  fontFamily:    'var(--font-display)',
+  fontSize:      '13px',
+  fontWeight:    '700',
+  letterSpacing: '0.15em',
+  padding:       '8px var(--sp-4)',
+  width:         'calc(100% - 2 * var(--sp-3))',
+  margin:        '0 var(--sp-3) var(--sp-3)',
+  border:        'none',
+  borderRadius:  'var(--r-sm)',
+  cursor:        'pointer',
+  minHeight:     '44px',
+  textAlign:     'center',
 };
 
 const CONN_BAR: Record<string, string> = {
