@@ -1009,4 +1009,18 @@ describe('PositionManager', () => {
       expect((pm as any).sellsInFlight.has(MINT_A)).toBe(false);
     });
   });
+
+  describe('isSellInFlight', () => {
+    it('returns false for a mint not in sellsInFlight', () => {
+      const pm = makePositionManager();
+      expect(pm.isSellInFlight(MINT_A)).toBe(false);
+    });
+
+    it('returns true when mint is actively being sold', () => {
+      const pm = makePositionManager();
+      // Simulate an active sell by adding to the private Set
+      (pm as any).sellsInFlight.add(MINT_A);
+      expect(pm.isSellInFlight(MINT_A)).toBe(true);
+    });
+  });
 });

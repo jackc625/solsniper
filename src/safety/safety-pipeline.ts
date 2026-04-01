@@ -104,6 +104,7 @@ export class SafetyPipeline {
         tier3: [],
         durationMs: Date.now() - startTime,
       }, 'Token rejected by safety pipeline');
+      this.emitSafetyEvaluation(result, event.source);
       this.cache.set(event.mint, result);
       return result;
     }
@@ -175,6 +176,7 @@ export class SafetyPipeline {
         tier3: tier3Results.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
         durationMs: Date.now() - startTime,
       }, 'Token rejected by safety pipeline');
+      this.emitSafetyEvaluation(result, event.source);
       this.cache.set(event.mint, result);
       return result;
     }
@@ -221,6 +223,7 @@ export class SafetyPipeline {
         tier3: tier3Results.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
         durationMs: Date.now() - startTime,
       }, 'Token rejected by safety pipeline');
+      this.emitSafetyEvaluation(result, event.source);
       this.cache.set(event.mint, result);
       return result;
     }
@@ -239,6 +242,7 @@ export class SafetyPipeline {
       tier3: tier3Results.map(r => ({ source: r.source, pass: r.pass, score: r.score, detail: r.detail })),
       durationMs: Date.now() - startTime,
     }, 'Token passed safety pipeline');
+    this.emitSafetyEvaluation(result, event.source);
     this.cache.set(event.mint, result);
     return result;
 
@@ -252,6 +256,33 @@ export class SafetyPipeline {
       });
       throw err;
     }
+  }
+
+  /**
+   * Emits a SAFETY_EVALUATION event on botEventBus with full per-check detail.
+   * Called after every non-cached evaluation (all 4 exit paths: tier1 reject,
+   * soft block reject, threshold reject, pass).
+   */
+  private emitSafetyEvaluation(result: SafetyResult, source?: string): void {
+    botEventBus.emit('event', {
+      type: 'SAFETY_EVALUATION',
+      mint: result.mint,
+      ts: Date.now(),
+      source,
+      detail: result.pass ? 'PASS' : 'FAIL',
+      safetyScore: result.aggregateScore,
+      safetyResult: {
+        pass: result.pass,
+        aggregateScore: result.aggregateScore,
+        checks: [
+          ...result.tier1.map(c => ({ source: c.source, pass: c.pass, score: c.score, detail: c.detail, tier: 'tier1' as const })),
+          ...result.tier2.map(c => ({ source: c.source, pass: c.pass, score: c.score, detail: c.detail, tier: 'tier2' as const })),
+          ...result.tier3.map(c => ({ source: c.source, pass: c.pass, score: c.score, detail: c.detail, tier: 'tier3' as const })),
+        ],
+        durationMs: result.durationMs,
+        rejectionReasons: result.rejectionReasons,
+      },
+    });
   }
 
   /**

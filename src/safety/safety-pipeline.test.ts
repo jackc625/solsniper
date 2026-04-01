@@ -12,8 +12,24 @@ const mockBlocklistLoad = vi.hoisted(() => vi.fn());
 const mockBlocklistHas = vi.hoisted(() => vi.fn().mockReturnValue(false));
 const mockBlocklistAdd = vi.hoisted(() => vi.fn());
 const mockGetRuntimeConfig = vi.hoisted(() => vi.fn());
+const mockBotEventBusEmit = vi.hoisted(() => vi.fn());
 
 // --- Module mocks ---
+
+// Mock env.js first — logger.ts imports env for LOG_LEVEL/NODE_ENV, and
+// env.ts calls process.exit(1) on validation failure if env vars are not set.
+vi.mock('../config/env.js', () => ({
+  env: {
+    SOLSNIPER_RPC_URL: 'http://localhost:8899',
+    SOLSNIPER_RPC_BACKUP_URL: 'http://localhost:8899',
+    SOLSNIPER_PRIVATE_KEY: 'test-key',
+    SOLSNIPER_JUPITER_API_KEY: 'test-api-key',
+    RUGCHECK_API_KEY: 'test-rugcheck-key',
+    HELIUS_API_KEY: 'test-helius-key',
+    LOG_LEVEL: 'error',
+    NODE_ENV: 'development',
+  },
+}));
 
 vi.mock('./safety-cache.js', () => ({
   SafetyCache: vi.fn(function () {
@@ -61,6 +77,10 @@ vi.mock('./checks/tier3-creator.js', () => ({
 
 vi.mock('../config/trading.js', () => ({
   getRuntimeConfig: mockGetRuntimeConfig,
+}));
+
+vi.mock('../dashboard/bot-event-bus.js', () => ({
+  botEventBus: { emit: mockBotEventBusEmit, on: vi.fn(), off: vi.fn() },
 }));
 
 // --- Import module under test AFTER mocks ---
@@ -752,6 +772,83 @@ describe('SafetyPipeline', () => {
       expect(result.tier2.some(r => r.source === 'metadata_mutability')).toBe(true);
       // Tier 3 should have 1 result: creator_history
       expect(result.tier3).toHaveLength(1);
+    });
+  });
+
+  describe('SAFETY_EVALUATION event emission', () => {
+    it('emits SAFETY_EVALUATION event on passing evaluation with checks array', async () => {
+      const [tier1AuthResult, tier1SellResult] = makeTier1Pass();
+      vi.mocked(checkAuthorities).mockResolvedValue(tier1AuthResult);
+      vi.mocked(checkSellRoute).mockResolvedValue(tier1SellResult);
+
+      const [rugPass, holderPass, creatorPass] = makeTier2Tier3Pass();
+      vi.mocked(checkRugCheck).mockResolvedValue(rugPass);
+      vi.mocked(checkHolderConcentration).mockResolvedValue(holderPass);
+      vi.mocked(checkCreatorHistory).mockResolvedValue(creatorPass);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      const event = makeTokenEvent({ source: 'pumpportal' });
+      await pipeline.evaluate(event);
+
+      // Should emit SAFETY_EVALUATION event on botEventBus
+      const safetyEmitCalls = mockBotEventBusEmit.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'event' && (call[1] as { type: string }).type === 'SAFETY_EVALUATION'
+      );
+      expect(safetyEmitCalls).toHaveLength(1);
+
+      const emitted = safetyEmitCalls[0][1];
+      expect(emitted.type).toBe('SAFETY_EVALUATION');
+      expect(emitted.mint).toBe(MOCK_MINT);
+      expect(emitted.source).toBe('pumpportal');
+      expect(emitted.detail).toBe('PASS');
+      expect(emitted.safetyResult).toBeDefined();
+      expect(emitted.safetyResult.pass).toBe(true);
+      expect(emitted.safetyResult.aggregateScore).toBeGreaterThanOrEqual(60);
+      expect(emitted.safetyResult.checks).toBeInstanceOf(Array);
+      expect(emitted.safetyResult.checks.length).toBeGreaterThan(0);
+      // Checks must have tier info
+      const tiers = emitted.safetyResult.checks.map((c: { tier: string }) => c.tier);
+      expect(tiers).toContain('tier1');
+      expect(tiers).toContain('tier2');
+      expect(tiers).toContain('tier3');
+    });
+
+    it('emits SAFETY_EVALUATION event on Tier 1 rejection', async () => {
+      const mintAuthFail: CheckResult = { pass: false, source: 'mint_authority', detail: 'mint authority active' };
+      const freezeAuthPass: CheckResult = { pass: true, source: 'freeze_authority', detail: 'revoked' };
+      const sellRoutePass: CheckResult = { pass: true, source: 'jupiter_sell_route', detail: 'route exists' };
+
+      vi.mocked(checkAuthorities).mockResolvedValue([mintAuthFail, freezeAuthPass, TOKEN_PROGRAM_ID_PK]);
+      vi.mocked(checkSellRoute).mockResolvedValue(sellRoutePass);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      await pipeline.evaluate(makeTokenEvent());
+
+      const safetyEmitCalls = mockBotEventBusEmit.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'event' && (call[1] as { type: string }).type === 'SAFETY_EVALUATION'
+      );
+      expect(safetyEmitCalls).toHaveLength(1);
+
+      const emitted = safetyEmitCalls[0][1];
+      expect(emitted.type).toBe('SAFETY_EVALUATION');
+      expect(emitted.detail).toBe('FAIL');
+      expect(emitted.safetyResult.pass).toBe(false);
+    });
+
+    it('does NOT emit SAFETY_EVALUATION on cache hit', async () => {
+      const cachedResult: SafetyResult = {
+        pass: true, mint: MOCK_MINT, aggregateScore: 75,
+        tier1: [], tier2: [], tier3: [], rejectionReasons: [], durationMs: 50,
+      };
+      mockCacheGet.mockReturnValue(cachedResult);
+
+      const pipeline = new SafetyPipeline(mockConnection, mockTradingConfig, mockEnv);
+      await pipeline.evaluate(makeTokenEvent());
+
+      const safetyEmitCalls = mockBotEventBusEmit.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'event' && (call[1] as { type: string }).type === 'SAFETY_EVALUATION'
+      );
+      expect(safetyEmitCalls).toHaveLength(0);
     });
   });
 });

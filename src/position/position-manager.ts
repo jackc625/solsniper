@@ -113,6 +113,11 @@ export class PositionManager {
     log.info('PositionManager stopped');
   }
 
+  /** Returns true if the given mint is currently being sold (force-sell guard). */
+  isSellInFlight(mint: string): boolean {
+    return this.sellsInFlight.has(mint);
+  }
+
   /**
    * Schedules the next poll tick using recursive setTimeout.
    * When JupiterClient is in cooldown, stretches the interval by cooldownRemainingMs

@@ -6,10 +6,17 @@ export interface FeedEvent {
   ts: number;
   detail?: string;
   isDryRun?: boolean;     // Phase 12: true for dry-run trades
-  safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED)
+  safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED and SAFETY_EVALUATION)
   source?: string;        // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
   buyAmountSol?: number;  // Configured or actual buy amount in SOL
   pnlSol?: number;        // Realized P&L in SOL (present on SELL_CONFIRMED/SELL_FAILED when known)
+  safetyResult?: {        // Phase 21: Full safety evaluation payload (present on SAFETY_EVALUATION)
+    pass: boolean;
+    aggregateScore: number;
+    checks: Array<{ source: string; pass: boolean; score?: number; detail: string; tier: 'tier1' | 'tier2' | 'tier3' }>;
+    durationMs: number;
+    rejectionReasons: string[];
+  };
 }
 
 export const feedEvents = signal<FeedEvent[]>([]);
@@ -34,7 +41,7 @@ export function connectFeed(): () => void {
   // Also handle typed events (SSE event field matches BotEventType)
   const eventTypes = ['TOKEN_DETECTED','BUY_SENT','BUY_CONFIRMED','BUY_FAILED',
                       'SELL_TRIGGERED','SELL_PARTIAL','SELL_CONFIRMED','SELL_FAILED','ERROR',
-                      'CONFIG_CHANGED'] as const;
+                      'CONFIG_CHANGED','LOW_BALANCE','SYSTEM_ALERT','SAFETY_EVALUATION'] as const;
   eventTypes.forEach((type) => {
     es.addEventListener(type, (e) => {
       try {

@@ -12,7 +12,8 @@ export type BotEventType =
   | 'ERROR'
   | 'CONFIG_CHANGED'
   | 'LOW_BALANCE'       // EXE-12: emitted when wallet balance below buy threshold
-  | 'SYSTEM_ALERT';     // REL-02: emitted on detection disconnect, API failure, rate limit
+  | 'SYSTEM_ALERT'      // REL-02: emitted on detection disconnect, API failure, rate limit
+  | 'SAFETY_EVALUATION';
 
 export interface BotEvent {
   type: BotEventType;
@@ -20,12 +21,19 @@ export interface BotEvent {
   ts: number;             // Unix ms -- Date.now()
   detail?: string;        // Brief human-readable description for feed row
   isDryRun?: boolean;     // Phase 12: true for dry-run trades
-  safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED)
+  safetyScore?: number;   // Aggregate safety score 0-100 (present on TOKEN_DETECTED and SAFETY_EVALUATION)
   source?: string;        // Detection source: 'pumpportal' | 'raydium' | 'pumpswap'
   buyAmountSol?: number;  // Configured or actual buy amount in SOL
   pnlSol?: number;        // Realized P&L in SOL (present on SELL_CONFIRMED/SELL_FAILED when known)
   severity?: 'info' | 'warn' | 'error';                         // REL-02: alert severity (optional to preserve existing emit calls)
   alertSource?: 'detection' | 'rpc' | 'api' | 'rateLimit';     // REL-02: alert origin subsystem (optional)
+  safetyResult?: {        // Phase 21: Full safety evaluation payload (present on SAFETY_EVALUATION)
+    pass: boolean;
+    aggregateScore: number;
+    checks: Array<{ source: string; pass: boolean; score?: number; detail: string; tier: 'tier1' | 'tier2' | 'tier3' }>;
+    durationMs: number;
+    rejectionReasons: string[];
+  };
 }
 
 // Typed EventEmitter3 -- only one event name ('event') with BotEvent payload.
