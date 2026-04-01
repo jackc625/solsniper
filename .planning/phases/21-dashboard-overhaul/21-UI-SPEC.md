@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: none
 created: 2026-03-31
+revised: 2026-03-31
 ---
 
 # Phase 21 -- UI Design Contract
@@ -41,7 +42,11 @@ Declared values (must be multiples of 4):
 | 2xl | `--sp-6` | 24px | Page-level padding (Settings grid), save bar |
 | 3xl | `--sp-8` | 32px | Major section breaks |
 
-Exceptions:
+**Legacy exceptions:**
+- `--sp-3` (12px) -- pre-existing token from dashboard/index.html; cannot change without full dashboard reskin; accepted as legacy exception.
+- `--sp-5` (20px) -- pre-existing token from dashboard/index.html; cannot change without full dashboard reskin; accepted as legacy exception.
+
+Additional exceptions:
 - Emergency stop button: 44px minimum touch target height (accessibility for critical action)
 - STOP confirmation text input: full-width minus 24px horizontal padding
 
@@ -53,19 +58,22 @@ Exceptions:
 
 | Role | Font Family | Size | Weight | Line Height | Letter Spacing | Usage |
 |------|-------------|------|--------|-------------|----------------|-------|
-| Body | `var(--font-mono)` | 13px | 400 | 1.5 | 0 | Default text, table cells, data values |
-| Label | `var(--font-mono)` | 10-11px | 400 | 1.4 | 0.1-0.15em | Section labels, stat keys, nav abbreviations, timestamps |
+| Badge/Label | `var(--font-mono)` | 10px | 700 | 1.4 | 0.1em | Badges, section labels, stat keys, nav abbreviations, timestamps, subtitles/descriptions |
+| Body | `var(--font-mono)` | 13px | 400 | 1.5 | 0 | Default text, table cells, data values, card section labels (weight 700 for emphasis) |
+| Brand | `var(--font-display)` | 16px | 700 | 1.2 | 0.12em | Brand name in sidebar |
 | Heading | `var(--font-display)` | 20px | 700 | 1.2 | 0.15em | Page titles (CONFIGURATION, CONTROLS, PIPELINE, STATUS) |
-| Data | `var(--font-mono)` | 13px | 700 | 1.5 | 0 | Stat values, P&L figures, scores, counts |
 
-Additional type patterns (established, reuse as-is):
-- **Nav abbreviation:** `var(--font-display)`, 11px, weight 700, letter-spacing 0.1em
-- **Card section label:** `var(--font-display)`, 13px, weight 700, letter-spacing 0.15em, color `var(--amber)`
-- **Badge text:** 9-10px, weight 700, letter-spacing 0.04-0.15em
-- **Subtitle/description:** 10-11px, weight 400, color `var(--text-dim)`
-- **Brand name:** `var(--font-display)`, 16px, weight 700, letter-spacing 0.12em
+Exactly 4 font size bands. Exactly 2 weights: 400 (regular) and 700 (bold).
 
-**Source:** Extracted from Sidebar.tsx, Performance.tsx, Settings.tsx, FeedCard.tsx established patterns.
+Consolidation notes (from prior 6-band audit):
+- Former 9-10px badge text consolidated to 10px
+- Former 10-11px label/subtitle/nav-abbreviation consolidated to 10px
+- Former 11px nav abbreviation consolidated to 10px
+- Former 13px body/data/card-label stays at 13px
+- Former 16px brand name stays at 16px
+- Former 20px heading stays at 20px
+
+**Source:** Extracted from Sidebar.tsx, Performance.tsx, Settings.tsx, FeedCard.tsx established patterns; consolidated per typography audit.
 
 ---
 
@@ -126,11 +134,11 @@ Additional type patterns (established, reuse as-is):
 
 ### New Pages (Views)
 
-| View Key | Nav Abbr | Nav Label | Page Component | Requirement |
-|----------|----------|-----------|----------------|-------------|
-| `pipeline` | PIPE | Safety Pipeline | `<Pipeline />` | DASH-08 |
-| `controls` | CTRL | Controls | `<Controls />` | DASH-09 |
-| `status` | STAT | System Status | `<SystemStatus />` | DASH-10 |
+| View Key | Nav Abbr | Nav Label | Page Component | Requirement | Focal Point |
+|----------|----------|-----------|----------------|-------------|-------------|
+| `pipeline` | PIPE | Safety Pipeline | `<Pipeline />` | DASH-08 | The streaming card list is the primary visual anchor; the stats header provides context but the eye should land on the live card flow |
+| `controls` | CTRL | Controls | `<Controls />` | DASH-09 | The Pause/Resume toggle is the primary visual anchor; it is the largest interactive element and the first decision a user makes on this page |
+| `status` | STAT | System Status | `<SystemStatus />` | DASH-10 | The component health card grid is the primary visual anchor; at-a-glance colored status dots draw the eye before any table data |
 
 ### Extended View Type
 
@@ -200,6 +208,7 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 | Pause/Resume toggle | Large toggle button (not checkbox). PAUSED state: yellow background. ACTIVE state: green background. Label shows current state | D-12 |
 | Positions table | Table of open positions: Mint (link), Source badge, Entry SOL, Current P&L, Duration, Action column | D-11 |
 | Force Sell button | Per-row button in Action column. Red outline style: `border: 1px solid var(--red)`, `color: var(--red)`, `background: transparent`. On hover: `background: rgba(255, 68, 68, 0.1)` | D-11 |
+| Force Sell confirmation | Inline confirmation: clicking FORCE SELL replaces the button with "SELL {mint_short}?" text + CONFIRM (red solid) and KEEP (transparent border) buttons. Auto-dismisses after 5 seconds if no action taken, reverting to FORCE SELL button | Added per reviewer flag |
 | Selling badge | When position is mid-sell (sellsInFlight), show amber "SELLING..." badge instead of Force Sell button. Pulsing animation | D-14 |
 | Emergency stop section | Card at bottom of detection controls area with red border. Contains "EMERGENCY STOP" heading + description + trigger button. Same button as sidebar e-stop | D-13 |
 
@@ -213,7 +222,7 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 | Body text | "This will pause all detection and force-sell every open position. Type STOP to confirm." | D-13 |
 | Confirmation input | Text input, placeholder "Type STOP to confirm", `border: 1px solid var(--red)`, full width | D-13 |
 | Confirm button | Disabled until input === 'STOP'. Enabled: `background: var(--red)`, `color: #000`. Disabled: `opacity: 0.3`, `cursor: not-allowed` | D-13 |
-| Cancel button | `background: transparent`, `border: 1px solid var(--border-strong)`, `color: var(--text-dim)` | Established pattern |
+| Dismiss button | `background: transparent`, `border: 1px solid var(--border-strong)`, `color: var(--text-dim)`. Label: "DISMISS" | Established pattern; label revised per copywriting audit |
 
 ### System Status Page (DASH-10)
 
@@ -233,11 +242,12 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 ### Force Sell Flow
 
 1. User clicks FORCE SELL button on open position row
-2. Button immediately changes to "SELLING..." amber badge with pulse animation
-3. POST `/api/trades/:id/force-sell` fires
-4. If 409 Conflict (already selling): no-op, badge already shows SELLING
-5. If 200 OK: position row updates via next poll cycle (5s)
-6. If error: show inline red error text below the row for 5 seconds
+2. Button is replaced inline with confirmation prompt: "SELL {mint_short}?" plus CONFIRM (red solid) and KEEP (transparent border) buttons
+3. If user clicks CONFIRM: POST `/api/trades/:id/force-sell` fires, row immediately shows "SELLING..." amber badge with pulse animation
+4. If user clicks KEEP or 5 seconds elapse with no action: revert to FORCE SELL button
+5. If 409 Conflict (already selling): no-op, badge already shows SELLING
+6. If 200 OK: position row updates via next poll cycle (5s)
+7. If error: show inline red error text below the row for 5 seconds
 
 ### Pause/Resume Detection Flow
 
@@ -256,7 +266,7 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 5. On confirm: POST `/api/controls/emergency-stop`
 6. Dialog shows "EXECUTING..." state (button disabled, spinner/pulse)
 7. On success: dialog closes, sidebar shows PAUSED state, positions show SELLING badges
-8. On error: dialog shows red error message, confirm button re-enables
+8. On dismiss (DISMISS button or overlay click): dialog closes, no action taken
 
 ### Source Filter on Equity Curve
 
@@ -288,12 +298,15 @@ type View = 'feed' | 'performance' | 'pipeline' | 'controls' | 'status' | 'setti
 |---------|------|---------|
 | Primary CTA (Controls) | PAUSE DETECTION / RESUME DETECTION | Toggle label changes based on state |
 | Primary CTA (Force Sell) | FORCE SELL | Per-position action button |
+| Force Sell confirmation prompt | SELL {mint_short}? | Inline confirmation text shown after clicking FORCE SELL |
+| Force Sell confirm button | CONFIRM | Red solid button in inline confirmation |
+| Force Sell keep button | KEEP | Transparent border button to abandon force sell |
 | Primary CTA (E-Stop) | EMERGENCY STOP | Always-visible sidebar button + controls page |
 | E-Stop confirmation title | CONFIRM EMERGENCY STOP | Dialog heading |
 | E-Stop confirmation body | This will pause all detection and force-sell every open position. Type STOP to confirm. | Dialog description |
 | E-Stop confirmation input placeholder | Type STOP to confirm | Input placeholder text |
 | E-Stop confirm button | EXECUTE STOP | Enabled confirm button |
-| E-Stop cancel button | CANCEL | Dialog cancel |
+| E-Stop dismiss button | DISMISS | Dialog dismiss button (communicates the dangerous action is being abandoned) |
 | E-Stop executing state | EXECUTING... | Button text during API call |
 | Selling badge | SELLING... | Shown when position is mid-sell |
 | Pipeline empty state heading | Waiting for evaluations | Shown when no SAFETY_EVALUATION events received |
