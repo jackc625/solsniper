@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
-stopped_at: Phase 21 UI-SPEC approved
-last_updated: "2026-04-01T17:08:05.254Z"
-last_activity: 2026-04-01 -- Phase 21 execution started
+stopped_at: Completed 21-04-PLAN.md
+last_updated: "2026-04-01T17:58:36.885Z"
+last_activity: 2026-04-01
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 22
-  completed_plans: 16
+  completed_plans: 19
   percent: 50
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 21 (dashboard-overhaul) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 21
-Last activity: 2026-04-01 -- Phase 21 execution started
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-04-01
 
 Progress: [#####.....] 50%
 
@@ -66,6 +66,7 @@ Progress: [#####.....] 50%
 | Phase 20-reliability-monitoring P03 | 4 | 2 tasks | 7 files |
 | Phase 20-reliability-monitoring P04 | 20 | 2 tasks | 11 files |
 | Phase 20 P05 | 6 | 2 tasks | 5 files |
+| Phase 21-dashboard-overhaul P04 | 7 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,8 @@ Recent decisions affecting current work:
 - [Phase 20-04]: ApiAlertCallback type exported from fee-estimator.ts as shared callback signature -- single type definition reused by all 7 fetch-calling modules
 - [Phase 20-04]: Centralized onApiAlert callback in index.ts handles both consecutive_failure and rate_limit types -- emits SYSTEM_ALERT to BotEventBus and persists to AlertStore
 - [Phase 20]: apis provider tested as pure function mirroring index.ts closure; count=0 endpoints ignored; apis mapped to api alert source
+- [Phase 21-04]: shortenMint and SourceBadge defined locally in Pipeline.tsx and Controls.tsx (Performance.tsx does not export them)
+- [Phase 21-04]: EmergencyStopDialog placed inside CONTENT_COL after main element with fixed positioning zIndex 1000
 
 ### Pending Todos
 
@@ -124,6 +127,6 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-31
-Last session: 2026-04-01T01:18:21.959Z
-Stopped at: Phase 21 UI-SPEC approved
-Resume file: .planning/phases/21-dashboard-overhaul/21-UI-SPEC.md
+Last session: 2026-04-01T17:58:36.878Z
+Stopped at: Completed 21-04-PLAN.md
+Resume file: None

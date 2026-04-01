@@ -38,8 +38,8 @@ Requirements for the hardening & polish milestone. Each maps to roadmap phases.
 ### Dashboard
 
 - [ ] **DASH-07**: Dashboard shows equity curve, win/loss ratio, and per-source P&L breakdown
-- [ ] **DASH-08**: Dashboard shows live safety pipeline decisions with per-check detail for each token evaluated
-- [ ] **DASH-09**: User can pause/resume detection, force-sell positions, and emergency stop from dashboard
+- [x] **DASH-08**: Dashboard shows live safety pipeline decisions with per-check detail for each token evaluated
+- [x] **DASH-09**: User can pause/resume detection, force-sell positions, and emergency stop from dashboard
 - [ ] **DASH-10**: Dashboard shows system status panel with RPC health, rate limit indicators, and alert history
 
 ## Future Requirements
@@ -99,8 +99,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REL-03 | Phase 20 | Complete |
 | REL-04 | Phase 20 | Complete |
 | DASH-07 | Phase 21 | Pending |
-| DASH-08 | Phase 21 | Pending |
-| DASH-09 | Phase 21 | Pending |
+| DASH-08 | Phase 21 | Complete |
+| DASH-09 | Phase 21 | Complete |
 | DASH-10 | Phase 21 | Pending |
 
 **Coverage:**
