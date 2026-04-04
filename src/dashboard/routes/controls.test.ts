@@ -200,4 +200,73 @@ describe('controls route', () => {
     expect(body.sellResults[1].status).toBe('triggered');
     expect(mockTriggerSell).toHaveBeenCalledTimes(2);
   });
+
+  // --- Test 9 (idempotency): POST /api/controls/detection when already paused ---
+  it('POST /api/controls/detection with paused=true when already paused returns same success response', async () => {
+    // Arrange: detection is already paused
+    mockGetDetectionPaused.mockReturnValue(true);
+
+    // Act: request to pause again
+    const res = await fastify.inject({
+      method: 'POST',
+      url: '/api/controls/detection',
+      payload: { paused: true },
+    });
+
+    // Assert: idempotent success — same response, no error
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toEqual({ ok: true, paused: true });
+    expect(mockSetDetectionPaused).toHaveBeenCalledWith(true);
+  });
+
+  // --- Test 10 (idempotency): POST /api/controls/emergency-stop when already paused ---
+  it('POST /api/controls/emergency-stop when detection is already paused still processes sells and returns summary', async () => {
+    // Arrange: detection already paused, one MONITORING trade exists
+    mockGetDetectionPaused.mockReturnValue(true);
+    const trade = makeTrade({ id: 5, mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', amountTokens: 500_000 });
+    mockGetMonitoringTrades.mockReturnValue([trade]);
+
+    // Act: emergency-stop called again
+    const res = await fastify.inject({
+      method: 'POST',
+      url: '/api/controls/emergency-stop',
+    });
+
+    // Assert: still returns paused=true and sellResults for existing positions
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.paused).toBe(true);
+    expect(mockSetDetectionPaused).toHaveBeenCalledWith(true);
+    expect(body.sellResults).toHaveLength(1);
+    expect(body.sellResults[0].status).toBe('triggered');
+    expect(mockTriggerSell).toHaveBeenCalledTimes(1);
+  });
+
+  // --- Test 11 (partial failure): POST /api/controls/emergency-stop with one sell throwing ---
+  it('POST /api/controls/emergency-stop returns mixed sellResults when one triggerSell throws', async () => {
+    // Arrange: two MONITORING trades, first sell will throw, second will succeed
+    const trade1 = makeTrade({ id: 10, mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', amountTokens: 1_000_000 });
+    const trade2 = makeTrade({ id: 11, mint: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', amountTokens: 2_000_000 });
+    mockGetMonitoringTrades.mockReturnValue([trade1, trade2]);
+    mockTriggerSell
+      .mockImplementationOnce(() => { throw new Error('RPC error on first sell'); })
+      .mockImplementationOnce(() => { /* success, no-op */ });
+
+    // Act
+    const res = await fastify.inject({
+      method: 'POST',
+      url: '/api/controls/emergency-stop',
+    });
+
+    // Assert: response is 200 with mixed statuses (partial failure does not fail the whole request)
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.paused).toBe(true);
+    expect(body.sellResults).toHaveLength(2);
+
+    const statuses = body.sellResults.map((r: { status: string }) => r.status);
+    expect(statuses).toContain('failed');
+    expect(statuses).toContain('triggered');
+  });
 });
