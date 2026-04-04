@@ -30,6 +30,8 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   const [lastTick, setLastTick]     = useState(Date.now());
   const [hoveredView, setHovered]   = useState<View | null>(null);
   const [healthStatus, setHealthStatus] = useState<'healthy' | 'degraded' | 'down'>('healthy');
+  const [lastHealthFetch, setLastHealthFetch] = useState(Date.now());
+  const [healthStale, setHealthStale] = useState(false);
 
   // Poll /api/stats + /api/health + paused state every 5 s
   useEffect(() => {
@@ -53,6 +55,8 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
         if (healthRes.ok) {
           const healthData = await healthRes.json() as { status: string };
           setHealthStatus(healthData.status as 'healthy' | 'degraded' | 'down');
+          setLastHealthFetch(Date.now());
+          setHealthStale(false);
         }
       } catch { /* ignore */ }
     };
@@ -63,12 +67,14 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
   }, []);
 
   // Connection staleness check — mark disconnected if no successful poll in 15s
+  // Health staleness check — gray dot when health data >30s old (T-21-06)
   useEffect(() => {
     const id = setInterval(() => {
       if (Date.now() - lastTick > 15_000) setConnected(false);
+      if (Date.now() - lastHealthFetch > 30_000) setHealthStale(true);
     }, 5000);
     return () => clearInterval(id);
-  }, [lastTick]);
+  }, [lastTick, lastHealthFetch]);
 
   const pnl      = stats?.totalPnlSol ?? 0;
   const pnlPos   = pnl >= 0;
@@ -143,7 +149,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  background: healthStatus === 'healthy' ? 'var(--green)' : healthStatus === 'degraded' ? 'var(--yellow)' : 'var(--red)',
+                  background: healthStale ? 'var(--gray)' : healthStatus === 'healthy' ? 'var(--green)' : healthStatus === 'degraded' ? 'var(--yellow)' : 'var(--red)',
                   flexShrink: '0',
                 }} />
               )}

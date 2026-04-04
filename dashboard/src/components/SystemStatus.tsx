@@ -84,6 +84,9 @@ export function SystemStatus() {
   const [healthError, setHealthError] = useState('');
   const [metricsError, setMetricsError] = useState('');
   const [alertsError, setAlertsError] = useState('');
+  const [lastHealthFetch, setLastHealthFetch] = useState(Date.now());
+  const [lastMetricsFetch, setLastMetricsFetch] = useState(Date.now());
+  const [staleSecs, setStaleSecs] = useState({ health: 0, metrics: 0 });
 
   const ALERT_PAGE_SIZE = 50;
 
@@ -93,7 +96,7 @@ export function SystemStatus() {
     const loadHealth = async () => {
       try {
         const res = await fetch('/api/health');
-        if (res.ok) { setHealth(await res.json() as HealthData); setHealthError(''); }
+        if (res.ok) { setHealth(await res.json() as HealthData); setHealthError(''); setLastHealthFetch(Date.now()); }
         else setHealthError('Unable to load system status');
       } catch { setHealthError('Unable to load system status'); }
     };
@@ -101,7 +104,7 @@ export function SystemStatus() {
     const loadMetrics = async () => {
       try {
         const res = await fetch('/api/metrics');
-        if (res.ok) { setMetrics(await res.json() as MetricsResponse); setMetricsError(''); }
+        if (res.ok) { setMetrics(await res.json() as MetricsResponse); setMetricsError(''); setLastMetricsFetch(Date.now()); }
         else setMetricsError('Unable to load RPC metrics');
       } catch { setMetricsError('Unable to load RPC metrics'); }
     };
@@ -123,9 +126,17 @@ export function SystemStatus() {
     void loadHealth();
     void loadMetrics();
     void loadAlerts();
-    const id = setInterval(() => { void loadHealth(); void loadMetrics(); }, 10000);
-    return () => clearInterval(id);
-  }, []);
+    const pollId = setInterval(() => { void loadHealth(); void loadMetrics(); }, 10000);
+    // Staleness tracker — update seconds-ago count every 5s (T-21-14)
+    const staleId = setInterval(() => {
+      const now = Date.now();
+      setStaleSecs({
+        health: Math.round((now - lastHealthFetch) / 1000),
+        metrics: Math.round((now - lastMetricsFetch) / 1000),
+      });
+    }, 5000);
+    return () => { clearInterval(pollId); clearInterval(staleId); };
+  }, [lastHealthFetch, lastMetricsFetch]);
 
   // ---- Load more alerts -----------------------------------------------------
 
@@ -146,13 +157,23 @@ export function SystemStatus() {
     setAlertsLoading(false);
   };
 
+  // ---- Stale indicator (T-21-14) ---------------------------------------------
+
+  const StaleIndicator = ({ seconds }: { seconds: number }) =>
+    seconds > 30 ? (
+      <span style={STALE_LABEL}>STALE {seconds}s ago</span>
+    ) : null;
+
   // ---- Section 1: Component Health ------------------------------------------
 
   const healthComponents = health ? Object.entries(health.components) : [];
 
   const renderHealthSection = () => (
     <section style={SECTION}>
-      <div style={SECTION_HEADER}>COMPONENT HEALTH</div>
+      <div style={{ ...SECTION_HEADER, display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+        <span>COMPONENT HEALTH</span>
+        <StaleIndicator seconds={staleSecs.health} />
+      </div>
       {healthError ? (
         <div style={ERROR_TEXT}>{healthError}</div>
       ) : !health ? (
@@ -190,7 +211,10 @@ export function SystemStatus() {
 
   const renderMetricsSection = () => (
     <section style={SECTION}>
-      <div style={SECTION_HEADER}>RPC PERFORMANCE</div>
+      <div style={{ ...SECTION_HEADER, display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+        <span>RPC PERFORMANCE</span>
+        <StaleIndicator seconds={staleSecs.metrics} />
+      </div>
       {metricsError ? (
         <div style={ERROR_TEXT}>{metricsError}</div>
       ) : !metrics ? (
@@ -469,4 +493,14 @@ const EMPTY_TEXT: Record<string, string> = {
   color:    'var(--gray)',
   fontSize: '13px',
   padding:  'var(--sp-3)',
+};
+
+const STALE_LABEL: Record<string, string> = {
+  background:    'rgba(255, 204, 0, 0.15)',
+  color:         'var(--yellow)',
+  fontSize:      '9px',
+  fontWeight:    '700',
+  letterSpacing: '0.1em',
+  padding:       '2px 6px',
+  borderRadius:  'var(--r-sm)',
 };
