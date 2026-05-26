@@ -78,28 +78,26 @@ export async function checkRugCheck(
     }, null];
   }
 
-  const url = `${RUGCHECK_BASE_URL}/${mint}/report/summary`;
+  // RugCheck documents the key as a ?key= query parameter (not a header).
+  // Mirror tier3-creator's query-param auth. Empty/whitespace key => clean public mode.
+  const trimmedKey = apiKey?.trim();
+  const url = trimmedKey
+    ? `${RUGCHECK_BASE_URL}/${mint}/report/summary?key=${trimmedKey}`
+    : `${RUGCHECK_BASE_URL}/${mint}/report/summary`;
 
   const start = Date.now();
   let success = false;
   try {
-    let response = await fetch(url, {
-      signal,
-      headers: {
-        'X-API-KEY': apiKey ?? '',
-      },
-    });
+    let response = await fetch(url, { signal });
 
-    // Single retry on transient errors (429, 5xx) if time budget allows
+    // Single retry on transient errors (429, 5xx) if time budget allows.
+    // Retry re-fetches the SAME url (key already carried in the query string).
     if (!response.ok && (response.status === 429 || response.status >= 500) && !signal.aborted) {
       const retryAfter = response.headers.get('retry-after');
       const delayMs = retryAfter ? Math.min(Number(retryAfter) * 1000, 2000) : RETRY_DELAY_MS;
       await new Promise(r => setTimeout(r, delayMs));
       if (!signal.aborted) {
-        response = await fetch(url, {
-          signal,
-          headers: { 'X-API-KEY': apiKey ?? '' },
-        });
+        response = await fetch(url, { signal });
       }
     }
 
@@ -108,6 +106,21 @@ export async function checkRugCheck(
     // D-10: HTTP 429 rate limit detection
     if (response.status === 429) {
       alertCb?.('rugcheck:report', 'rate_limit', 'HTTP 429 rate limit from rugcheck:report');
+    }
+
+    // Auth failure (rejected/expired key): make it LOUD and diagnosable.
+    // SAFETY INVARIANT: still returns { pass: true, score: 0 } -- diagnosability only,
+    // never a hard block. An auth failure must not be silently swallowed as a max-risk token.
+    if (response.status === 401 || response.status === 403) {
+      log.error({ mint, status: response.status }, 'RugCheck API key rejected -- check RUGCHECK_API_KEY');
+      alertCb?.('rugcheck:report', 'auth_failure',
+        `RugCheck API key rejected (HTTP ${response.status}) -- check RUGCHECK_API_KEY`);
+      return [{
+        pass: true,
+        score: 0,
+        source: 'rugcheck',
+        detail: `HTTP ${response.status}`,
+      }, null];
     }
 
     if (!response.ok) {
@@ -135,7 +148,11 @@ export async function checkRugCheck(
       detail: `score_normalised=${data.score_normalised} risks=${data.risks.length}`,
     }, resultData];
   } catch (err: unknown) {
-    log.warn({ mint, err }, 'RugCheck API fetch error or timeout');
+    // Secret hygiene: the key now lives in the URL. Scrub it and never log the raw
+    // err object (its stack can carry the unredacted URL).
+    const safeUrl = url.replace(/key=[^&]+/, 'key=***');
+    log.warn({ mint, url: safeUrl, err: err instanceof Error ? err.message : String(err) },
+      'RugCheck API fetch error or timeout');
     return [{
       pass: true,
       score: 0,

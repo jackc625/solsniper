@@ -88,20 +88,22 @@ describe('checkRugCheck', () => {
     expect(data).toBeNull();
   });
 
-  it('sends X-API-KEY header when apiKey provided', async () => {
+  it('sends key as ?key= query param when apiKey provided', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse(200, makeSuccessResponse(20, 1)));
 
     const signal = new AbortController().signal;
     await checkRugCheck(MOCK_MINT, MOCK_API_KEY, signal);
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [_url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(options.headers).toBeDefined();
-    const headers = options.headers as Record<string, string>;
-    expect(headers['X-API-KEY']).toBe(MOCK_API_KEY);
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain(`key=${MOCK_API_KEY}`);
+    // No X-API-KEY header should be sent anymore
+    const options = mockFetch.mock.calls[0][1] as RequestInit | undefined;
+    const headers = (options?.headers ?? {}) as Record<string, string>;
+    expect(headers['X-API-KEY']).toBeUndefined();
   });
 
-  it('handles missing apiKey gracefully (sends empty string header)', async () => {
+  it('sends no key param in public mode when apiKey omitted', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse(200, makeSuccessResponse(10, 0)));
 
     const signal = new AbortController().signal;
@@ -110,9 +112,39 @@ describe('checkRugCheck', () => {
     expect(result.pass).toBe(true);
     expect(result.score).toBe(90);
 
-    const [_url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-    const headers = options.headers as Record<string, string>;
-    expect(headers['X-API-KEY']).toBe('');
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).not.toContain('key=');
+  });
+
+  it('emits auth_failure alert and stays pass=true on HTTP 401', async () => {
+    // 401 is NOT in the retry set, so fetch is called exactly once.
+    mockFetch.mockResolvedValueOnce(mockResponse(401, { error: 'invalid api key' }));
+    const mockAlert = vi.fn();
+
+    const signal = new AbortController().signal;
+    const [result, data] = await checkRugCheck(
+      MOCK_MINT,
+      MOCK_API_KEY,
+      signal,
+      undefined,
+      mockAlert,
+    );
+
+    // Safety semantics unchanged: still pass=true, score=0 (diagnosability only).
+    expect(result.pass).toBe(true);
+    expect(result.score).toBe(0);
+    expect(result.source).toBe('rugcheck');
+    expect(result.detail).toBe('HTTP 401');
+    expect(data).toBeNull();
+
+    // Loud, diagnosable alert naming the env var.
+    expect(mockAlert).toHaveBeenCalledWith(
+      'rugcheck:report',
+      'auth_failure',
+      expect.stringContaining('RUGCHECK_API_KEY'),
+    );
+
+    expect(mockFetch).toHaveBeenCalledOnce();
   });
 
   it('clamps score to 0-100 range', async () => {
