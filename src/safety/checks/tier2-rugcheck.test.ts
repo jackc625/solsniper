@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-import { checkRugCheck } from './tier2-rugcheck.js';
+import { checkRugCheck, _resetCircuitBreaker } from './tier2-rugcheck.js';
 import type { RugCheckResultData } from './tier2-rugcheck.js';
 
 const MOCK_MINT = 'So11111111111111111111111111111111111111112';
@@ -29,12 +29,14 @@ function mockResponse(status: number, body: unknown) {
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(body),
+    headers: { get: () => null },
   };
 }
 
 describe('checkRugCheck', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetCircuitBreaker();
   });
 
   afterEach(() => {
@@ -56,8 +58,11 @@ describe('checkRugCheck', () => {
     expect(data!.risks).toHaveLength(3);
   });
 
-  it('returns score=0 on non-200 response (pessimistic)', async () => {
-    mockFetch.mockResolvedValueOnce(mockResponse(500, { error: 'internal server error' }));
+  it('returns score=0 on non-200 response (pessimistic) after retry', async () => {
+    // First call returns 500, retry also returns 500
+    mockFetch
+      .mockResolvedValueOnce(mockResponse(500, { error: 'internal server error' }))
+      .mockResolvedValueOnce(mockResponse(500, { error: 'internal server error' }));
 
     const signal = new AbortController().signal;
     const [result, data] = await checkRugCheck(MOCK_MINT, MOCK_API_KEY, signal);
@@ -67,6 +72,7 @@ describe('checkRugCheck', () => {
     expect(result.source).toBe('rugcheck');
     expect(result.detail).toContain('500');
     expect(data).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(2); // original + 1 retry
   });
 
   it('returns score=0 on fetch error/timeout (pessimistic)', async () => {

@@ -5,7 +5,7 @@ import type { Blocklist } from '../../safety/blocklist.js';
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-import { checkCreatorHistory } from './tier3-creator.js';
+import { checkCreatorHistory, _resetCircuitBreaker } from './tier3-creator.js';
 
 const MOCK_CREATOR = 'GThUX1Atko4tqhN2NaiTazFAcaPNtRDiMSCLDZPeHmKS';
 const MOCK_HELIUS_KEY = 'test-helius-api-key';
@@ -34,12 +34,14 @@ function mockJsonResponse(status: number, body: unknown) {
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(body),
+    headers: { get: () => null },
   };
 }
 
 describe('checkCreatorHistory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetCircuitBreaker();
   });
 
   afterEach(() => {
@@ -181,7 +183,7 @@ describe('checkCreatorHistory', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('passes API key via X-Api-Key header, not in URL query parameter (SEC-02)', async () => {
+  it('passes API key as query parameter (Helius requires api-key in URL, not header)', async () => {
     const blocklist = makeMockBlocklist(false);
     const signal = new AbortController().signal;
 
@@ -190,15 +192,9 @@ describe('checkCreatorHistory', () => {
     await checkCreatorHistory(MOCK_CREATOR, MOCK_HELIUS_KEY, blocklist, signal);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [fetchUrl, fetchOptions] = mockFetch.mock.calls[0];
+    const [fetchUrl] = mockFetch.mock.calls[0];
 
-    // Key must NOT be in URL
-    expect(fetchUrl).not.toContain('api-key=');
-    expect(fetchUrl).not.toContain('api_key=');
-    expect(fetchUrl).not.toContain(MOCK_HELIUS_KEY);
-
-    // Key must be in X-Api-Key header
-    expect(fetchOptions.headers).toBeDefined();
-    expect(fetchOptions.headers['X-Api-Key']).toBe(MOCK_HELIUS_KEY);
+    // Key must be in URL as api-key query parameter (Helius Enhanced Transactions API requirement)
+    expect(fetchUrl).toContain(`api-key=${MOCK_HELIUS_KEY}`);
   });
 });

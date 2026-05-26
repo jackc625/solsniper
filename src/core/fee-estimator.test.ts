@@ -109,18 +109,22 @@ describe('FeeEstimator', () => {
     expect(result.source).toBe('fallback');
   });
 
-  it('falls back when Helius returns non-ok status', async () => {
-    fetchSpy.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    });
+  it('falls back when Helius returns non-ok status (after retry)', async () => {
+    // Both initial and retry return 500
+    fetchSpy
+      .mockResolvedValueOnce({ ok: false, status: 500, headers: { get: () => null } })
+      .mockResolvedValueOnce({ ok: false, status: 500, headers: { get: () => null } });
 
     const estimator = new FeeEstimator('https://rpc.example.com', 5000);
     const config = makeConfig({ baseLamports: 50_000, multiplier: 3 });
-    const result = await estimator.getEstimate(config);
+
+    const resultPromise = estimator.getEstimate(config);
+    await vi.advanceTimersByTimeAsync(300); // advance past retry delay
+    const result = await resultPromise;
 
     expect(result.maxLamports).toBe(150_000); // 50_000 * 3
     expect(result.source).toBe('fallback');
+    expect(fetchSpy).toHaveBeenCalledTimes(2); // original + 1 retry
   });
 
   it('caches estimate within TTL (does not call fetch again)', async () => {

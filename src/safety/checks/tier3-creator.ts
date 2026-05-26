@@ -7,17 +7,26 @@ import { createModuleLogger } from '../../core/logger.js';
 const log = createModuleLogger('tier3-creator');
 const HELIUS_TX_URL = 'https://api-mainnet.helius-rpc.com/v0/addresses';
 const SERIAL_DEPLOYER_THRESHOLD = 10;
+const DEFAULT_COOLDOWN_MS = 30_000; // 30s cooldown after consecutive failures
+const RETRY_DELAY_MS = 300;         // 300ms backoff before single retry
 
 // D-10: Module-level monitoring state (set from index.ts)
 let _metricsTracker: MetricsTracker | undefined;
 let _onApiAlert: ApiAlertCallback | undefined;
 let _apiFailureThreshold = 5;
 let consecutiveFailures = 0;
+let cooldownUntil = 0;
 
 export function setCreatorCheckMonitoring(mt: MetricsTracker, cb: ApiAlertCallback, threshold = 5): void {
   _metricsTracker = mt;
   _onApiAlert = cb;
   _apiFailureThreshold = threshold;
+}
+
+/** Exposed for testing only. */
+export function _resetCircuitBreaker(): void {
+  consecutiveFailures = 0;
+  cooldownUntil = 0;
 }
 
 interface HeliusTx {
@@ -129,15 +138,34 @@ export async function checkCreatorHistory(
     };
   }
 
-  const url = `${HELIUS_TX_URL}/${creator}/transactions?type=TOKEN_MINT&limit=10`;
+  // Circuit breaker: skip API call during cooldown
+  if (Date.now() < cooldownUntil) {
+    log.debug({ creator }, 'Helius circuit breaker active -- skipping API call');
+    return {
+      pass: true,
+      score: 0,
+      source: 'creator_history',
+      detail: 'circuit_breaker_open',
+    };
+  }
+
+  // Helius Enhanced Transactions API requires api-key as query parameter (not header)
+  const url = `${HELIUS_TX_URL}/${creator}/transactions?api-key=${heliusApiKey}&type=TOKEN_MINT&limit=10`;
 
   const start = Date.now();
   let success = false;
   try {
-    const response = await fetch(url, {
-      signal,
-      headers: { 'X-Api-Key': heliusApiKey },
-    });
+    let response = await fetch(url, { signal });
+
+    // Single retry on transient errors (429, 5xx) if time budget allows
+    if (!response.ok && (response.status === 429 || response.status >= 500) && !signal.aborted) {
+      const retryAfter = response.headers.get('retry-after');
+      const delayMs = retryAfter ? Math.min(Number(retryAfter) * 1000, 2000) : RETRY_DELAY_MS;
+      await new Promise(r => setTimeout(r, delayMs));
+      if (!signal.aborted) {
+        response = await fetch(url, { signal });
+      }
+    }
 
     success = response.ok;
 
@@ -174,7 +202,8 @@ export async function checkCreatorHistory(
       detail: analysis.detail,
     };
   } catch (err: unknown) {
-    log.warn({ creator, url, err }, 'Helius API fetch error or timeout');
+    const safeUrl = url.replace(/api-key=[^&]+/, 'api-key=***');
+    log.warn({ creator, url: safeUrl, err }, 'Helius API fetch error or timeout');
     return {
       pass: true,
       score: 0,
@@ -184,15 +213,17 @@ export async function checkCreatorHistory(
   } finally {
     mt?.record('helius:das-api', Date.now() - start, success);
 
-    // D-10: Consecutive failure tracking
+    // D-10: Consecutive failure tracking + circuit breaker activation
     if (!success) {
       consecutiveFailures++;
       if (consecutiveFailures >= threshold) {
+        cooldownUntil = Date.now() + DEFAULT_COOLDOWN_MS;
         alertCb?.('helius:das-api', 'consecutive_failure',
-          `${consecutiveFailures} consecutive failures on helius:das-api`);
+          `${consecutiveFailures} consecutive failures on helius:das-api -- circuit breaker open for ${DEFAULT_COOLDOWN_MS / 1000}s`);
       }
     } else {
       consecutiveFailures = 0;
+      cooldownUntil = 0;
     }
   }
 }
