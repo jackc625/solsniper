@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: Hardening & Polish
 status: executing
 stopped_at: Completed 21-04-PLAN.md
-last_updated: "2026-04-16T17:24:27.548Z"
-last_activity: 2026-04-16 -- Completed quick task 260416-imd: Write brand-new README.md reverse-engineered from codebase per TASK.md
+last_updated: "2026-05-26T19:41:57.000Z"
+last_activity: 2026-05-26 -- Completed quick task 260526-krq: audit RugCheck API wiring (?key= auth fix + loud auth_failure alerts)
 progress:
   total_phases: 5
   completed_phases: 4
@@ -129,10 +129,11 @@ None.
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
 | 260416-imd | Write brand-new README.md reverse-engineered from codebase per TASK.md | 2026-04-16 | 5965d46 | Verified | [260416-imd-write-brand-new-readme-md-reverse-engine](./quick/260416-imd-write-brand-new-readme-md-reverse-engine/) |
+| 260526-krq | audit RugCheck API wiring | 2026-05-26 | ddd05ad | Verified | [260526-krq-audit-rugcheck-api-wiring](./quick/260526-krq-audit-rugcheck-api-wiring/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-16 -- Completed quick task 260416-imd: Write brand-new README.md reverse-engineered from codebase per TASK.md
-Last session: 2026-04-16T17:24:27.548Z
-Stopped at: Completed quick task 260416-imd
+Last activity: 2026-05-26 -- Completed quick task 260526-krq: audit RugCheck API wiring
+Last session: 2026-05-26T19:41:57.000Z
+Stopped at: Completed quick task 260526-krq
 Resume file: None
