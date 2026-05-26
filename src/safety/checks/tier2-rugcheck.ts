@@ -82,7 +82,7 @@ export async function checkRugCheck(
   // Mirror tier3-creator's query-param auth. Empty/whitespace key => clean public mode.
   const trimmedKey = apiKey?.trim();
   const url = trimmedKey
-    ? `${RUGCHECK_BASE_URL}/${mint}/report/summary?key=${trimmedKey}`
+    ? `${RUGCHECK_BASE_URL}/${mint}/report/summary?key=${encodeURIComponent(trimmedKey)}`
     : `${RUGCHECK_BASE_URL}/${mint}/report/summary`;
 
   const start = Date.now();
