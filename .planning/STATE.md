@@ -2,41 +2,38 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Hardening & Polish
-status: executing
-stopped_at: Completed 21-04-PLAN.md
-last_updated: "2026-05-26T19:41:57.000Z"
-last_activity: 2026-05-26 -- Completed quick task 260526-krq: audit RugCheck API wiring (?key= auth fix + loud auth_failure alerts)
+status: Awaiting next milestone
+last_updated: "2026-05-26T22:05:24.899Z"
+last_activity: 2026-05-26 — Milestone v1.1 completed and archived
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 22
   completed_plans: 21
-  percent: 95
+  percent: 80
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-27)
+See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Land buy transactions in the first block on new token launches while filtering out scams -- speed and safety together.
-**Current focus:** Phase 21 — dashboard-overhaul
+**Current focus:** Awaiting next milestone (v1.2 not yet scoped)
 
 ## Current Position
 
-Phase: 21
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-04 -- Phase 21 planning complete
-
-Progress: [#####.....] 50%
+Phase: Milestone v1.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-26 — Milestone v1.1 completed and archived
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4 (v1.1)
+- Total plans completed: 9 (v1.1)
 - Average duration: 7 min
 - Total execution time: 26 min
 
@@ -51,6 +48,7 @@ Progress: [#####.....] 50%
 | Phase 18 P02 | 4 | 2 tasks | 6 files |
 | Phase 18 P04 | 8 | 2 tasks | 4 files |
 | Phase 19 P01 | 7 | 2 tasks | 7 files |
+| 21 | 5 | - | - |
 
 **Recent Trend:**
 
@@ -121,8 +119,12 @@ None.
 
 ### Blockers/Concerns
 
-- Safety threshold calibration requires trade data analysis -- cannot be derived from code alone; Phase 18 planning must start with data collection
-- Force-sell race condition design needed -- dashboard write path is architecturally new; Phase 21 planning must address sellsInFlight coordination
+- ⚠️ [Phase 21] Force-sell UI flow unverified in UAT -- no open position to test against (dry-run + minSafetyScore 80, empty positions table). Endpoint is code-verified; revisit by temporarily lowering minSafetyScore to create a dry-run position.
+
+Resolved this milestone:
+
+- ✓ Safety threshold calibration (needed trade data) -- addressed in Phase 18
+- ✓ Force-sell race condition coordination -- isSellInFlight() added in Phase 21-01
 
 ### Quick Tasks Completed
 
@@ -131,9 +133,22 @@ None.
 | 260416-imd | Write brand-new README.md reverse-engineered from codebase per TASK.md | 2026-04-16 | 5965d46 | Verified | [260416-imd-write-brand-new-readme-md-reverse-engine](./quick/260416-imd-write-brand-new-readme-md-reverse-engine/) |
 | 260526-krq | audit RugCheck API wiring | 2026-05-26 | ddd05ad | Verified | [260526-krq-audit-rugcheck-api-wiring](./quick/260526-krq-audit-rugcheck-api-wiring/) |
 
+## Deferred Items
+
+Items acknowledged and deferred at milestone v1.1 close on 2026-05-26:
+
+| Category | Item | Status | Notes |
+|----------|------|--------|-------|
+| requirement | SAF-10 | partial | Audit report generated (outcomes only — `reports/safety-audit-2026-05-26.md`); FP/FN pending live safety-scored trades (all DB trades predate Phase 18 persistence) |
+| debug | config-changed-sse-feed | diagnosed | SSE drops when navigating away from Feed tab; may be moot after Phase 21 connection-bar rework — verify before reopening |
+
 ## Session Continuity
 
-Last activity: 2026-05-26 -- Completed quick task 260526-krq: audit RugCheck API wiring
-Last session: 2026-05-26T19:41:57.000Z
-Stopped at: Completed quick task 260526-krq
+Last activity: 2026-05-26 -- Phase 21 UAT complete (15/16 passed, force-sell skipped); milestone v1.1 complete
+Last session: 2026-05-26T20:49:51.000Z
+Stopped at: Phase 21 complete -- milestone v1.1 (Hardening & Polish) complete, all 5 phases done
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

@@ -21,27 +21,31 @@ Land buy transactions in the first block on new token launches while filtering o
 - ✓ DASH-01 to DASH-06: Web dashboard with SSE feed, P&L, and live config — v1.0
 - ✓ DRY-01 to DRY-08: Dry-run mode with gate interception and shadow tracking — v1.0
 - ✓ UI-01 to UI-06: Industrial trading terminal with sidebar layout and rich feed cards — v1.0
+- ✓ SEC-01 to SEC-04: Security hardening — SQL audit, API key handling, config validation, dependency fixes — v1.1
+- ✓ SAF-11 to SAF-14: Safety enhancement — liquidity depth, LP lock, metadata mutability checks — v1.1
+- ✓ EXE-10 to EXE-12: Execution performance — dynamic Helius fees, CU optimization, balance guard — v1.1
+- ✓ REL-01 to REL-04: Reliability & monitoring — health endpoints, system alerts, per-RPC metrics, log rotation — v1.1
+- ✓ DASH-07 to DASH-10: Dashboard overhaul — per-source analytics, live pipeline view, operational controls, system status — v1.1
+
+### Partially Validated
+
+- ◐ SAF-10: Safety pass/fail audit vs real outcomes — audit tooling + first trade-outcome report shipped (v1.1, `reports/safety-audit-2026-05-26.md`); false-positive/negative quantification deferred until live safety-scored trades accumulate
 
 ### Active
 
-(Defined in REQUIREMENTS.md for v1.1)
+(None — next milestone not yet defined. Run `/gsd-new-milestone` to scope v1.2.)
 
-- ✓ SEC-01 to SEC-04: Security hardening — SQL audit, API key migration, config validation, dependency fixes — v1.1 Phase 17
-- ✓ SAF-11 to SAF-14: Safety pipeline enhancement — liquidity depth, LP lock, metadata mutability checks — v1.1 Phase 18
-- ✓ EXE-10 to EXE-12: Execution performance — dynamic Helius fees, CU optimization, balance guard — v1.1 Phase 19
-- ✓ REL-01 to REL-04: Reliability & monitoring — health endpoints, system alerts, per-RPC metrics, log rotation — v1.1 Phase 20
-- ✓ DASH-07 to DASH-10: Dashboard overhaul — per-source analytics, live pipeline view, operational controls, system status — v1.1 Phase 21
+## Current State
 
-## Current Milestone: v1.1 Hardening & Polish
+**Shipped:** v1.1 Hardening & Polish (Phases 17-21), archived 2026-05-26. The bot is production-hardened — security findings closed, safety pipeline extended with liquidity-depth / LP-lock / metadata-mutability checks, dynamic Helius priority fees + Jito CU simulation + balance guard, health/metrics/alert monitoring with log rotation, and a full dashboard overhaul (per-source analytics, live safety-pipeline view, pause/force-sell/emergency-stop controls, system status).
 
-**Goal:** Harden the bot across security, safety accuracy, trading performance, dashboard UX, and operational reliability — make everything production-grade.
+**Known deferred:**
+- SAF-10 FP/FN analysis — needs live safety-scored trades (all DB trades predate Phase 18 persistence)
+- `config-changed-sse-feed` — diagnosed SSE-drop-on-tab-switch bug; may be moot after Phase 21 connection-bar rework, unconfirmed
 
-**Target features:**
-- ~~Fix all 4 BUGS.md security findings~~ (Phase 17 complete — SQL confirmed safe, API key in header, config validated, deps patched)
-- ~~Safety pipeline audit~~ (Phase 18 complete — 3 new rug checks, scoring calibrated, pipeline wired)
-- ~~Execution optimization~~ (Phase 19 complete — dynamic Helius fees, Jito CU simulation, balance guard)
-- ~~Reliability & monitoring~~ (Phase 20 complete — health endpoints, system alerts, per-endpoint metrics, log rotation)
-- ~~Dashboard overhaul~~ (Phase 21 complete — per-source analytics, live pipeline view, controls with force-sell and e-stop, system status monitoring)
+## Next Milestone
+
+Not yet defined. Candidate directions in REQUIREMENTS.md "Future Requirements": SAF-15/16 (holder-cluster + token-age), EXE-13/14/15 (adaptive sells, dynamic Jito tips, late-step simulation), REL-05 (adaptive polling). Run `/gsd-new-milestone` to scope v1.2.
 
 ### Out of Scope
 
@@ -56,15 +60,17 @@ Land buy transactions in the first block on new token launches while filtering o
 
 ## Context
 
-Shipped v1.0 with 13,653 LOC TypeScript/TSX/CSS across 243 commits in 31 days.
+Shipped v1.0 (13,653 LOC, 243 commits, 31 days) then v1.1 Hardening & Polish (Phases 17-21). Test suite at 474 tests green as of Phase 21.
 
-**Tech stack:** TypeScript ES2022, Node.js, @solana/web3.js v1, Jupiter Swap API, PumpPortal APIs, better-sqlite3, pino, Fastify 5 + @fastify/sse, Preact + Vite, lightweight-charts.
+**Tech stack:** TypeScript ES2022, Node.js, @solana/web3.js v1, Jupiter Swap API, PumpPortal APIs, better-sqlite3, pino + pino-roll, Fastify 5 + @fastify/sse, Preact + Vite, lightweight-charts. ESLint 10 with custom security rules.
 
-**Architecture:** Reactive event-driven pipeline: Detection → Safety → Execution → Position Management, with SQLite write-ahead persistence and SSE-connected web dashboard.
+**Architecture:** Reactive event-driven pipeline: Detection → Safety → Execution → Position Management, with SQLite write-ahead persistence, a HealthService / MetricsTracker / AlertStore monitoring layer, and an SSE-connected web dashboard.
 
 **Known tech debt:**
+- SAF-10 FP/FN audit deferred — needs live safety-scored trade data
+- `config-changed-sse-feed` diagnosed SSE bug — deferred, possibly moot post-Phase-21
+- Nyquist validation: only Phase 21 fully compliant; phases 17-20 have draft VALIDATION.md (tests green, formal pass pending)
 - 12 test files need Jupiter API key mock (pre-existing since Phase 9)
-- Nyquist validation coverage partial (1/16 phases fully compliant)
 
 ## Constraints
 
@@ -88,6 +94,11 @@ Shipped v1.0 with 13,653 LOC TypeScript/TSX/CSS across 243 commits in 31 days.
 | Pattern A (getAccountInfo + unpackMint) | Handles both SPL Token and Token-2022 | ✓ Good — critical for pump.fun create_v2 |
 | getRuntimeConfig() hot-reload | Live config changes without restart | ✓ Good — dashboard Settings work immediately |
 | Dual-gate dry-run interception | Full mainnet pipeline minus real transactions | ✓ Good — safe validation |
+| Helius key via X-Api-Key header then reverted to query-param (v1.1 P17→P18) | Enhanced Transactions API only supports query-param auth | ⚠️ Revisit — works + key scrubbed from logs; requirement wording corrected |
+| Liquidity depth as Tier-1 hard gate; LP-lock + metadata as Tier-2 penalties (v1.1 P18) | Hard-reject illiquid tokens; soft-penalize rug signals | ✓ Good |
+| Dynamic Helius priority fees + Jito CU simulation (v1.1 P19) | Network-aware fees; tight CU vs 200K default | ✓ Good |
+| Module-level setter injection for monitoring wiring (v1.1 P20) | Avoids cascading constructor changes through engine/ladder/pipeline | ✓ Good |
+| Client-side per-source analytics from existing /api/trades/history (v1.1 P21) | No new backend endpoint; reuse trade history | ✓ Good |
 
 ## Evolution
 
@@ -107,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after Phase 17 completion*
+*Last updated: 2026-05-26 — v1.1 Hardening & Polish shipped and archived*
