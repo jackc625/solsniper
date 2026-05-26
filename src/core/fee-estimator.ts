@@ -7,8 +7,8 @@ const ESTIMATED_CU = 200_000; // Standard swap CU estimate for conversion
 const DEFAULT_COOLDOWN_MS = 30_000; // 30s cooldown after consecutive failures
 const RETRY_DELAY_MS = 300;         // 300ms backoff before single retry
 
-/** Callback for consecutive failure / rate limit alert emission (wired in index.ts). */
-export type ApiAlertCallback = (endpoint: string, type: 'consecutive_failure' | 'rate_limit', message: string) => void;
+/** Callback for consecutive failure / rate limit / auth failure alert emission (wired in index.ts). */
+export type ApiAlertCallback = (endpoint: string, type: 'consecutive_failure' | 'rate_limit' | 'auth_failure', message: string) => void;
 
 export interface FeeEstimate {
   maxLamports: number;       // For Jupiter paths: total lamports cap

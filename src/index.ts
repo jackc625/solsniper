@@ -127,7 +127,7 @@ async function main(): Promise<void> {
   // 6.6. API failure/rate-limit alert callback (REL-02, D-10)
   const apiFailureThreshold = tradingConfig.monitoring.apiFailureThreshold;
   const onApiAlert: ApiAlertCallback = (endpoint, type, message) => {
-    const severity = type === 'rate_limit' ? 'error' as const : 'warn' as const;
+    const severity = type === 'rate_limit' || type === 'auth_failure' ? 'error' as const : 'warn' as const;
     const alertSource = type === 'rate_limit' ? 'rateLimit' as const : 'api' as const;
     botEventBus.emit('event', {
       type: 'SYSTEM_ALERT',
